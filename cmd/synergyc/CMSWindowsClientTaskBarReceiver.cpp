@@ -19,9 +19,7 @@
 #include "BasicTypes.h"
 #include "CArch.h"
 #include "CArchTaskBarWindows.h"
-#include "CArchMiscWindows.h"
 #include "resource.h"
-#include "CMSWindowsScreen.h"
 
 //
 // CMSWindowsClientTaskBarReceiver
@@ -58,12 +56,6 @@ CMSWindowsClientTaskBarReceiver::CMSWindowsClientTaskBarReceiver(
 }
 
 CMSWindowsClientTaskBarReceiver::~CMSWindowsClientTaskBarReceiver()
-{
-	cleanup();
-}
-
-void
-CMSWindowsClientTaskBarReceiver::cleanup()
 {
 	ARCH->removeReceiver(this);
 	for (UInt32 i = 0; i < kMaxState; ++i) {
@@ -350,21 +342,4 @@ CMSWindowsClientTaskBarReceiver::staticDlgProc(HWND hwnd,
 	else {
 		return (msg == WM_INITDIALOG) ? TRUE : FALSE;
 	}
-}
-
-IArchTaskBarReceiver*
-createTaskBarReceiver(const CBufferedLogOutputter* logBuffer)
-{
-	CArchMiscWindows::setIcons(
-		(HICON)LoadImage(CArchMiscWindows::instanceWin32(),
-		MAKEINTRESOURCE(IDI_SYNERGY),
-		IMAGE_ICON,
-		32, 32, LR_SHARED),
-		(HICON)LoadImage(CArchMiscWindows::instanceWin32(),
-		MAKEINTRESOURCE(IDI_SYNERGY),
-		IMAGE_ICON,
-		16, 16, LR_SHARED));
-
-	return new CMSWindowsClientTaskBarReceiver(
-		CMSWindowsScreen::getInstance(), logBuffer);
 }

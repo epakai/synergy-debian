@@ -201,13 +201,6 @@ private:
 	mutable UInt32		m_deadKeyState;
 	GroupList			m_groups;
 	GroupMap			m_groupMap;
-	
-	// Hold the current state of modifier keys
-	bool shiftPressed;
-	bool controlPressed;
-	bool altPressed;
-	bool superPressed;
-	bool capsPressed;
 };
 
 #endif

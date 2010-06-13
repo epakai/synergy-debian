@@ -58,6 +58,13 @@ public:
 	*/
 	virtual void		writeConsole(const char*) = 0;
 
+	//! Returns the newline sequence for the console
+	/*!
+	Different consoles use different character sequences for newlines.
+	This method returns the appropriate newline sequence for the console.
+	*/
+	virtual const char*	getNewlineForConsole() = 0;
+
 	//@}
 };
 

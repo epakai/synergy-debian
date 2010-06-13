@@ -346,9 +346,11 @@ CTCPSocket::newJob()
 void
 CTCPSocket::sendConnectionFailedEvent(const char* msg)
 {
-	CConnectionFailedInfo* info = new CConnectionFailedInfo(msg);
+	CConnectionFailedInfo* info = (CConnectionFailedInfo*)malloc(
+							sizeof(CConnectionFailedInfo) + strlen(msg));
+	strcpy(info->m_what, msg);
 	EVENTQUEUE->addEvent(CEvent(getConnectionFailedEvent(),
-							getEventTarget(), info, CEvent::kDontFreeData));
+							getEventTarget(), info));
 }
 
 void

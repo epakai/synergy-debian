@@ -22,7 +22,7 @@
 //! X11 implementation of IArchTaskBar
 class CArchTaskBarXWindows : public IArchTaskBar {
 public:
-	CArchTaskBarXWindows();
+	CArchTaskBarXWindows(void*);
 	virtual ~CArchTaskBarXWindows();
 
 	// IArchTaskBar overrides

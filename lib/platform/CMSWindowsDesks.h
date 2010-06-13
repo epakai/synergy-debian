@@ -59,7 +59,7 @@ public:
 	updated in a thread attached to the current desk.
 	\p hookLibrary must be a handle to the hook library.
 	*/
-	CMSWindowsDesks(bool isPrimary, bool noHooks, HINSTANCE hookLibrary,
+	CMSWindowsDesks(bool isPrimary, HINSTANCE hookLibrary,
 							const IScreenSaver* screensaver, IJob* updateKeys);
 	~CMSWindowsDesks();
 
@@ -240,9 +240,6 @@ private:
 private:
 	// true if screen is being used as a primary screen, false otherwise
 	bool				m_isPrimary;
-
-	// true if hooks are not to be installed (useful for debugging)
-	bool				m_noHooks;
 
 	// true if windows 95/98/me
 	bool				m_is95Family;

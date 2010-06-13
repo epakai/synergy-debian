@@ -675,9 +675,7 @@ mainWndProc(HWND hwnd, UINT message, WPARAM wParam, LPARAM lParam)
 int WINAPI
 WinMain(HINSTANCE instance, HINSTANCE, LPSTR cmdLine, int nCmdShow)
 {
-	CArchMiscWindows::setInstanceWin32(instance);
-
-	CArch arch;
+	CArch arch(instance);
 	CLOG;
 	CArgs args;
 

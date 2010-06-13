@@ -28,7 +28,7 @@
 //! Win32 implementation of IArchTaskBar
 class CArchTaskBarWindows : public IArchTaskBar {
 public:
-	CArchTaskBarWindows();
+	CArchTaskBarWindows(void*);
 	virtual ~CArchTaskBarWindows();
 
 	//! Add a dialog window 
@@ -81,10 +81,9 @@ private:
 	void				threadMainLoop();
 	static void*		threadEntry(void*);
 
-	HINSTANCE			instanceWin32();
-
 private:
 	static CArchTaskBarWindows*	s_instance;
+	static HINSTANCE	s_appInstance;
 
 	// multithread data
 	CArchMutex			m_mutex;
