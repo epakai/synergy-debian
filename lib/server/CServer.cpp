@@ -1,6 +1,5 @@
 /*
- * synergy-plus -- mouse and keyboard sharing utility
- * Copyright (C) 2009 The Synergy+ Project
+ * synergy -- mouse and keyboard sharing utility
  * Copyright (C) 2002 Chris Schoeneman
  * 
  * This package is free software; you can redistribute it and/or
@@ -11,9 +10,6 @@
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
 #include "CServer.h"
@@ -297,7 +293,7 @@ CServer::adoptClient(CBaseClientProxy* client)
 
 	// send notification
 	CServer::CScreenConnectedInfo* info =
-		new CServer::CScreenConnectedInfo(getName(client));
+		CServer::CScreenConnectedInfo::alloc(getName(client));
 	EVENTQUEUE->addEvent(CEvent(CServer::getConnectedEvent(),
 								m_primaryClient->getEventTarget(), info));
 }
@@ -1642,7 +1638,7 @@ CServer::onMouseUp(ButtonID id)
 bool
 CServer::onMouseMovePrimary(SInt32 x, SInt32 y)
 {
-	LOG((CLOG_DEBUG4 "onMouseMovePrimary %d,%d", x, y));
+	LOG((CLOG_DEBUG2 "onMouseMovePrimary %d,%d", x, y));
 
 	// mouse move on primary (server's) screen
 	if (m_active != m_primaryClient) {
@@ -2136,6 +2132,22 @@ CServer::CSwitchInDirectionInfo::alloc(EDirection direction)
 	info->m_direction = direction;
 	return info;
 }
+
+
+//
+// CServer::CScreenConnectedInfo
+//
+
+CServer::CScreenConnectedInfo*
+CServer::CScreenConnectedInfo::alloc(const CString& screen)
+{
+	CScreenConnectedInfo* info =
+		(CScreenConnectedInfo*)malloc(sizeof(CScreenConnectedInfo) +
+								screen.size());
+	strcpy(info->m_screen, screen.c_str());
+	return info;
+}
+
 
 //
 // CServer::CKeyboardBroadcastInfo

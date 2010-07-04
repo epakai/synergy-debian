@@ -1,21 +1,3 @@
-/*
- * synergy-plus -- mouse and keyboard sharing utility
- * Copyright (C) 2009 The Synergy+ Project
- * Copyright (C) 2008 Volker Lanz (vl@fidra.de)
- * 
- * This package is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * found in the file COPYING that should have accompanied this file.
- * 
- * This package is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program.  If not, see <http://www.gnu.org/licenses/>.
- */
-
 #include "QSynergyApplication.h"
 #include "MainWindow.h"
 
@@ -24,16 +6,16 @@
 
 int main(int argc, char* argv[])
 {
-	QCoreApplication::setOrganizationName("The Synergy+ Project");
-	QCoreApplication::setOrganizationDomain("http://code.google.com/p/synergy-plus/");
-	QCoreApplication::setApplicationName("Synergy+");
+	QCoreApplication::setOrganizationName("Fidra");
+	QCoreApplication::setOrganizationDomain("www.fidra.de");
+	QCoreApplication::setApplicationName("QSynergy");
 
 	QSynergyApplication app(argc, argv);
 
 #if !defined(Q_OS_MAC)
 	if (!QSystemTrayIcon::isSystemTrayAvailable())
 	{
-		QMessageBox::critical(NULL, "Synergy+", QObject::tr("There doesn't seem to be a system tray available. Quitting."));
+		QMessageBox::critical(NULL, "QSynergy", QObject::tr("There doesn't seem to be a system tray available. Quitting."));
 		return -1;
 	}
 

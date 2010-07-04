@@ -1,6 +1,5 @@
 /*
- * synergy-plus -- mouse and keyboard sharing utility
- * Copyright (C) 2009 The Synergy+ Project
+ * synergy -- mouse and keyboard sharing utility
  * Copyright (C) 2004 Chris Schoeneman
  * 
  * This package is free software; you can redistribute it and/or
@@ -11,9 +10,6 @@
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
 #ifndef IDATASOCKET_H
@@ -21,7 +17,6 @@
 
 #include "ISocket.h"
 #include "IStream.h"
-#include "CString.h"
 
 //! Data stream socket interface
 /*!
@@ -32,8 +27,8 @@ class IDataSocket : public ISocket, public IStream {
 public:
 	class CConnectionFailedInfo {
 	public:
-		CConnectionFailedInfo(const char* what) : m_what(what) { }
-		CString			m_what;
+		// pointer to a string describing the failure
+		char			m_what[1];
 	};
 
 	//! @name manipulators

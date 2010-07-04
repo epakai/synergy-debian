@@ -1,6 +1,5 @@
 /*
- * synergy-plus -- mouse and keyboard sharing utility
- * Copyright (C) 2009 The Synergy+ Project
+ * synergy -- mouse and keyboard sharing utility
  * Copyright (C) 2003 Chris Schoeneman
  * 
  * This package is free software; you can redistribute it and/or
@@ -11,9 +10,6 @@
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
 #include "CMSWindowsServerTaskBarReceiver.h"
@@ -25,8 +21,10 @@
 #include "CArch.h"
 #include "CArchTaskBarWindows.h"
 #include "resource.h"
-#include "CArchMiscWindows.h"
-#include "CMSWindowsScreen.h"
+
+extern CEvent::Type		getReloadConfigEvent();
+extern CEvent::Type		getForceReconnectEvent();
+extern CEvent::Type		getResetServerEvent();
 
 //
 // CMSWindowsServerTaskBarReceiver
@@ -61,8 +59,7 @@ CMSWindowsServerTaskBarReceiver::CMSWindowsServerTaskBarReceiver(
 	ARCH->addReceiver(this);
 }
 
-void
-CMSWindowsServerTaskBarReceiver::cleanup()
+CMSWindowsServerTaskBarReceiver::~CMSWindowsServerTaskBarReceiver()
 {
 	ARCH->removeReceiver(this);
 	for (UInt32 i = 0; i < kMaxState; ++i) {
@@ -70,11 +67,6 @@ CMSWindowsServerTaskBarReceiver::cleanup()
 	}
 	DestroyMenu(m_menu);
 	destroyWindow();
-}
-
-CMSWindowsServerTaskBarReceiver::~CMSWindowsServerTaskBarReceiver()
-{
-	cleanup();
 }
 
 void
@@ -385,21 +377,4 @@ CMSWindowsServerTaskBarReceiver::staticDlgProc(HWND hwnd,
 	else {
 		return (msg == WM_INITDIALOG) ? TRUE : FALSE;
 	}
-}
-
-IArchTaskBarReceiver*
-createTaskBarReceiver(const CBufferedLogOutputter* logBuffer)
-{
-	CArchMiscWindows::setIcons(
-		(HICON)LoadImage(CArchMiscWindows::instanceWin32(),
-		MAKEINTRESOURCE(IDI_SYNERGY),
-		IMAGE_ICON,
-		32, 32, LR_SHARED),
-		(HICON)LoadImage(CArchMiscWindows::instanceWin32(),
-		MAKEINTRESOURCE(IDI_SYNERGY),
-		IMAGE_ICON,
-		16, 16, LR_SHARED));
-
-	return new CMSWindowsServerTaskBarReceiver(
-		CMSWindowsScreen::getInstance(), logBuffer);
 }

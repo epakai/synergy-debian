@@ -1,22 +1,7 @@
-# synergy-plus -- mouse and keyboard sharing utility
-# Copyright (C) 2009 The Synergy+ Project
-# 
-# This package is free software; you can redistribute it and/or
-# modify it under the terms of the GNU General Public License
-# found in the file COPYING that should have accompanied this file.
-# 
-# This package is distributed in the hope that it will be useful,
-# but WITHOUT ANY WARRANTY; without even the implied warranty of
-# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-# GNU General Public License for more details.
-#
-# You should have received a copy of the GNU General Public License
-# along with this program.  If not, see <http://www.gnu.org/licenses/>.
-
 # Version number for Synergy+
 SET(VERSION_MAJOR 1)
-SET(VERSION_MINOR 5)
-SET(VERSION_REV 0)
+SET(VERSION_MINOR 3)
+SET(VERSION_REV 5)
 SET(VERSION "${VERSION_MAJOR}.${VERSION_MINOR}.${VERSION_REV}")
 
 
@@ -59,28 +44,11 @@ INCLUDE(${cmake_dir}/CMakeLists_cpack.txt)
 IF(WIN32)
 	# add /analyze in order to unconver potential bugs in the source code
 	# Details: http://msdn.microsoft.com/en-us/library/fwkeyyhe.aspx
-	# add /FR to generate browse information (ncb files) usefull for using IDE
+	SET(CMAKE_CXX_FLAGS_DEBUG "${CMAKE_CXX_FLAGS_DEBUG} /analyze")
+	SET(CMAKE_C_FLAGS_DEBUG "${CMAKE_C_FLAGS_DEBUG} /analyze")
 
-	#define _BIND_TO_CURRENT_CRT_VERSION 1
-	#define _BIND_TO_CURRENT_ATL_VERSION 1
-	#define _BIND_TO_CURRENT_MFC_VERSION 1
-	#define _BIND_TO_CURRENT_OPENMP_VERSION 1
-	# next line replaced the previous 4 ones:
-	#define _BIND_TO_CURRENT_VCLIBS_VERSION 1;
-
-	# compiler: /MP - use multi cores to compile
-	# added _SECURE_SCL=1 for finding bugs with iterators - http://msdn.microsoft.com/en-us/library/aa985965.aspx
-	
-	# common args between all vs builds
-	SET(VS_ARGS "/FR /MP /D _BIND_TO_CURRENT_VCLIBS_VERSION=1 /D _SECURE_SCL=1 ${VS_ARGS_EXTRA}")
-	
-	# we may use `cmake -D VS_ARGS_EXTRA="/analyze"` for example to specify
-	# analyze mode (since we don't always want to use it; e.g. on non-team 
-	# or non-x86 compiler editions where there's no support)
-	SET(CMAKE_CXX_FLAGS_DEBUG "${CMAKE_CXX_FLAGS_DEBUG} ${VS_ARGS}")
-	SET(CMAKE_C_FLAGS_DEBUG "${CMAKE_C_FLAGS_DEBUG} ${VS_ARGS}")
-
+	# this line removes "/D NDEBUG" from release, we want them in order to find bugs even on release builds.
+	SET(CMAKE_CXX_FLAGS_RELEASE "/MD /O2 /Ob2")
 ENDIF(WIN32)
 
-# this line removes "/D NDEBUG" from release, we want them in order to find bugs even on release builds.
-SET(CMAKE_CXX_FLAGS_RELEASE "/MD /O2 /Ob2")
+

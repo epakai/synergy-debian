@@ -1,6 +1,5 @@
 /*
- * synergy-plus -- mouse and keyboard sharing utility
- * Copyright (C) 2009 The Synergy+ Project
+ * synergy -- mouse and keyboard sharing utility
  * Copyright (C) 2002 Chris Schoeneman
  * 
  * This package is free software; you can redistribute it and/or
@@ -11,9 +10,6 @@
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
 #ifndef LOGOUTPUTTERS_H
@@ -23,11 +19,8 @@
 #include "ILogOutputter.h"
 #include "CString.h"
 #include "stddeque.h"
-#include "CThread.h"
 
-#include <list>
 #include <fstream>
-
 //! Stop traversing log chain outputter
 /*!
 This outputter performs no output and returns false from \c write(),
@@ -44,6 +37,7 @@ public:
 	virtual void		close();
 	virtual void		show(bool showIfEmpty);
 	virtual bool		write(ELevel level, const char* message);
+	virtual const char*	getNewline() const;
 };
 
 //! Write log to console
@@ -61,7 +55,7 @@ public:
 	virtual void		close();
 	virtual void		show(bool showIfEmpty);
 	virtual bool		write(ELevel level, const char* message);
-	virtual void		flush();
+	virtual const char*	getNewline() const;
 };
 
 //! Write log to file
@@ -80,8 +74,9 @@ public:
 	virtual void		close();
 	virtual void		show(bool showIfEmpty);
 	virtual bool		write(ELevel level, const char* message);
+	virtual const char*	getNewline() const;
 private:
-	std::string m_fileName;
+	std::ofstream		m_handle;
 };
 
 //! Write log to system log
@@ -98,6 +93,7 @@ public:
 	virtual void		close();
 	virtual void		show(bool showIfEmpty);
 	virtual bool		write(ELevel level, const char* message);
+	virtual const char*	getNewline() const;
 };
 
 //! Write log to system log only
@@ -148,6 +144,8 @@ public:
 	virtual void		close();
 	virtual void		show(bool showIfEmpty);
 	virtual bool		write(ELevel level, const char* message);
+	virtual const char*	getNewline() const;
+
 private:
 	UInt32				m_maxBufferSize;
 	CBuffer				m_buffer;
