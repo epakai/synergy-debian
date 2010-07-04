@@ -1,20 +1,5 @@
 #! /usr/bin/env python
 
-# synergy-plus -- mouse and keyboard sharing utility
-# Copyright (C) 2009 The Synergy+ Project
-# 
-# This package is free software; you can redistribute it and/or
-# modify it under the terms of the GNU General Public License
-# found in the file COPYING that should have accompanied this file.
-# 
-# This package is distributed in the hope that it will be useful,
-# but WITHOUT ANY WARRANTY; without even the implied warranty of
-# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-# GNU General Public License for more details.
-#
-# You should have received a copy of the GNU General Public License
-# along with this program.  If not, see <http://www.gnu.org/licenses/>.
-
 # hm.py: 'Help Me', is a simple wrapper for all build tools.
 # 
 # This script was created for the Synergy+ project.
@@ -31,47 +16,40 @@
 
 import sys, os
 from build import commands
-from getopt import gnu_getopt
-
-# options used by all commands
-global_options = 'g:v'
-global_options_long = ['no-prompts', 'generator=', 'verbose', 'make-gui']
-
-# options used by build related commands
-build_options = 'dr'
-build_options_long = ['debug', 'release']
 
 # list of valid commands as keys. the values are optarg strings, but most 
 # are None for now (this is mainly for extensibility)
-cmd_opt_dict = {
-	'about' 	: ['', []],
-	'setup' 	: ['', []],
-	'configure' : ['', []],
-	'build' 	: [build_options, build_options_long],
-	'clean' 	: [build_options, build_options_long],
-	'update' 	: ['', []],
-	'install' 	: ['', []],
-	'dist'		: ['', ['ftp-host=', 'ftp-user=', 'ftp-pass=', 'ftp-dir=']],
-	'kill' 		: ['', []],
-	'usage' 	: ['', []],
-	'revision' 	: ['', []],
-	'reformat' 	: ['', []],
-	'open'		: ['', []],
+cmd_dict = {
+	'about' : [None, []],
+	'setup' : [None, []],
+	'configure' : [None, []],
+	'build' : ['dr', []],
+	'clean' : ['dr', []],
+	'update' : [None, []],
+	'install' : [None, []],
+	'package' : [None, []],
+	'destroy' : [None, []],
+	'kill' : [None, []],
+	'usage' : [None, []],
+	'revision' : [None, []],
+	'hammer' : [None, []],
+	'reformat' : [None, []],
+	'open'	: [None, []],
 }
 
 # aliases to valid commands
 cmd_alias_dict = {
-	'info'		: 'about',
-	'help'		: 'usage',
-	'package'	: 'dist',
-	'make'		: 'build',
-	'cmake'		: 'configure',
+	'info'	: 'about',
+	'help'	: 'usage',
+	'dist'  : 'package',
+	'make'	: 'build',
+	'cmake'	: 'configure',
 }
 
 def complete_command(arg):
 	completions = []
 	
-	for cmd, optarg in cmd_opt_dict.iteritems():
+	for cmd, optarg in cmd_dict.iteritems():
 		if cmd.startswith(arg):
 			completions.append(cmd)
 	
@@ -139,40 +117,15 @@ def start_cmd(argv):
 	# generic error code if not returned sooner
 	return 1
 
-def run_cmd(cmd, argv = []):
+def run_cmd(cmd, args = []):
+	# pass args and optarg data to command handler, which figures out
+	# how to handle the arguments
+	optarg_data = cmd_dict[cmd]
+	handler = commands.CommandHandler(args, optarg_data)
 	
-	verbose = False
-	try:
-		options_pair = cmd_opt_dict[cmd]
-		
-		options = global_options + options_pair[0]
-		
-		options_long = []
-		options_long.extend(global_options_long)
-		options_long.extend(options_pair[1])
-		
-		opts, args = gnu_getopt(argv, options, options_long)
-		
-		for o, a in opts:
-			if o in ('-v', '--verbose'):
-				verbose = True
-		
-		# pass args and optarg data to command handler, which figures out
-		# how to handle the arguments
-		handler = commands.CommandHandler(argv, opts, args, verbose)
-		
-		# use reflection to get the function pointer
-		cmd_func = getattr(handler, cmd)
-	
-		cmd_func()
-	except:
-		if not verbose:
-			# print friendly error for users
-			sys.stderr.write('Error: ' + sys.exc_info()[1].__str__() + '\n')
-			exit(1)
-		else:
-			# if user wants to be verbose let python do it's thing
-			raise
+	# use reflection to get the function pointer
+	cmd_func = getattr(handler, cmd)
+	cmd_func()
 
 def main(argv):
 
@@ -181,7 +134,7 @@ def main(argv):
 		sys.exit(1)
 
 	try:
-		start_cmd(argv)
+		sys.exit(start_cmd(argv))
 	except KeyboardInterrupt:
 		print '\n\nUser aborted, exiting.'
 

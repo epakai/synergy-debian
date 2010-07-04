@@ -1,20 +1,16 @@
 /*
- * synergy-plus -- mouse and keyboard sharing utility
- * Copyright (C) 2009 The Synergy+ Project
- * Copyright (C) 2002 Chris Schoeneman
- * 
- * This package is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * found in the file COPYING that should have accompanied this file.
- * 
- * This package is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program.  If not, see <http://www.gnu.org/licenses/>.
- */
+* synergy -- mouse and keyboard sharing utility
+* Copyright (C) 2002 Chris Schoeneman
+* 
+* This package is free software; you can redistribute it and/or
+* modify it under the terms of the GNU General Public License
+* found in the file COPYING that should have accompanied this file.
+* 
+* This package is distributed in the hope that it will be useful,
+* but WITHOUT ANY WARRANTY; without even the implied warranty of
+* MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+* GNU General Public License for more details.
+*/
 
 #pragma once
 
@@ -45,11 +41,11 @@ public:
 		const char*	m_logFile;
 		const char*	m_display;
 		CString m_name;
-		bool m_disableTray;
 #if SYSAPI_WIN32
 		bool m_relaunchMode;
 		bool m_debugServiceWait;
 		bool m_pauseOnExit;
+		bool m_disableTray;
 #endif
 	};
 
@@ -136,7 +132,7 @@ private:
 #endif
 
 #define HELP_COMMON_INFO_1 \
-	"  -d, --debug <level>      filter out log messages with priority below level.\n" \
+	"  -d, --debug <level>      filter out log messages with priorty below level.\n" \
 	"                             level may be: FATAL, ERROR, WARNING, NOTE, INFO,\n" \
 	"                             DEBUG, DEBUGn (1-5).\n" \
 	"  -n, --name <screen-name> use screen-name instead the hostname to identify\n" \
