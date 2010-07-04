@@ -1,6 +1,5 @@
 /*
- * synergy-plus -- mouse and keyboard sharing utility
- * Copyright (C) 2009 The Synergy+ Project
+ * synergy -- mouse and keyboard sharing utility
  * Copyright (C) 2002 Chris Schoeneman
  * 
  * This package is free software; you can redistribute it and/or
@@ -11,9 +10,6 @@
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
 #ifndef CARCH_H
@@ -190,7 +186,7 @@ public:
 	virtual bool parseArg(const int& argc, const char* const* argv, int& i);
 	virtual void adoptApp(CApp* app);
 	virtual CApp& app() const;
-	virtual int run(int argc, char** argv);
+	virtual int run(int argc, char** argv, CreateTaskBarReceiverFunc createTaskBarReceiver);
 	virtual void beforeAppExit();
 
 	// expose util so we don't need to re-implement all the functions

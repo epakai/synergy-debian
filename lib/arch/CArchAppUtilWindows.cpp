@@ -1,6 +1,5 @@
 /*
- * synergy-plus -- mouse and keyboard sharing utility
- * Copyright (C) 2009 The Synergy+ Project
+ * synergy -- mouse and keyboard sharing utility
  * Copyright (C) 2002 Chris Schoeneman
  * 
  * This package is free software; you can redistribute it and/or
@@ -11,9 +10,6 @@
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
 #include "CArchAppUtilWindows.h"
@@ -48,13 +44,10 @@ CArchAppUtilWindows::~CArchAppUtilWindows()
 
 BOOL WINAPI CArchAppUtilWindows::consoleHandler(DWORD CEvent)
 {
-	if (instance().app().m_taskBarReceiver)
-	{
-		// HACK: it would be nice to delete the s_taskBarReceiver object, but 
-		// this is best done by the CApp destructor; however i don't feel like
-		// opening up that can of worms today... i need sleep.
-		instance().app().m_taskBarReceiver->cleanup();
-	}
+	// HACK: it would be nice to delete the s_taskBarReceiver object, but 
+	// this is best done by the CApp destructor; however i don't feel like
+	// opening up that can of worms today... i need sleep.
+	instance().app().s_taskBarReceiver->cleanup();
 
 	ExitProcess(kExitTerminated);
     return TRUE;
@@ -90,16 +83,7 @@ CArchAppUtilWindows::parseArg(const int& argc, const char* const* argv, int& i)
 		app().argsBase().m_debugServiceWait = true;
 	}
 	else if (app().isArg(i, argc, argv, NULL, "--relaunch")) {
-
 		app().argsBase().m_relaunchMode = true;
-	}
-	else if (app().isArg(i, argc, argv, NULL, "--exit-pause")) {
-
-		app().argsBase().m_pauseOnExit = true;
-	}
-	else if (app().isArg(i, argc, argv, NULL, "--no-tray")) {
-
-		app().argsBase().m_disableTray = true;
 	}
 	else {
 		// option not supported here
@@ -122,12 +106,7 @@ CArchAppUtilWindows::getServiceArgs() const
 			i++;
 		}
 		else {
-			if (strchr(arg, ' ') != NULL) {
-				// surround argument with quotes if it contains a space
-				argBuf << " \"" << arg << "\"";
-			} else {
-				argBuf << " " << arg;
-			}
+			argBuf << " " << __argv[i];
 		}
 	}
 	return argBuf.str();
@@ -279,17 +258,20 @@ foregroundStartupStatic(int argc, char** argv)
 void
 CArchAppUtilWindows::beforeAppExit()
 {
-	// this can be handy for debugging, since the application is launched in
-	// a new console window, and will normally close on exit (making it so
-	// that we can't see error messages).
-	if (app().argsBase().m_pauseOnExit) {
+	CString name;
+	CArchMiscWindows::getParentProcessName(name);
+
+	// if the user did not launch from the command prompt (i.e. it was launched
+	// by double clicking, or through a debugger), allow user to read any error
+	// messages (instead of the window closing automatically).
+	if (name != "cmd.exe") {
 		std::cout << std::endl << "Press any key to exit..." << std::endl;
 		int c = _getch();
 	}
 }
 
 int
-CArchAppUtilWindows::run(int argc, char** argv)
+CArchAppUtilWindows::run(int argc, char** argv, CreateTaskBarReceiverFunc createTaskBarReceiver)
 {
 	// record window instance for tray icon, etc
 	CArchMiscWindows::setInstanceWin32(GetModuleHandle(NULL));
@@ -305,7 +287,7 @@ CArchAppUtilWindows::run(int argc, char** argv)
 		app().argsBase().m_daemon = false;
 	}
 
-	return app().runInner(argc, argv, NULL, startup);
+	return app().runInner(argc, argv, NULL, startup, createTaskBarReceiver);
 }
 
 CArchAppUtilWindows& 

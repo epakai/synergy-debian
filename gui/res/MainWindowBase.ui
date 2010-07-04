@@ -7,7 +7,7 @@
     <x>0</x>
     <y>0</y>
     <width>400</width>
-    <height>260</height>
+    <height>247</height>
    </rect>
   </property>
   <property name="sizePolicy">
@@ -19,13 +19,13 @@
   <property name="minimumSize">
    <size>
     <width>400</width>
-    <height>260</height>
+    <height>247</height>
    </size>
   </property>
   <property name="maximumSize">
    <size>
     <width>400</width>
-    <height>260</height>
+    <height>247</height>
    </size>
   </property>
   <property name="windowTitle">
@@ -33,7 +33,7 @@
   </property>
   <widget class="QWidget" name="centralwidget">
    <layout class="QGridLayout">
-    <item row="5" column="3">
+    <item row="6" column="3">
      <widget class="QPushButton" name="m_pButtonToggleStart">
       <property name="text">
        <string>&amp;Start</string>
@@ -133,6 +133,19 @@
       </layout>
      </widget>
     </item>
+    <item row="3" column="0" colspan="4">
+     <spacer name="verticalSpacer">
+      <property name="orientation">
+       <enum>Qt::Vertical</enum>
+      </property>
+      <property name="sizeHint" stdset="0">
+       <size>
+        <width>0</width>
+        <height>0</height>
+       </size>
+      </property>
+     </spacer>
+    </item>
     <item row="2" column="0" colspan="4">
      <widget class="QGroupBox" name="m_pGroupClient">
       <property name="sizePolicy">
@@ -164,14 +177,14 @@
       </layout>
      </widget>
     </item>
-    <item row="5" column="1">
+    <item row="6" column="1">
      <widget class="QLabel" name="m_pStatusLabel">
       <property name="text">
        <string>Ready</string>
       </property>
      </widget>
     </item>
-    <item row="5" column="2">
+    <item row="6" column="2">
      <spacer>
       <property name="orientation">
        <enum>Qt::Horizontal</enum>
@@ -188,7 +201,7 @@
   </widget>
   <action name="m_pActionAbout">
    <property name="text">
-	<string>&amp;About Synergy+...</string>
+    <string>&amp;About QSynergy...</string>
    </property>
   </action>
   <action name="m_pActionQuit">
@@ -196,7 +209,7 @@
     <string>&amp;Quit</string>
    </property>
    <property name="statusTip">
-	<string>Quit</string>
+    <string>Quit QSynergy.</string>
    </property>
    <property name="shortcut">
     <string>Ctrl+Q</string>
@@ -204,10 +217,10 @@
   </action>
   <action name="m_pActionStartSynergy">
    <property name="text">
-	<string>&amp;Start</string>
+    <string>&amp;Start Synergy</string>
    </property>
    <property name="statusTip">
-	<string>Run</string>
+    <string>Run synergy program.</string>
    </property>
    <property name="shortcut">
     <string>Ctrl+S</string>
@@ -218,10 +231,10 @@
     <bool>false</bool>
    </property>
    <property name="text">
-	<string>S&amp;top</string>
+    <string>S&amp;top Synergy</string>
    </property>
    <property name="statusTip">
-	<string>Stop</string>
+    <string>Stop Synergy program.</string>
    </property>
    <property name="shortcut">
     <string>Ctrl+T</string>
@@ -261,7 +274,7 @@
     <string>Settings</string>
    </property>
    <property name="statusTip">
-	<string>Edit settings</string>
+    <string>Edit settings for QSynergy and synergy itself</string>
    </property>
   </action>
   <action name="m_pActionLogOutput">
@@ -269,12 +282,7 @@
     <string>Log output</string>
    </property>
    <property name="statusTip">
-	<string>Open a window with output</string>
-   </property>
-  </action>
-  <action name="m_pActionServices">
-   <property name="text">
-    <string>Services</string>
+    <string>Open a window with synergy's output</string>
    </property>
   </action>
  </widget>

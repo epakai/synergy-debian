@@ -1,20 +1,16 @@
 /*
- * synergy-plus -- mouse and keyboard sharing utility
- * Copyright (C) 2009 The Synergy+ Project
- * Copyright (C) 2002 Chris Schoeneman
- * 
- * This package is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * found in the file COPYING that should have accompanied this file.
- * 
- * This package is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program.  If not, see <http://www.gnu.org/licenses/>.
- */
+* synergy -- mouse and keyboard sharing utility
+* Copyright (C) 2002 Chris Schoeneman
+* 
+* This package is free software; you can redistribute it and/or
+* modify it under the terms of the GNU General Public License
+* found in the file COPYING that should have accompanied this file.
+* 
+* This package is distributed in the hope that it will be useful,
+* but WITHOUT ANY WARRANTY; without even the implied warranty of
+* MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+* GNU General Public License for more details.
+*/
 
 #include "CClientApp.h"
 #include "CLog.h"
@@ -53,8 +49,8 @@
 
 #define RETRY_TIME 1.0
 
-CClientApp::CClientApp(CreateTaskBarReceiverFunc createTaskBarReceiver) :
-CApp(createTaskBarReceiver, new CArgs()),
+CClientApp::CClientApp() :
+CApp(new CArgs()),
 s_client(NULL),
 s_clientScreen(NULL)
 {
@@ -172,7 +168,6 @@ CClientApp::help()
 		"Usage: %s"
 		" [--yscroll <delta>]"
 		WINAPI_ARG
-		HELP_SYS_ARGS
 		HELP_COMMON_ARGS
 		" <server-address>"
 		"\n\n"
@@ -180,7 +175,6 @@ CClientApp::help()
 		"\n"
 		HELP_COMMON_INFO_1
 		WINAPI_INFO
-		HELP_SYS_INFO
 		"      --yscroll <delta>    defines the vertical scrolling delta, which is\n"
 		HELP_COMMON_INFO_2
 		"\n"
@@ -230,17 +224,14 @@ CClientApp::createScreen()
 void
 CClientApp::updateStatus()
 {
-	updateStatus("");
+	s_taskBarReceiver->updateStatus(s_client, "");
 }
 
 
 void
 CClientApp::updateStatus(const CString& msg)
 {
-	if (m_taskBarReceiver)
-	{
-		m_taskBarReceiver->updateStatus(s_client, msg);
-	}
+	s_taskBarReceiver->updateStatus(s_client, msg);
 }
 
 
@@ -352,7 +343,7 @@ CClientApp::handleClientFailed(const CEvent& e, void*)
 	}
 	else {
 		LOG((CLOG_WARN "failed to connect to server: %s", info->m_what.c_str()));
-		if (!m_suspended) {
+		if (!s_suspended) {
 			scheduleClientRestart(nextRestartTimeout());
 		}
 	}
@@ -367,7 +358,7 @@ CClientApp::handleClientDisconnected(const CEvent&, void*)
 	if (!args().m_restartable) {
 		EVENTQUEUE->addEvent(CEvent(CEvent::kQuit));
 	}
-	else if (!m_suspended) {
+	else if (!s_suspended) {
 		s_client->connect();
 	}
 	updateStatus();
@@ -539,7 +530,7 @@ CClientApp::standardStartup(int argc, char** argv)
 }
 
 int
-CClientApp::runInner(int argc, char** argv, ILogOutputter* outputter, StartupFunc startup)
+CClientApp::runInner(int argc, char** argv, ILogOutputter* outputter, StartupFunc startup, CreateTaskBarReceiverFunc createTaskBarReceiver)
 {
 	// general initialization
 	args().m_serverAddress = new CNetworkAddress;
@@ -550,6 +541,15 @@ CClientApp::runInner(int argc, char** argv, ILogOutputter* outputter, StartupFun
 		CLOG->insert(outputter);
 	}
 
+	// save log messages
+	// use heap memory because CLog deletes outputters on destruction
+	CBufferedLogOutputter* logBuffer = new CBufferedLogOutputter(1000);
+	CLOG->insert(logBuffer, true);
+
+	// make the task bar receiver.  the user can control this app
+	// through the task bar.
+	s_taskBarReceiver = createTaskBarReceiver(logBuffer);
+
 	int result;
 	try
 	{
@@ -558,11 +558,8 @@ CClientApp::runInner(int argc, char** argv, ILogOutputter* outputter, StartupFun
 	}
 	catch (...)
 	{
-		if (m_taskBarReceiver)
-		{
-			// done with task bar receiver
-			delete m_taskBarReceiver;
-		}
+		// done with task bar receiver
+		delete s_taskBarReceiver;
 
 		delete args().m_serverAddress;
 

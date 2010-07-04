@@ -1,20 +1,16 @@
 /*
- * synergy-plus -- mouse and keyboard sharing utility
- * Copyright (C) 2009 The Synergy+ Project
- * Copyright (C) 2002 Chris Schoeneman
- * 
- * This package is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * found in the file COPYING that should have accompanied this file.
- * 
- * This package is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program.  If not, see <http://www.gnu.org/licenses/>.
- */
+* synergy -- mouse and keyboard sharing utility
+* Copyright (C) 2002 Chris Schoeneman
+* 
+* This package is free software; you can redistribute it and/or
+* modify it under the terms of the GNU General Public License
+* found in the file COPYING that should have accompanied this file.
+* 
+* This package is distributed in the hope that it will be useful,
+* but WITHOUT ANY WARRANTY; without even the implied warranty of
+* MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+* GNU General Public License for more details.
+*/
 
 #pragma once
 
@@ -37,7 +33,7 @@ public:
 		CNetworkAddress* m_serverAddress;
 	};
 
-	CClientApp(CreateTaskBarReceiverFunc createTaskBarReceiver);
+	CClientApp();
 	virtual ~CClientApp();
 
 	// Parse client specific command line arguments.
@@ -58,7 +54,7 @@ public:
 
 	int foregroundStartup(int argc, char** argv);
 	int standardStartup(int argc, char** argv);
-	int runInner(int argc, char** argv, ILogOutputter* outputter, StartupFunc startup);
+	int runInner(int argc, char** argv, ILogOutputter* outputter, StartupFunc startup, CreateTaskBarReceiverFunc createTaskBarReceiver);
 	CScreen* createScreen();
 	void updateStatus();
 	void updateStatus(const CString& msg);

@@ -1,20 +1,16 @@
 /*
- * synergy-plus -- mouse and keyboard sharing utility
- * Copyright (C) 2009 The Synergy+ Project
- * Copyright (C) 2002 Chris Schoeneman
- * 
- * This package is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * found in the file COPYING that should have accompanied this file.
- * 
- * This package is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program.  If not, see <http://www.gnu.org/licenses/>.
- */
+* synergy -- mouse and keyboard sharing utility
+* Copyright (C) 2002 Chris Schoeneman
+* 
+* This package is free software; you can redistribute it and/or
+* modify it under the terms of the GNU General Public License
+* found in the file COPYING that should have accompanied this file.
+* 
+* This package is distributed in the hope that it will be useful,
+* but WITHOUT ANY WARRANTY; without even the implied warranty of
+* MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+* GNU General Public License for more details.
+*/
 
 #pragma once
 
@@ -45,15 +41,13 @@ public:
 		const char*	m_logFile;
 		const char*	m_display;
 		CString m_name;
-		bool m_disableTray;
 #if SYSAPI_WIN32
 		bool m_relaunchMode;
 		bool m_debugServiceWait;
-		bool m_pauseOnExit;
 #endif
 	};
 
-	CApp(CreateTaskBarReceiverFunc createTaskBarReceiver, CArgsBase* args);
+	CApp(CArgsBase* args);
 	virtual ~CApp();
 
 	// Returns args that are common between server and client.
@@ -68,7 +62,7 @@ public:
 	// Parse command line arguments.
 	virtual void parseArgs(int argc, const char* const* argv) = 0;
 	
-	int run(int argc, char** argv);
+	int run(int argc, char** argv, CreateTaskBarReceiverFunc createTaskBarReceiver);
 
 	int daemonMainLoop(int, const char**);
 
@@ -77,7 +71,7 @@ public:
 	virtual int mainLoop() = 0;
 	virtual int foregroundStartup(int argc, char** argv) = 0;
 	virtual int standardStartup(int argc, char** argv) = 0;
-	virtual int runInner(int argc, char** argv, ILogOutputter* outputter, StartupFunc startup) = 0;
+	virtual int runInner(int argc, char** argv, ILogOutputter* outputter, StartupFunc startup, CreateTaskBarReceiverFunc createTaskBarReceiver) = 0;
 
 	// Name of the daemon (used for Unix and Windows).
 	virtual const char* daemonName() const = 0;
@@ -96,8 +90,8 @@ public:
 
 	static CApp& instance() { assert(s_instance != nullptr); return *s_instance; }
 
-	bool m_suspended;
-	IArchTaskBarReceiver* m_taskBarReceiver;
+	bool s_suspended;
+	IArchTaskBarReceiver* s_taskBarReceiver;
 
 	// If --log was specified in args, then add a file logger.
 	void setupFileLogging();
@@ -124,7 +118,6 @@ private:
 	CArgsBase* m_args;
 	static CApp* s_instance;
 	CFileLogOutputter* m_fileLog;
-	CreateTaskBarReceiverFunc m_createTaskBarReceiver;
 };
 
 #define BYE "\nTry `%s --help' for more information."
@@ -136,7 +129,7 @@ private:
 #endif
 
 #define HELP_COMMON_INFO_1 \
-	"  -d, --debug <level>      filter out log messages with priority below level.\n" \
+	"  -d, --debug <level>      filter out log messages with priorty below level.\n" \
 	"                             level may be: FATAL, ERROR, WARNING, NOTE, INFO,\n" \
 	"                             DEBUG, DEBUGn (1-5).\n" \
 	"  -n, --name <screen-name> use screen-name instead the hostname to identify\n" \
@@ -173,9 +166,6 @@ private:
 	"      --service <action>   manage the windows service, valid options are:\n" \
 	"                             install/uninstall/start/stop\n" \
 	"      --relaunch           persistently relaunches process in current user \n" \
-	"                             session (useful for vista and upward).\n" \
-	"      --exit-pause         wait for key press on exit, can be useful for\n" \
-	"                             reading error messages that occur on exit.\n" \
-	"      --no-tray            disable the system tray icon.\n"
+	"                             session (useful for vista and upward).\n"
 
 #endif

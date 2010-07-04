@@ -1,6 +1,5 @@
 /*
- * synergy-plus -- mouse and keyboard sharing utility
- * Copyright (C) 2009 The Synergy+ Project
+ * synergy -- mouse and keyboard sharing utility
  * Copyright (C) 2002 Chris Schoeneman
  * 
  * This package is free software; you can redistribute it and/or
@@ -11,9 +10,6 @@
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
 #include "CXWindowsScreen.h"
@@ -111,11 +107,10 @@ CXWindowsScreen::CXWindowsScreen(const char* displayName, bool isPrimary, int mo
 	s_screen = this;
 	
 	// initializes Xlib support for concurrent threads.
-	// ...which breaks badly on RHEL for some reason, upstream #194
-	//if (XInitThreads() == 0)
-	//{
-	//	throw XArch("XInitThreads() returned zero");
-	//}
+	if (XInitThreads() == 0)
+	{
+		throw XArch("XInitThreads() returned zero");
+	}
 	
 
 	// set the X I/O error handler so we catch the display disconnecting

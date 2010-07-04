@@ -1,27 +1,8 @@
-/*
- * synergy-plus -- mouse and keyboard sharing utility
- * Copyright (C) 2009 The Synergy+ Project
- * Copyright (C) 2008 Volker Lanz (vl@fidra.de)
- * 
- * This package is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * found in the file COPYING that should have accompanied this file.
- * 
- * This package is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program.  If not, see <http://www.gnu.org/licenses/>.
- */
-
 #include "MainWindow.h"
 #include "AboutDialog.h"
 #include "ServerConfigDialog.h"
 #include "SettingsDialog.h"
 #include "LogDialog.h"
-#include "WindowsServices.h"
 
 #include <QtCore>
 #include <QtGui>
@@ -40,6 +21,18 @@ static const char* synergyIconFiles[] =
 	":/res/icons/16x16/synergy-disconnected.png",
 	":/res/icons/16x16/synergy-connected.png"
 };
+
+static const char* logLevelNames[] =
+{
+	"ERROR",
+	"WARNING",
+	"NOTE",
+	"INFO",
+	"DEBUG",
+	"DEBUG1",
+	"DEBUG2"
+};
+
 
 MainWindow::MainWindow(QWidget* parent) :
 	QMainWindow(parent),
@@ -128,9 +121,6 @@ void MainWindow::createMenuBar()
 	pMenuFile->addSeparator();
 	pMenuFile->addAction(m_pActionQuit);
 	pMenuEdit->addAction(m_pActionSettings);
-#if defined(Q_OS_WIN)
-	pMenuEdit->addAction(m_pActionServices);
-#endif
 	pMenuView->addAction(m_pActionLogOutput);
 	pMenuWindow->addAction(m_pActionMinimize);
 	pMenuWindow->addAction(m_pActionRestore);
@@ -141,6 +131,13 @@ void MainWindow::createMenuBar()
 
 void MainWindow::loadSettings()
 {
+	// gui
+	QRect rect = settings().value("windowGeometry", geometry()).toRect();
+	move(rect.x(), rect.y());
+	resize(rect.width(), rect.height());
+
+	// program settings
+
 	// the next two must come BEFORE loading groupServerChecked and groupClientChecked or
 	// disabling and/or enabling the right widgets won't automatically work
 	m_pRadioExternalConfig->setChecked(settings().value("externalConfig", false).toBool());
@@ -166,6 +163,13 @@ void MainWindow::initConnections()
 
 void MainWindow::saveSettings()
 {
+	// gui
+	settings().setValue("windowGeometry", geometry());
+
+#if !defined(Q_OS_MAC)
+	settings().setValue("windowVisible", isVisible());
+#endif
+	
 	// program settings
 	settings().setValue("groupServerChecked", m_pGroupServer->isChecked());
 	settings().setValue("externalConfig", m_pRadioExternalConfig->isChecked());
@@ -201,7 +205,7 @@ void MainWindow::startSynergy()
 	QString app;
 	QStringList args;
 
-	args << "-f" << "--debug" << appConfig().logLevelText();
+	args << "-f" << "--debug" << logLevelNames[appConfig().logLevel()];
 
 	if (!appConfig().screenName().isEmpty())
 		args << "--name" << appConfig().screenName();
@@ -234,7 +238,7 @@ void MainWindow::startSynergy()
 
 bool MainWindow::clientArgs(QStringList& args, QString& app)
 {
-	app = appPath(appConfig().synergycName(), appConfig().synergyc());
+	app = appConfig().synergyc();
 
 	if (!QFile::exists(app))
 	{
@@ -255,75 +259,14 @@ bool MainWindow::clientArgs(QStringList& args, QString& app)
 		return false;
 	}
 
-	if (appConfig().logToFile())
-	{
-		appConfig().persistLogDir();
-		args << "--log" << appConfig().logFilename();
-	}
-
 	args << m_pLineEditHostname->text() + ":" + QString::number(appConfig().port());
 
 	return true;
 }
 
-QString MainWindow::configFilename()
-{
-	QString filename;
-	if (m_pRadioInternalConfig->isChecked())
-	{
-		// TODO: no need to use a temporary file, since we need it to
-		// be permenant (since it'll be used for Windows services, etc).
-		m_pTempConfigFile = new QTemporaryFile();
-		if (!m_pTempConfigFile->open())
-		{
-			QMessageBox::critical(this, tr("Cannot write configuration file"), tr("The temporary configuration file required to start synergy can not be written."));
-			return false;
-		}
-
-		serverConfig().save(*m_pTempConfigFile);
-		filename = m_pTempConfigFile->fileName();
-
-		m_pTempConfigFile->close();
-	}
-	else
-	{
-		if (!QFile::exists(m_pLineEditConfigFile->text()))
-		{
-			if (QMessageBox::warning(this, tr("Configuration filename invalid"),
-				tr("You have not filled in a valid configuration file for the synergy server. "
-						"Do you want to browse for the configuration file now?"), QMessageBox::Yes | QMessageBox::No) != QMessageBox::Yes
-					|| !on_m_pButtonBrowseConfigFile_clicked())
-				return false;
-		}
-
-		filename = m_pLineEditConfigFile->text();
-	}
-	return filename;
-}
-
-QString MainWindow::address()
-{
-	return (!appConfig().interface().isEmpty() ? appConfig().interface() : "") + ":" + QString::number(appConfig().port());
-}
-
-QString MainWindow::appPath(const QString& name, const QString& defaultPath)
-{
-	QString app;
-	if (appConfig().autoDetectPaths())
-	{
-		// actually returns bool, but ignore for now
-		appConfig().detectPath(name, app);
-	}
-	else
-	{
-		app = defaultPath;
-	}
-	return app;
-}
-
 bool MainWindow::serverArgs(QStringList& args, QString& app)
 {
-	app = appPath(appConfig().synergysName(), appConfig().synergys());
+	app = appConfig().synergys();
 
 	if (!QFile::exists(app))
 	{
@@ -338,13 +281,36 @@ bool MainWindow::serverArgs(QStringList& args, QString& app)
 		appConfig().setSynergys(app);
 	}
 
-	if (appConfig().logToFile())
+	if (m_pRadioInternalConfig->isChecked())
 	{
-		appConfig().persistLogDir();
-		args << "--log" << appConfig().logFilename();
+		m_pTempConfigFile = new QTemporaryFile();
+		if (!m_pTempConfigFile->open())
+		{
+			QMessageBox::critical(this, tr("Cannot write configuration file"), tr("The temporary configuration file required to start synergy can not be written."));
+			return false;
+		}
+
+		serverConfig().save(*m_pTempConfigFile);
+		args << "-c" << m_pTempConfigFile->fileName();
+
+		m_pTempConfigFile->close();
+		// the file will be removed from disk when the object is deleted; this happens in stopSynergy()
+	}
+	else
+	{
+		if (!QFile::exists(m_pLineEditConfigFile->text()))
+		{
+			if (QMessageBox::warning(this, tr("Configuration filename invalid"),
+				tr("You have not filled in a valid configuration file for the synergy server. "
+						"Do you want to browse for the configuration file now?"), QMessageBox::Yes | QMessageBox::No) != QMessageBox::Yes
+					|| !on_m_pButtonBrowseConfigFile_clicked())
+				return false;
+		}
+
+		args << "-c" << m_pLineEditConfigFile->text();
 	}
 
-	args << "-c" << configFilename() << "--address" << address();
+	args << "--address" << (!appConfig().interface().isEmpty() ? appConfig().interface() : "") + ":" + QString::number(appConfig().port());
 
 	return true;
 }
@@ -361,9 +327,7 @@ void MainWindow::stopSynergy()
 		setSynergyState(synergyDisconnected);
 	}
 
-	// HACK: deleting the object deletes the physical file, which is
-	// bad, since it could be in use by the Windows service!
-	//delete m_pTempConfigFile;
+	delete m_pTempConfigFile;
 	m_pTempConfigFile = NULL;
 }
 
@@ -455,12 +419,6 @@ void MainWindow::on_m_pActionAbout_triggered()
 void MainWindow::on_m_pActionSettings_triggered()
 {
 	SettingsDialog dlg(this, appConfig());
-	dlg.exec();
-}
-
-void MainWindow::on_m_pActionServices_triggered()
-{
-	WindowsServices dlg(this, appConfig());
 	dlg.exec();
 }
 

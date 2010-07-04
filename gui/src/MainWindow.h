@@ -1,21 +1,3 @@
-/*
- * synergy-plus -- mouse and keyboard sharing utility
- * Copyright (C) 2009 The Synergy+ Project
- * Copyright (C) 2008 Volker Lanz (vl@fidra.de)
- * 
- * This package is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * found in the file COPYING that should have accompanied this file.
- * 
- * This package is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program.  If not, see <http://www.gnu.org/licenses/>.
- */
-
 #if !defined(MAINWINDOW__H)
 
 #define MAINWINDOW__H
@@ -72,10 +54,6 @@ class MainWindow : public QMainWindow, public Ui::MainWindowBase
 		void setVisible(bool visible);
 		int synergyType() const { return m_pGroupClient->isChecked() ? synergyClient : synergyServer; }
 		int synergyState() const { return m_SynergyState; }
-		QString hostname() const { return m_pLineEditHostname->text(); }
-		QString configFilename();
-		QString address();
-		QString appPath(const QString& name, const QString& defaultPath);
 
 	protected slots:
 		void on_m_pGroupClient_toggled(bool on) { m_pGroupServer->setChecked(!on); }
@@ -85,7 +63,6 @@ class MainWindow : public QMainWindow, public Ui::MainWindowBase
 		bool on_m_pActionSave_triggered();
 		void on_m_pActionAbout_triggered();
 		void on_m_pActionSettings_triggered();
-		void on_m_pActionServices_triggered();
 		void on_m_pActionLogOutput_triggered();
 		void synergyFinished(int exitCode, QProcess::ExitStatus);
 		void iconActivated(QSystemTrayIcon::ActivationReason reason);

@@ -1,20 +1,16 @@
 /*
- * synergy-plus -- mouse and keyboard sharing utility
- * Copyright (C) 2009 The Synergy+ Project
- * Copyright (C) 2002 Chris Schoeneman
- * 
- * This package is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * found in the file COPYING that should have accompanied this file.
- * 
- * This package is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program.  If not, see <http://www.gnu.org/licenses/>.
- */
+* synergy -- mouse and keyboard sharing utility
+* Copyright (C) 2002 Chris Schoeneman
+* 
+* This package is free software; you can redistribute it and/or
+* modify it under the terms of the GNU General Public License
+* found in the file COPYING that should have accompanied this file.
+* 
+* This package is distributed in the hope that it will be useful,
+* but WITHOUT ANY WARRANTY; without even the implied warranty of
+* MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+* GNU General Public License for more details.
+*/
 
 #include "CServerApp.h"
 #include "CLog.h"
@@ -54,8 +50,8 @@
 
 CEvent::Type CServerApp::s_reloadConfigEvent = CEvent::kUnknown;
 
-CServerApp::CServerApp(CreateTaskBarReceiverFunc createTaskBarReceiver) :
-CApp(createTaskBarReceiver, new CArgs()),
+CServerApp::CServerApp() :
+CApp(new CArgs()),
 s_server(NULL),
 s_forceReconnectEvent(CEvent::kUnknown),
 s_resetServerEvent(CEvent::kUnknown),
@@ -374,15 +370,12 @@ CServerApp::stopRetryTimer()
 void
 CServerApp::updateStatus()
 {
-	updateStatus("");
+	s_taskBarReceiver->updateStatus(s_server, "");
 }
 
 void CServerApp::updateStatus( const CString& msg )
 {
-	if (m_taskBarReceiver)
-	{
-		m_taskBarReceiver->updateStatus(s_server, msg);
-	}
+	s_taskBarReceiver->updateStatus(s_server, msg);
 }
 
 void 
@@ -664,20 +657,20 @@ CServerApp::handleScreenError(const CEvent&, void*)
 void 
 CServerApp::handleSuspend(const CEvent&, void*)
 {
-	if (!m_suspended) {
+	if (!s_suspended) {
 		LOG((CLOG_INFO "suspend"));
 		stopServer();
-		m_suspended = true;
+		s_suspended = true;
 	}
 }
 
 void 
 CServerApp::handleResume(const CEvent&, void*)
 {
-	if (m_suspended) {
+	if (s_suspended) {
 		LOG((CLOG_INFO "resume"));
 		startServer();
-		m_suspended = false;
+		s_suspended = false;
 	}
 }
 
@@ -803,7 +796,7 @@ void CServerApp::resetServer(const CEvent&, void*)
 }
 
 int 
-CServerApp::runInner(int argc, char** argv, ILogOutputter* outputter, StartupFunc startup)
+CServerApp::runInner(int argc, char** argv, ILogOutputter* outputter, StartupFunc startup, CreateTaskBarReceiverFunc createTaskBarReceiver)
 {
 	// general initialization
 	args().m_synergyAddress = new CNetworkAddress;
@@ -815,14 +808,20 @@ CServerApp::runInner(int argc, char** argv, ILogOutputter* outputter, StartupFun
 		CLOG->insert(outputter);
 	}
 
+	// save log messages
+	// use heap memory because CLog deletes outputters on destruction
+	CBufferedLogOutputter* logBuffer = new CBufferedLogOutputter(1000);
+	CLOG->insert(logBuffer, true);
+
+	// make the task bar receiver.  the user can control this app
+	// through the task bar.
+	s_taskBarReceiver = createTaskBarReceiver(logBuffer);
+
 	// run
 	int result = startup(argc, argv);
 
-	if (m_taskBarReceiver)
-	{
-		// done with task bar receiver
-		delete m_taskBarReceiver;
-	}
+	// done with task bar receiver
+	delete s_taskBarReceiver;
 
 	delete args().m_config;
 	delete args().m_synergyAddress;
