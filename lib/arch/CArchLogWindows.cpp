@@ -1,6 +1,5 @@
 /*
- * synergy-plus -- mouse and keyboard sharing utility
- * Copyright (C) 2009 The Synergy+ Project
+ * synergy -- mouse and keyboard sharing utility
  * Copyright (C) 2002 Chris Schoeneman
  * 
  * This package is free software; you can redistribute it and/or
@@ -11,9 +10,6 @@
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
 #include "CArchLogWindows.h"
@@ -52,12 +48,6 @@ CArchLogWindows::closeLog()
 }
 
 void
-CArchLogWindows::showLog(bool)
-{
-	// do nothing
-}
-
-void
 CArchLogWindows::writeLog(ELevel level, const char* msg)
 {
 	if (m_eventLog != NULL) {
@@ -87,7 +77,7 @@ CArchLogWindows::writeLog(ELevel level, const char* msg)
 								0,					// event ID
 								NULL,
 								0,
-								(DWORD)strlen(msg) + 1,	// raw data size
+								strlen(msg) + 1,	// raw data size
 								NULL,
 								const_cast<char*>(msg));// raw data
 	}

@@ -1,6 +1,5 @@
 /*
- * synergy-plus -- mouse and keyboard sharing utility
- * Copyright (C) 2009 The Synergy+ Project
+ * synergy -- mouse and keyboard sharing utility
  * Copyright (C) 2003 Chris Schoeneman
  * 
  * This package is free software; you can redistribute it and/or
@@ -11,9 +10,6 @@
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
 #ifndef IPRIMARYSCREEN_H
@@ -37,8 +33,6 @@ public:
 		static CButtonInfo* alloc(ButtonID, KeyModifierMask);
 		static CButtonInfo* alloc(const CButtonInfo&);
 
-		static bool			equal(const CButtonInfo*, const CButtonInfo*);
-
 	public:
 		ButtonID		m_button;
 		KeyModifierMask	m_mask;
@@ -55,11 +49,10 @@ public:
 	//! Wheel motion event data
 	class CWheelInfo {
 	public:
-		static CWheelInfo* alloc(SInt32 xDelta, SInt32 yDelta);
+		static CWheelInfo* alloc(SInt32);
 
 	public:
-		SInt32			m_xDelta;
-		SInt32			m_yDelta;
+		SInt32			m_wheel;
 	};
 	//! Hot key event data
 	class CHotKeyInfo {
@@ -119,21 +112,6 @@ public:
 	*/
 	virtual void		unregisterHotKey(UInt32 id) = 0;
 
-	//! Prepare to synthesize input on primary screen
-	/*!
-	Prepares the primary screen to receive synthesized input.  We do not
-	want to receive this synthesized input as user input so this method
-	ensures that we ignore it.  Calls to \c fakeInputBegin() may not be
-	nested.
-	*/
-	virtual void		fakeInputBegin() = 0;
-
-	//! Done synthesizing input on primary screen
-	/*!
-	Undoes whatever \c fakeInputBegin() did.
-	*/
-	virtual void		fakeInputEnd() = 0;
-
 	//@}
 	//! @name accessors
 	//@{
@@ -186,10 +164,6 @@ public:
 	static CEvent::Type	getHotKeyDownEvent();
 	//! Get hot key up event type.  Event data is CHotKeyInfo*.
 	static CEvent::Type	getHotKeyUpEvent();
-	//! Get start of fake input event type
-	static CEvent::Type	getFakeInputBeginEvent();
-	//! Get end of fake input event type
-	static CEvent::Type	getFakeInputEndEvent();
 
 	//@}
 
@@ -203,8 +177,6 @@ private:
 	static CEvent::Type	s_ssDeactivatedEvent;
 	static CEvent::Type	s_hotKeyDownEvent;
 	static CEvent::Type	s_hotKeyUpEvent;
-	static CEvent::Type	s_fakeInputBegin;
-	static CEvent::Type	s_fakeInputEnd;
 };
 
 #endif

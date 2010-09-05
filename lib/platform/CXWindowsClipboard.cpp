@@ -1,6 +1,5 @@
 /*
- * synergy-plus -- mouse and keyboard sharing utility
- * Copyright (C) 2009 The Synergy+ Project
+ * synergy -- mouse and keyboard sharing utility
  * Copyright (C) 2002 Chris Schoeneman
  * 
  * This package is free software; you can redistribute it and/or
@@ -11,9 +10,6 @@
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
 #include "CXWindowsClipboard.h"
@@ -906,18 +902,16 @@ CXWindowsClipboard::insertReply(CReply* reply)
 	if (newWindow) {
 		// note errors while we adjust event masks
 		bool error = false;
-		{
-			CXWindowsUtil::CErrorLock lock(m_display, &error);
+		CXWindowsUtil::CErrorLock lock(m_display, &error);
 
-			// get and save the current event mask
-			XWindowAttributes attr;
-			XGetWindowAttributes(m_display, reply->m_requestor, &attr);
-			m_eventMasks[reply->m_requestor] = attr.your_event_mask;
+		// get and save the current event mask
+		XWindowAttributes attr;
+		XGetWindowAttributes(m_display, reply->m_requestor, &attr);
+		m_eventMasks[reply->m_requestor] = attr.your_event_mask;
 
-			// add the events we want
-			XSelectInput(m_display, reply->m_requestor, attr.your_event_mask |
-									StructureNotifyMask | PropertyChangeMask);
-		}
+		// add the events we want
+		XSelectInput(m_display, reply->m_requestor, attr.your_event_mask |
+								StructureNotifyMask | PropertyChangeMask);
 
 		// if we failed then the window has already been destroyed
 		if (error) {
@@ -933,19 +927,16 @@ CXWindowsClipboard::pushReplies()
 	// send the first reply for each window if that reply hasn't
 	// been sent yet.
 	for (CReplyMap::iterator index = m_replies.begin();
-								index != m_replies.end(); ) {
+								index != m_replies.end(); ++index) {
 		assert(!index->second.empty());
 		if (!index->second.front()->m_replied) {
 			pushReplies(index, index->second, index->second.begin());
-		}
-		else {
-			++index;
 		}
 	}
 }
 
 void
-CXWindowsClipboard::pushReplies(CReplyMap::iterator& mapIndex,
+CXWindowsClipboard::pushReplies(CReplyMap::iterator mapIndex,
 				CReplyList& replies, CReplyList::iterator index)
 {
 	CReply* reply = *index;
@@ -966,11 +957,8 @@ CXWindowsClipboard::pushReplies(CReplyMap::iterator& mapIndex,
 		CXWindowsUtil::CErrorLock lock(m_display);
 		Window requestor = mapIndex->first;
 		XSelectInput(m_display, requestor, m_eventMasks[requestor]);
-		m_replies.erase(mapIndex++);
+		m_replies.erase(mapIndex);
 		m_eventMasks.erase(requestor);
-	}
-	else {
-		++mapIndex;
 	}
 }
 
@@ -1198,7 +1186,7 @@ CXWindowsClipboard::wasOwnedAtTime(::Time time) const
 	// compare time to range
 	Time duration = lost - m_timeOwned;
 	Time when     = time - m_timeOwned;
-	return (/*when >= 0 &&*/ when <= duration);
+	return (/*when >= 0 &&*/ when < duration);
 }
 
 Atom

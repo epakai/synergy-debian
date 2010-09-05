@@ -1,6 +1,5 @@
 /*
- * synergy-plus -- mouse and keyboard sharing utility
- * Copyright (C) 2009 The Synergy+ Project
+ * synergy -- mouse and keyboard sharing utility
  * Copyright (C) 2002 Chris Schoeneman
  * 
  * This package is free software; you can redistribute it and/or
@@ -11,9 +10,6 @@
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
 #ifndef CXWINDOWSSCREEN_H
@@ -35,7 +31,7 @@ class CXWindowsScreenSaver;
 //! Implementation of IPlatformScreen for X11
 class CXWindowsScreen : public CPlatformScreen {
 public:
-	CXWindowsScreen(const char* displayName, bool isPrimary, int mouseScrollDelta=0);
+	CXWindowsScreen(const char* displayName, bool isPrimary);
 	virtual ~CXWindowsScreen();
 
 	//! @name manipulators
@@ -55,8 +51,6 @@ public:
 	virtual void		warpCursor(SInt32 x, SInt32 y);
 	virtual UInt32		registerHotKey(KeyID key, KeyModifierMask mask);
 	virtual void		unregisterHotKey(UInt32 id);
-	virtual void		fakeInputBegin();
-	virtual void		fakeInputEnd();
 	virtual SInt32		getJumpZoneSize() const;
 	virtual bool		isAnyMouseButtonDown() const;
 	virtual void		getCursorCenter(SInt32& x, SInt32& y) const;
@@ -65,7 +59,7 @@ public:
 	virtual void		fakeMouseButton(ButtonID id, bool press) const;
 	virtual void		fakeMouseMove(SInt32 x, SInt32 y) const;
 	virtual void		fakeMouseRelativeMove(SInt32 dx, SInt32 dy) const;
-	virtual void		fakeMouseWheel(SInt32 xDelta, SInt32 yDelta) const;
+	virtual void		fakeMouseWheel(SInt32 delta) const;
 
 	// IPlatformScreen overrides
 	virtual void		enable();
@@ -165,7 +159,6 @@ private:
 
 	// true if screen is being used as a primary screen, false otherwise
 	bool				m_isPrimary;
-	int 				m_mouseScrollDelta;
 
 	Display*			m_display;
 	Window				m_root;
@@ -221,10 +214,6 @@ private:
 	// a screen other than screen 0.
 	bool				m_xtestIsXineramaUnaware;
 	bool				m_xinerama;
-
-	// stuff to work around lost focus issues on certain systems
-	// (ie: a MythTV front-end).
-	bool				m_preserveFocus;
 
 	// XKB extension stuff
 	bool				m_xkb;

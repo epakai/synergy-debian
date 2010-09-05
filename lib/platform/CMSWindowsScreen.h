@@ -1,6 +1,5 @@
 /*
- * synergy-plus -- mouse and keyboard sharing utility
- * Copyright (C) 2009 The Synergy+ Project
+ * synergy -- mouse and keyboard sharing utility
  * Copyright (C) 2002 Chris Schoeneman
  * 
  * This package is free software; you can redistribute it and/or
@@ -11,9 +10,6 @@
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
 #ifndef CMSWINDOWSSCREEN_H
@@ -36,7 +32,7 @@ class CThread;
 //! Implementation of IPlatformScreen for Microsoft Windows
 class CMSWindowsScreen : public CPlatformScreen {
 public:
-	CMSWindowsScreen(bool isPrimary, bool noHooks);
+	CMSWindowsScreen(bool isPrimary);
 	virtual ~CMSWindowsScreen();
 
 	//! @name manipulators
@@ -74,8 +70,6 @@ public:
 	virtual UInt32		registerHotKey(KeyID key,
 							KeyModifierMask mask);
 	virtual void		unregisterHotKey(UInt32 id);
-	virtual void		fakeInputBegin();
-	virtual void		fakeInputEnd();
 	virtual SInt32		getJumpZoneSize() const;
 	virtual bool		isAnyMouseButtonDown() const;
 	virtual void		getCursorCenter(SInt32& x, SInt32& y) const;
@@ -84,7 +78,7 @@ public:
 	virtual void		fakeMouseButton(ButtonID id, bool press) const;
 	virtual void		fakeMouseMove(SInt32 x, SInt32 y) const;
 	virtual void		fakeMouseRelativeMove(SInt32 dx, SInt32 dy) const;
-	virtual void		fakeMouseWheel(SInt32 xDelta, SInt32 yDelta) const;
+	virtual void		fakeMouseWheel(SInt32 delta) const;
 
 	// IKeyState overrides
 	virtual void		updateKeys();
@@ -150,7 +144,7 @@ private:
 	bool				onHotKey(WPARAM, LPARAM);
 	bool				onMouseButton(WPARAM, LPARAM);
 	bool				onMouseMove(SInt32 x, SInt32 y);
-	bool				onMouseWheel(SInt32 xDelta, SInt32 yDelta);
+	bool				onMouseWheel(SInt32 delta);
 	bool				onScreensaver(bool activated);
 	bool				onDisplayChange();
 	bool				onClipboardChange();
@@ -219,9 +213,6 @@ private:
 
 	// true if screen is being used as a primary screen, false otherwise
 	bool				m_isPrimary;
-
-	// true if hooks are not to be installed (useful for debugging)
-	bool				m_noHooks;
 
 	// true if windows 95/98/me
 	bool				m_is95Family;
@@ -310,9 +301,6 @@ private:
 	MOUSEKEYS			m_oldMouseKeys;
 
 	static CMSWindowsScreen*	s_screen;
-
-	// save last position of mouse to compute next delta movement
-	void saveMousePosition(SInt32 x, SInt32 y);
 };
 
 #endif

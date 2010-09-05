@@ -1,6 +1,5 @@
 /*
- * synergy-plus -- mouse and keyboard sharing utility
- * Copyright (C) 2009 The Synergy+ Project
+ * synergy -- mouse and keyboard sharing utility
  * Copyright (C) 2002 Chris Schoeneman
  * 
  * This package is free software; you can redistribute it and/or
@@ -11,9 +10,6 @@
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
 #include "CServerProxy.h"
@@ -28,7 +24,6 @@
 #include "TMethodEventJob.h"
 #include "XBase.h"
 #include <memory>
-#include <cstring>
 
 //
 // CServerProxy
@@ -37,6 +32,7 @@
 CServerProxy::CServerProxy(CClient* client, IStream* stream) :
 	m_client(client),
 	m_stream(stream),
+	m_timer(NULL),
 	m_seqNum(0),
 	m_compressMouse(false),
 	m_compressMouseRelative(false),
@@ -45,8 +41,7 @@ CServerProxy::CServerProxy(CClient* client, IStream* stream) :
 	m_dxMouse(0),
 	m_dyMouse(0),
 	m_ignoreMouse(false),
-	m_keepAliveAlarm(0.0),
-	m_keepAliveAlarmTimer(NULL),
+	m_heartRate(0.0),
 	m_parser(&CServerProxy::parseHandshakeMessage)
 {
 	assert(m_client != NULL);
@@ -63,38 +58,30 @@ CServerProxy::CServerProxy(CClient* client, IStream* stream) :
 								&CServerProxy::handleData));
 
 	// send heartbeat
-	setKeepAliveRate(kKeepAliveRate);
+	installHeartBeat(kHeartRate);
 }
 
 CServerProxy::~CServerProxy()
 {
-	setKeepAliveRate(-1.0);
+	installHeartBeat(-1.0);
 	EVENTQUEUE->removeHandler(IStream::getInputReadyEvent(),
 							m_stream->getEventTarget());
 }
 
 void
-CServerProxy::resetKeepAliveAlarm()
+CServerProxy::installHeartBeat(double heartRate)
 {
-	if (m_keepAliveAlarmTimer != NULL) {
-		EVENTQUEUE->removeHandler(CEvent::kTimer, m_keepAliveAlarmTimer);
-		EVENTQUEUE->deleteTimer(m_keepAliveAlarmTimer);
-		m_keepAliveAlarmTimer = NULL;
+	if (m_timer != NULL) {
+		EVENTQUEUE->removeHandler(CEvent::kTimer, m_timer);
+		EVENTQUEUE->deleteTimer(m_timer);
 	}
-	if (m_keepAliveAlarm > 0.0) {
-		m_keepAliveAlarmTimer =
-			EVENTQUEUE->newOneShotTimer(m_keepAliveAlarm, NULL);
-		EVENTQUEUE->adoptHandler(CEvent::kTimer, m_keepAliveAlarmTimer,
+	m_heartRate = heartRate;
+	if (m_heartRate > 0.0) {
+		m_timer = EVENTQUEUE->newTimer(m_heartRate, NULL);
+		EVENTQUEUE->adoptHandler(CEvent::kTimer, m_timer,
 							new TMethodEventJob<CServerProxy>(this,
-								&CServerProxy::handleKeepAliveAlarm));
+								&CServerProxy::handleHeartBeat));
 	}
-}
-
-void
-CServerProxy::setKeepAliveRate(double rate)
-{
-	m_keepAliveAlarm = rate * kKeepAlivesUntilDeath;
-	resetKeepAliveAlarm();
 }
 
 void
@@ -118,7 +105,7 @@ CServerProxy::handleData(const CEvent&, void*)
 			break;
 
 		case kUnknown:
-			LOG((CLOG_ERR "invalid message from server: %c%c%c%c", code[0], code[1], code[2], code[3]));
+			LOG((CLOG_ERR "invalid message from server"));
 			m_client->disconnect("invalid message from server");
 			return;
 
@@ -154,12 +141,6 @@ CServerProxy::parseHandshakeMessage(const UInt8* code)
 
 	else if (memcmp(code, kMsgCResetOptions, 4) == 0) {
 		resetOptions();
-	}
-
-	else if (memcmp(code, kMsgCKeepAlive, 4) == 0) {
-		// echo keep alives and reset alarm
-		CProtocolUtil::writef(m_stream, kMsgCKeepAlive);
-		resetKeepAliveAlarm();
 	}
 
 	else if (memcmp(code, kMsgCNoop, 4) == 0) {
@@ -241,12 +222,6 @@ CServerProxy::parseMessage(const UInt8* code)
 		keyRepeat();
 	}
 
-	else if (memcmp(code, kMsgCKeepAlive, 4) == 0) {
-		// echo keep alives and reset alarm
-		CProtocolUtil::writef(m_stream, kMsgCKeepAlive);
-		resetKeepAliveAlarm();
-	}
-
 	else if (memcmp(code, kMsgCNoop, 4) == 0) {
 		// accept and discard no-op
 	}
@@ -315,10 +290,9 @@ CServerProxy::parseMessage(const UInt8* code)
 }
 
 void
-CServerProxy::handleKeepAliveAlarm(const CEvent&, void*)
+CServerProxy::handleHeartBeat(const CEvent&, void*)
 {
-	LOG((CLOG_NOTE "server is dead"));
-	m_client->disconnect("server is not responding");
+	CProtocolUtil::writef(m_stream, kMsgCNoop);
 }
 
 void
@@ -725,12 +699,12 @@ CServerProxy::mouseWheel()
 	flushCompressedMouse();
 
 	// parse
-	SInt16 xDelta, yDelta;
-	CProtocolUtil::readf(m_stream, kMsgDMouseWheel + 4, &xDelta, &yDelta);
-	LOG((CLOG_DEBUG2 "recv mouse wheel %+d,%+d", xDelta, yDelta));
+	SInt16 delta;
+	CProtocolUtil::readf(m_stream, kMsgDMouseWheel + 4, &delta);
+	LOG((CLOG_DEBUG2 "recv mouse wheel %+d", delta));
 
 	// forward
-	m_client->mouseWheel(xDelta, yDelta);
+	m_client->mouseWheel(delta);
 }
 
 void
@@ -754,8 +728,11 @@ CServerProxy::resetOptions()
 	// forward
 	m_client->resetOptions();
 
-	// reset keep alive
-	setKeepAliveRate(kKeepAliveRate);
+	// reset heart rate and send heartbeat if necessary
+	installHeartBeat(kHeartRate);
+	if (m_heartRate >= 0.0) {
+		CProtocolUtil::writef(m_stream, kMsgCNoop);
+	}
 
 	// reset modifier translation table
 	for (KeyModifierID id = 0; id < kKeyModifierIDLast; ++id) {
@@ -775,7 +752,7 @@ CServerProxy::setOptions()
 	m_client->setOptions(options);
 
 	// update modifier table
-	for (UInt32 i = 0, n = (UInt32)options.size(); i < n; i += 2) {
+	for (UInt32 i = 0, n = options.size(); i < n; i += 2) {
 		KeyModifierID id = kKeyModifierIDNull;
 		if (options[i] == kOptionModifierMapForShift) {
 			id = kKeyModifierIDShift;
@@ -793,8 +770,11 @@ CServerProxy::setOptions()
 			id = kKeyModifierIDSuper;
 		}
 		else if (options[i] == kOptionHeartbeat) {
-			// update keep alive
-			setKeepAliveRate(1.0e-3 * static_cast<double>(options[i + 1]));
+			// update heart rate and send heartbeat if necessary
+			installHeartBeat(1.0e-3 * static_cast<double>(options[i + 1]));
+			if (m_heartRate >= 0.0) {
+				CProtocolUtil::writef(m_stream, kMsgCNoop);
+			}
 		}
 		if (id != kKeyModifierIDNull) {
 			m_modifierTranslationTable[id] =

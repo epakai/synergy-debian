@@ -1,6 +1,5 @@
 /*
- * synergy-plus -- mouse and keyboard sharing utility
- * Copyright (C) 2009 The Synergy+ Project
+ * synergy -- mouse and keyboard sharing utility
  * Copyright (C) 2003 Chris Schoeneman
  * 
  * This package is free software; you can redistribute it and/or
@@ -11,9 +10,6 @@
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
 #ifndef CXWINDOWSKEYSTATE_H
@@ -64,12 +60,6 @@ public:
 	*/
 	void				setActiveGroup(SInt32 group);
 
-	//! Set the auto-repeat state
-	/*!
-	Sets the auto-repeat state.
-	*/
-	void				setAutoRepeat(const XKeyboardState&);
-
 	//@}
 	//! @name accessors
 	//@{
@@ -114,34 +104,21 @@ protected:
 private:
 	void				updateKeysymMap(CKeyMap&);
 	void				updateKeysymMapXKB(CKeyMap&);
-	bool				hasModifiersXKB() const;
-	int					getEffectiveGroup(KeyCode, int group) const;
 	UInt32				getGroupFromState(unsigned int state) const;
 
 	static void			remapKeyModifiers(KeyID, SInt32,
 							CKeyMap::KeyItem&, void*);
 
 private:
-	struct XKBModifierInfo {
-	public:
-		unsigned char	m_level;
-		UInt32			m_mask;
-		bool			m_lock;
-	};
-
 	typedef std::vector<KeyModifierMask> KeyModifierMaskList;
 	typedef std::map<KeyModifierMask, unsigned int> KeyModifierToXMask;
 	typedef std::multimap<KeyID, KeyCode> KeyToKeyCodeMap;
-	typedef std::map<KeyCode, unsigned int> NonXKBModifierMap;
-	typedef std::map<UInt32, XKBModifierInfo> XKBModifierMap;
 
 	Display*			m_display;
 #if HAVE_XKB_EXTENSION
 	XkbDescPtr			m_xkb;
 #endif
 	SInt32				m_group;
-	XKBModifierMap		m_lastGoodXKBModifiers;
-	NonXKBModifierMap	m_lastGoodNonXKBModifiers;
 
 	// X modifier (bit number) to synergy modifier (mask) mapping
 	KeyModifierMaskList	m_modifierFromX;
@@ -151,9 +128,6 @@ private:
 
 	// map KeyID to all keycodes that can synthesize that KeyID
 	KeyToKeyCodeMap		m_keyCodeFromKey;
-
-	// autorepeat state
-	XKeyboardState		m_keyboardState;
 };
 
 #endif

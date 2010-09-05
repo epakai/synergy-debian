@@ -1,6 +1,5 @@
 /*
- * synergy-plus -- mouse and keyboard sharing utility
- * Copyright (C) 2009 The Synergy+ Project
+ * synergy -- mouse and keyboard sharing utility
  * Copyright (C) 2005 Chris Schoeneman
  * 
  * This package is free software; you can redistribute it and/or
@@ -11,9 +10,6 @@
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
 #ifndef CKEYMAP_H
@@ -436,9 +432,6 @@ private:
 	// Returns the number of modifiers indicated in \p state.
 	static SInt32		getNumModifiers(KeyModifierMask state);
 
-	// Initialize key name/id maps
-	static void			initKeyNameMaps();
-
 	// not implemented
 	CKeyMap(const CKeyMap&);
 	CKeyMap&			operator=(const CKeyMap&);
@@ -481,9 +474,6 @@ private:
 	// half-duplex info
 	KeyButtonSet		m_halfDuplex;			// half-duplex set by synergy
 	KeySet				m_halfDuplexMods;		// half-duplex set by user
-
-	// dummy KeyItem for changing modifiers
-	KeyItem				m_modifierKeyItem;
 
 	// parsing/formatting tables
 	static CNameToKeyMap*		s_nameToKeyMap;

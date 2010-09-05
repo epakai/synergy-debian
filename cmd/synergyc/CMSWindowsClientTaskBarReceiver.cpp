@@ -1,6 +1,5 @@
 /*
- * synergy-plus -- mouse and keyboard sharing utility
- * Copyright (C) 2009 The Synergy+ Project
+ * synergy -- mouse and keyboard sharing utility
  * Copyright (C) 2003 Chris Schoeneman
  * 
  * This package is free software; you can redistribute it and/or
@@ -11,9 +10,6 @@
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
 #include "CMSWindowsClientTaskBarReceiver.h"
@@ -23,9 +19,7 @@
 #include "BasicTypes.h"
 #include "CArch.h"
 #include "CArchTaskBarWindows.h"
-#include "CArchMiscWindows.h"
 #include "resource.h"
-#include "CMSWindowsScreen.h"
 
 //
 // CMSWindowsClientTaskBarReceiver
@@ -62,12 +56,6 @@ CMSWindowsClientTaskBarReceiver::CMSWindowsClientTaskBarReceiver(
 }
 
 CMSWindowsClientTaskBarReceiver::~CMSWindowsClientTaskBarReceiver()
-{
-	cleanup();
-}
-
-void
-CMSWindowsClientTaskBarReceiver::cleanup()
 {
 	ARCH->removeReceiver(this);
 	for (UInt32 i = 0; i < kMaxState; ++i) {
@@ -151,9 +139,6 @@ CMSWindowsClientTaskBarReceiver::runMenu(int x, int y)
 	SetForegroundWindow(m_window);
 	HMENU menu = GetSubMenu(m_menu, 0);
 	SetMenuDefaultItem(menu, IDC_TASKBAR_STATUS, FALSE);
-	HMENU logLevelMenu = GetSubMenu(menu, 3);
-	CheckMenuRadioItem(logLevelMenu, 0, 6,
-							CLOG->getFilter() - CLog::kERROR, MF_BYPOSITION);
 	int n = TrackPopupMenu(menu,
 							TPM_NONOTIFY |
 							TPM_RETURNCMD |
@@ -170,38 +155,6 @@ CMSWindowsClientTaskBarReceiver::runMenu(int x, int y)
 
 	case IDC_TASKBAR_LOG:
 		copyLog();
-		break;
-
-	case IDC_TASKBAR_SHOW_LOG:
-		ARCH->showConsole(true);
-		break;
-
-	case IDC_TASKBAR_LOG_LEVEL_ERROR:
-		CLOG->setFilter(CLog::kERROR);
-		break;
-
-	case IDC_TASKBAR_LOG_LEVEL_WARNING:
-		CLOG->setFilter(CLog::kWARNING);
-		break;
-
-	case IDC_TASKBAR_LOG_LEVEL_NOTE:
-		CLOG->setFilter(CLog::kNOTE);
-		break;
-
-	case IDC_TASKBAR_LOG_LEVEL_INFO:
-		CLOG->setFilter(CLog::kINFO);
-		break;
-
-	case IDC_TASKBAR_LOG_LEVEL_DEBUG:
-		CLOG->setFilter(CLog::kDEBUG);
-		break;
-
-	case IDC_TASKBAR_LOG_LEVEL_DEBUG1:
-		CLOG->setFilter(CLog::kDEBUG1);
-		break;
-
-	case IDC_TASKBAR_LOG_LEVEL_DEBUG2:
-		CLOG->setFilter(CLog::kDEBUG2);
 		break;
 
 	case IDC_TASKBAR_QUIT:
@@ -284,15 +237,15 @@ CMSWindowsClientTaskBarReceiver::createWindow()
 	m_window = CreateDialogParam(m_appInstance,
 							MAKEINTRESOURCE(IDD_TASKBAR_STATUS),
 							NULL,
-							(DLGPROC)&CMSWindowsClientTaskBarReceiver::staticDlgProc,
+							&CMSWindowsClientTaskBarReceiver::staticDlgProc,
 							reinterpret_cast<LPARAM>(
 								reinterpret_cast<void*>(this)));
 
 	// window should appear on top of everything, including (especially)
 	// the task bar.
-	LONG_PTR style = GetWindowLongPtr(m_window, GWL_EXSTYLE);
+	DWORD style = GetWindowLong(m_window, GWL_EXSTYLE);
 	style |= WS_EX_TOOLWINDOW | WS_EX_TOPMOST;
-	SetWindowLongPtr(m_window, GWL_EXSTYLE, style);
+	SetWindowLong(m_window, GWL_EXSTYLE, style);
 
 	// tell the task bar about this dialog
 	CArchTaskBarWindows::addDialog(m_window);
@@ -337,13 +290,14 @@ CMSWindowsClientTaskBarReceiver::staticDlgProc(HWND hwnd,
 	if (msg == WM_INITDIALOG) {
 		self = reinterpret_cast<CMSWindowsClientTaskBarReceiver*>(
 							reinterpret_cast<void*>(lParam));
-		SetWindowLongPtr(hwnd, GWLP_USERDATA, (LONG_PTR) lParam);
+		SetWindowLong(hwnd, GWL_USERDATA, lParam);
 	}
 	else {
 		// get the extra window data and forward the call
-		LONG_PTR data = GetWindowLongPtr(hwnd, GWLP_USERDATA);
+		LONG data = GetWindowLong(hwnd, GWL_USERDATA);
 		if (data != 0) {
-			self = (CMSWindowsClientTaskBarReceiver*) data;
+			self = reinterpret_cast<CMSWindowsClientTaskBarReceiver*>(
+							reinterpret_cast<void*>(data));
 		}
 	}
 
@@ -354,21 +308,4 @@ CMSWindowsClientTaskBarReceiver::staticDlgProc(HWND hwnd,
 	else {
 		return (msg == WM_INITDIALOG) ? TRUE : FALSE;
 	}
-}
-
-IArchTaskBarReceiver*
-createTaskBarReceiver(const CBufferedLogOutputter* logBuffer)
-{
-	CArchMiscWindows::setIcons(
-		(HICON)LoadImage(CArchMiscWindows::instanceWin32(),
-		MAKEINTRESOURCE(IDI_SYNERGY),
-		IMAGE_ICON,
-		32, 32, LR_SHARED),
-		(HICON)LoadImage(CArchMiscWindows::instanceWin32(),
-		MAKEINTRESOURCE(IDI_SYNERGY),
-		IMAGE_ICON,
-		16, 16, LR_SHARED));
-
-	return new CMSWindowsClientTaskBarReceiver(
-		CMSWindowsScreen::getInstance(), logBuffer);
 }

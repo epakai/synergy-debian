@@ -1,6 +1,5 @@
 /*
- * synergy-plus -- mouse and keyboard sharing utility
- * Copyright (C) 2009 The Synergy+ Project
+ * synergy -- mouse and keyboard sharing utility
  * Copyright (C) 2003 Chris Schoeneman
  * 
  * This package is free software; you can redistribute it and/or
@@ -11,9 +10,6 @@
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
 #include "CXWindowsKeyState.h"
@@ -37,7 +33,6 @@
 CXWindowsKeyState::CXWindowsKeyState(Display* display, bool useXKB) :
 	m_display(display)
 {
-	XGetKeyboardControl(m_display, &m_keyboardState);
 #if HAVE_XKB_EXTENSION
 	if (useXKB) {
 		m_xkb = XkbGetMap(m_display, XkbKeyActionsMask | XkbKeyBehaviorsMask |
@@ -73,12 +68,6 @@ CXWindowsKeyState::setActiveGroup(SInt32 group)
 		assert(group >= 0);
 		m_group = group;
 	}
-}
-
-void
-CXWindowsKeyState::setAutoRepeat(const XKeyboardState& state)
-{
-	m_keyboardState = state;
 }
 
 KeyModifierMask
@@ -185,12 +174,6 @@ CXWindowsKeyState::pollPressedKeys(KeyButtonSet& pressedKeys) const
 void
 CXWindowsKeyState::getKeyMap(CKeyMap& keyMap)
 {
-	// get autorepeat info.  we must use the global_auto_repeat told to
-	// us because it may have modified by synergy.
-	int oldGlobalAutoRepeat = m_keyboardState.global_auto_repeat;
-	XGetKeyboardControl(m_display, &m_keyboardState);
-	m_keyboardState.global_auto_repeat = oldGlobalAutoRepeat;
-
 #if HAVE_XKB_EXTENSION
 	if (m_xkb != NULL) {
 		XkbGetUpdatedMap(m_display, XkbKeyActionsMask | XkbKeyBehaviorsMask |
@@ -210,16 +193,6 @@ CXWindowsKeyState::fakeKey(const Keystroke& keystroke)
 	switch (keystroke.m_type) {
 	case Keystroke::kButton:
 		LOG((CLOG_DEBUG1 "  %03x (%08x) %s", keystroke.m_data.m_button.m_button, keystroke.m_data.m_button.m_client, keystroke.m_data.m_button.m_press ? "down" : "up"));
-		if (keystroke.m_data.m_button.m_repeat) {
-			int c = keystroke.m_data.m_button.m_button;
-			int i = (c >> 3);
-			int b = 1 << (c & 7);
-			if (m_keyboardState.global_auto_repeat == AutoRepeatModeOff ||
-				(c!=113 && c!=116 && (m_keyboardState.auto_repeats[i] & b) == 0)) {
-				LOG((CLOG_DEBUG1 "  discard autorepeat"));
-				break;
-			}
-		}
 		XTestFakeKeyEvent(m_display, keystroke.m_data.m_button.m_button,
 							keystroke.m_data.m_button.m_press ? True : False,
 							CurrentTime);
@@ -228,30 +201,14 @@ CXWindowsKeyState::fakeKey(const Keystroke& keystroke)
 	case Keystroke::kGroup:
 		if (keystroke.m_data.m_group.m_absolute) {
 			LOG((CLOG_DEBUG1 "  group %d", keystroke.m_data.m_group.m_group));
-#if HAVE_XKB_EXTENSION
-			if (m_xkb != NULL) {
-				XkbLockGroup(m_display, XkbUseCoreKbd,
+			XkbLockGroup(m_display, XkbUseCoreKbd,
 							keystroke.m_data.m_group.m_group);
-			}
-			else
-#endif
-			{
-				LOG((CLOG_DEBUG1 "  ignored"));
-			}
 		}
 		else {
 			LOG((CLOG_DEBUG1 "  group %+d", keystroke.m_data.m_group.m_group));
-#if HAVE_XKB_EXTENSION
-			if (m_xkb != NULL) {
-				XkbLockGroup(m_display, XkbUseCoreKbd,
+			XkbLockGroup(m_display, XkbUseCoreKbd,
 							getEffectiveGroup(pollActiveGroup(),
 								keystroke.m_data.m_group.m_group));
-			}
-			else
-#endif
-			{
-				LOG((CLOG_DEBUG1 "  ignored"));
-			}
 		}
 		break;
 	}
@@ -277,9 +234,6 @@ CXWindowsKeyState::updateKeysymMap(CKeyMap& keyMap)
 	m_modifierToX[KeyModifierShift]    = ShiftMask;
 	m_modifierToX[KeyModifierCapsLock] = LockMask;
 	m_modifierToX[KeyModifierControl]  = ControlMask;
-
-	// prepare map from KeyID to KeyCode
-	m_keyCodeFromKey.clear();
 
 	// get the number of keycodes
 	int minKeycode, maxKeycode;
@@ -338,20 +292,6 @@ CXWindowsKeyState::updateKeysymMap(CKeyMap& keyMap)
 	}
 	XFreeModifiermap(modifiers);
 	modifierButtons.erase(0);
-
-	// Hack to deal with VMware.  When a VMware client grabs input the
-	// player clears out the X modifier map for whatever reason.  We're
-	// notified of the change and arrive here to discover that there
-	// are no modifiers at all.  Since this prevents the modifiers from
-	// working in the VMware client we'll use the last known good set
-	// of modifiers when there are no modifiers.  If there are modifiers
-	// we update the last known good set.
-	if (!modifierButtons.empty()) {
-		m_lastGoodNonXKBModifiers = modifierButtons;
-	}
-	else {
-		modifierButtons = m_lastGoodNonXKBModifiers;
-	}
 
 	// add entries for each keycode
 	CKeyMap::KeyItem item;
@@ -427,19 +367,7 @@ CXWindowsKeyState::updateKeysymMap(CKeyMap& keyMap)
 		for (int j = 0; j < maxKeysyms; ++j) {
 			item.m_id = CXWindowsUtil::mapKeySymToKeyID(keysyms[j]);
 			if (item.m_id == kKeyNone) {
-				if (j != 0 && modifierButtons.count(keycode) > 0) {
-					// pretend the modifier works in other shift levels
-					// because it probably does.
-					if (keysyms[1] == NoSymbol || j != 3) {
-						item.m_id = CXWindowsUtil::mapKeySymToKeyID(keysyms[0]);
-					}
-					else {
-						item.m_id = CXWindowsUtil::mapKeySymToKeyID(keysyms[1]);
-					}
-				}
-				if (item.m_id == kKeyNone) {
-					continue;
-				}
+				continue;
 			}
 
 			// group is 0 for levels 0 and 1 and 1 for levels 2 and 3
@@ -538,18 +466,6 @@ CXWindowsKeyState::updateKeysymMapXKB(CKeyMap& keyMap)
 	// prepare map from KeyID to KeyCode
 	m_keyCodeFromKey.clear();
 
-	// Hack to deal with VMware.  When a VMware client grabs input the
-	// player clears out the X modifier map for whatever reason.  We're
-	// notified of the change and arrive here to discover that there
-	// are no modifiers at all.  Since this prevents the modifiers from
-	// working in the VMware client we'll use the last known good set
-	// of modifiers when there are no modifiers.  If there are modifiers
-	// we update the last known good set.
-	bool useLastGoodModifiers = !hasModifiersXKB();
-	if (!useLastGoodModifiers) {
-		m_lastGoodXKBModifiers.clear();
-	}
-
 	// check every button.  on this pass we save all modifiers as native
 	// X modifier masks.
 	CKeyMap::KeyItem item;
@@ -559,7 +475,8 @@ CXWindowsKeyState::updateKeysymMapXKB(CKeyMap& keyMap)
 		item.m_client   = 0;
 
 		// skip keys with no groups (they generate no symbols)
-		if (XkbKeyNumGroups(m_xkb, keycode) == 0) {
+		int numGroups = XkbKeyNumGroups(m_xkb, keycode);
+		if (numGroups == 0) {
 			continue;
 		}
 
@@ -572,7 +489,29 @@ CXWindowsKeyState::updateKeysymMapXKB(CKeyMap& keyMap)
 		// iterate over all groups
 		for (int group = 0; group < maxNumGroups; ++group) {
 			item.m_group = group;
-			int eGroup   = getEffectiveGroup(keycode, group);
+
+			// get effective group for key
+			int eGroup = group;
+			if (eGroup >= numGroups) {
+				unsigned char groupInfo = XkbKeyGroupInfo(m_xkb, keycode);
+				switch (XkbOutOfRangeGroupAction(groupInfo)) {
+				case XkbClampIntoRange:
+					eGroup = numGroups - 1;
+					break;
+
+				case XkbRedirectIntoRange:
+					eGroup = XkbOutOfRangeGroupNumber(groupInfo);
+					if (eGroup >= numGroups) {
+						eGroup = 0;
+					}
+					break;
+
+				default:
+					// wrap
+					eGroup %= numGroups;
+					break;
+				}
+			}
 
 			// get key info
 			XkbKeyTypePtr type = XkbKeyKeyType(m_xkb, keycode, eGroup);
@@ -633,28 +572,6 @@ CXWindowsKeyState::updateKeysymMapXKB(CKeyMap& keyMap)
 						continue;
 					}
 				}
-				level = mapEntry->level;
-
-				// VMware modifier hack
-				if (useLastGoodModifiers) {
-					XKBModifierMap::const_iterator k =
-						m_lastGoodXKBModifiers.find(eGroup * 256 + keycode);
-					if (k != m_lastGoodXKBModifiers.end()) {
-						// Use last known good modifier
-						isModifier   = true;
-						level        = k->second.m_level;
-						modifierMask = k->second.m_mask;
-						item.m_lock  = k->second.m_lock;
-					}
-				}
-				else if (isModifier) {
-					// Save known good modifier
-					XKBModifierInfo& info =
-						m_lastGoodXKBModifiers[eGroup * 256 + keycode];
-					info.m_level = level;
-					info.m_mask  = modifierMask;
-					info.m_lock  = item.m_lock;
-				}
 
 				// record the modifier mask for this key.  don't bother
 				// for keys that change the group.
@@ -675,10 +592,10 @@ CXWindowsKeyState::updateKeysymMapXKB(CKeyMap& keyMap)
 						// and we know of a key that combines with fewer
 						// modifiers (or no modifiers) then prefer the
 						// other key.
-						if (level >= modifierLevel[8 * group + j]) {
+						if (mapEntry->level >= modifierLevel[8 * group + j]) {
 							continue;
 						}
-						modifierLevel[8 * group + j] = level;
+						modifierLevel[8 * group + j] = mapEntry->level;
 
 						// save modifier
 						m_modifierFromX[8 * group + j] |= (1u << modifierBit);
@@ -753,69 +670,6 @@ CXWindowsKeyState::remapKeyModifiers(KeyID id, SInt32 group,
 		self->mapModifiersFromX(XkbBuildCoreState(item.m_required, group));
 	item.m_sensitive =
 		self->mapModifiersFromX(XkbBuildCoreState(item.m_sensitive, group));
-}
-
-bool
-CXWindowsKeyState::hasModifiersXKB() const
-{
-#if HAVE_XKB_EXTENSION
-	// iterate over all keycodes
-	for (int i = m_xkb->min_key_code; i <= m_xkb->max_key_code; ++i) {
-		KeyCode keycode = static_cast<KeyCode>(i);
-		if (XkbKeyHasActions(m_xkb, keycode)) {
-			// iterate over all groups
-			int numGroups = XkbKeyNumGroups(m_xkb, keycode);
-			for (int group = 0; group < numGroups; ++group) {
-				// iterate over all shift levels for the button (including none)
-				XkbKeyTypePtr type = XkbKeyKeyType(m_xkb, keycode, group);
-				for (int j = -1; j < type->map_count; ++j) {
-					if (j != -1 && !type->map[j].active) {
-						continue;
-					}
-					int level = ((j == -1) ? 0 : type->map[j].level);
-					XkbAction* action =
-						XkbKeyActionEntry(m_xkb, keycode, level, group);
-					if (action->type == XkbSA_SetMods ||
-						action->type == XkbSA_LockMods) {
-						return true;
-					}
-				}
-			}
-		}
-	}
-#endif
-	return false;
-}
-
-int
-CXWindowsKeyState::getEffectiveGroup(KeyCode keycode, int group) const
-{
-	(void)keycode;
-#if HAVE_XKB_EXTENSION
-	// get effective group for key
-	int numGroups = XkbKeyNumGroups(m_xkb, keycode);
-	if (group >= numGroups) {
-		unsigned char groupInfo = XkbKeyGroupInfo(m_xkb, keycode);
-		switch (XkbOutOfRangeGroupAction(groupInfo)) {
-		case XkbClampIntoRange:
-			group = numGroups - 1;
-			break;
-
-		case XkbRedirectIntoRange:
-			group = XkbOutOfRangeGroupNumber(groupInfo);
-			if (group >= numGroups) {
-				group = 0;
-			}
-			break;
-
-		default:
-			// wrap
-			group %= numGroups;
-			break;
-		}
-	}
-#endif
-	return group;
 }
 
 UInt32

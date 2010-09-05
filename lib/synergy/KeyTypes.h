@@ -1,6 +1,5 @@
 /*
- * synergy-plus -- mouse and keyboard sharing utility
- * Copyright (C) 2009 The Synergy+ Project
+ * synergy -- mouse and keyboard sharing utility
  * Copyright (C) 2002 Chris Schoeneman
  * 
  * This package is free software; you can redistribute it and/or
@@ -11,9 +10,6 @@
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
 #ifndef KEYTYPES_H
@@ -108,10 +104,7 @@ static const KeyID		kKeyScrollLock	= 0xEF14;
 static const KeyID		kKeySysReq		= 0xEF15;
 static const KeyID		kKeyEscape		= 0xEF1B;
 static const KeyID		kKeyHenkan		= 0xEF23;	/* Start/Stop Conversion */
-static const KeyID		kKeyHangulKana	= 0xEF26;	/* Hangul, Kana */
-static const KeyID		kKeyHiraganaKatakana = 0xEF27;	/* Hiragana/Katakana toggle */
 static const KeyID		kKeyZenkaku		= 0xEF2A;	/* Zenkaku/Hankaku */
-static const KeyID		kKeyHanjaKanzi	= 0xEF2A;	/* Hanja, Kanzi */
 static const KeyID		kKeyDelete		= 0xEFFF;	/* Delete, rubout */
 
 // cursor control
@@ -247,15 +240,11 @@ static const KeyID		kKeyDeadCedilla		= 0x0327;
 static const KeyID		kKeyDeadOgonek		= 0x0328;
 
 // more function and modifier keys
-static const KeyID		kKeyLeftTab			= 0xEE20;
-
-// update modifiers
-static const KeyID		kKeySetModifiers	= 0xEE06;
-static const KeyID		kKeyClearModifiers	= 0xEE07;
+static const KeyID		kKeyLeftTab		= 0xEE20;
 
 // group change
-static const KeyID		kKeyNextGroup		= 0xEE08;
-static const KeyID		kKeyPrevGroup		= 0xEE0A;
+static const KeyID		kKeyNextGroup	= 0xEE08;
+static const KeyID		kKeyPrevGroup	= 0xEE0A;
 
 // extended keys
 static const KeyID		kKeyEject			= 0xE001;
@@ -280,31 +269,5 @@ static const KeyID		kKeyAppUser1		= 0xE0B6;
 static const KeyID		kKeyAppUser2		= 0xE0B7;
 
 //@}
-
-struct KeyNameMapEntry {
-public:
-	const char*			m_name;
-	KeyID			 	m_id;
-};
-struct KeyModifierNameMapEntry {
-public:
-	const char*			m_name;
-	KeyModifierMask 	m_mask;
-};
-
-//! Key name to KeyID table
-/*!
-A table of key names to the corresponding KeyID.  Only the keys listed
-above plus non-alphanumeric ASCII characters are in the table.  The end
-of the table is the first pair with a NULL m_name.
-*/
-extern const KeyNameMapEntry kKeyNameMap[];
-
-//! Modifier key name to KeyModifierMask table
-/*!
-A table of modifier key names to the corresponding KeyModifierMask.
-The end of the table is the first pair with a NULL m_name.
-*/
-extern const KeyModifierNameMapEntry kModifierNameMap[];
 
 #endif

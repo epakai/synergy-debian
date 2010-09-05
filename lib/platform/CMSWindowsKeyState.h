@@ -1,6 +1,5 @@
 /*
- * synergy-plus -- mouse and keyboard sharing utility
- * Copyright (C) 2009 The Synergy+ Project
+ * synergy -- mouse and keyboard sharing utility
  * Copyright (C) 2003 Chris Schoeneman
  * 
  * This package is free software; you can redistribute it and/or
@@ -11,9 +10,6 @@
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
 #ifndef CMSWINDOWSKEYSTATE_H
@@ -54,34 +50,6 @@ public:
 	*/
 	void				setKeyLayout(HKL keyLayout);
 
-	//! Test and set autorepeat state
-	/*!
-	Returns true if the given button is autorepeating and updates internal
-	state.
-	*/
-	bool				testAutoRepeat(bool press, bool isRepeat, KeyButton);
-
-	//! Remember modifier state
-	/*!
-	Records the current non-toggle modifier state.
-	*/
-	void				saveModifiers();
-
-	//! Set effective modifier state
-	/*!
-	Temporarily sets the non-toggle modifier state to those saved by the
-	last call to \c saveModifiers if \p enable is \c true.  Restores the
-	modifier state to the current modifier state if \p enable is \c false.
-	This is for synthesizing keystrokes on the primary screen when the
-	cursor is on a secondary screen.  When on a secondary screen we capture
-	all non-toggle modifier state, track the state internally and do not
-	pass it on.  So if Alt+F1 synthesizes Alt+X we need to synthesize
-	not just X but also Alt, despite the fact that our internal modifier
-	state indicates Alt is down, because local apps never saw the Alt down
-	event.
-	*/
-	void				useSavedModifiers(bool enable);
-
 	//@}
 	//! @name accessors
 	//@{
@@ -114,14 +82,6 @@ public:
 	*/
 	UINT				mapKeyToVirtualKey(KeyID key) const;
 
-	//! Map virtual key and button to KeyID
-	/*!
-	Returns the KeyID for virtual key \p virtualKey and button \p button
-	(button should include the extended key bit), or kKeyNone if there is
-	no such key.
-	*/
-	static KeyID		getKeyID(UINT virtualKey, KeyButton button);
-
 	//@}
 
 	// IKeyState overrides
@@ -147,8 +107,6 @@ protected:
 	// CKeyState overrides
 	virtual void		getKeyMap(CKeyMap& keyMap);
 	virtual void		fakeKey(const Keystroke& keystroke);
-	virtual KeyModifierMask&
-						getActiveModifiersRValue();
 
 private:
 	typedef std::vector<HKL> GroupList;
@@ -161,6 +119,8 @@ private:
 
 	void				fixKeys();
 	void				handleFixKeys(const CEvent&, void*);
+
+	KeyID				getKeyID(UINT virtualKey, KeyButton button) const;
 
 	KeyID				getIDForKey(CKeyMap::KeyItem& item,
 							KeyButton button, UINT virtualKey,
@@ -192,27 +152,6 @@ private:
 	// the groups (keyboard layouts)
 	GroupList			m_groups;
 	GroupMap			m_groupMap;
-
-	// the last button that we generated a key down event for.  this
-	// is zero if the last key event was a key up.  we use this to
-	// synthesize key repeats since the low level keyboard hook can't
-	// tell us if an event is a key repeat.
-	KeyButton			m_lastDown;
-
-	// modifier tracking
-	bool				m_useSavedModifiers;
-	KeyModifierMask		m_savedModifiers;
-	KeyModifierMask		m_originalSavedModifiers;
-
-	// pointer to ToUnicodeEx.  on win95 family this will be NULL.
-	typedef int (WINAPI *ToUnicodeEx_t)(UINT wVirtKey,
-										UINT wScanCode,
-										PBYTE lpKeyState,
-										LPWSTR pwszBuff,
-										int cchBuff,
-										UINT wFlags,
-										HKL dwhkl);
-	ToUnicodeEx_t		m_ToUnicodeEx;
 
 	static const KeyID	s_virtualKey[];
 };

@@ -7,10 +7,7 @@
 //
 // Generated from the TEXTINCLUDE 2 resource.
 //
-#include <winresrc.h>
-#if !defined(IDC_STATIC)
-#define IDC_STATIC (-1)
-#endif
+#include "afxres.h"
 
 /////////////////////////////////////////////////////////////////////////////
 #undef APSTUDIO_READONLY_SYMBOLS
@@ -37,7 +34,7 @@ END
 
 2 TEXTINCLUDE DISCARDABLE 
 BEGIN
-    "#include <winresrc.h>\r\n"
+    "#include ""afxres.h""\r\n"
     "\0"
 END
 
@@ -80,15 +77,14 @@ BEGIN
                     54,8
     PUSHBUTTON      "Configure...",IDC_MAIN_SCREENS,71,86,50,14
     PUSHBUTTON      "&Options...",IDC_MAIN_OPTIONS,12,129,50,14
-    PUSHBUTTON      "Hot &Keys...",IDC_MAIN_HOTKEYS,68,129,50,14
-    PUSHBUTTON      "Adva&nced...",IDC_MAIN_ADVANCED,124,129,50,14
-    PUSHBUTTON      "&AutoStart...",IDC_MAIN_AUTOSTART,180,129,50,14
-    LTEXT           "&Logging Level:",IDC_STATIC,12,154,48,8
+    PUSHBUTTON      "Adva&nced...",IDC_MAIN_ADVANCED,68,129,50,14
+    LTEXT           "Automatic Startup:",IDC_STATIC,138,131,59,8
+    PUSHBUTTON      "Con&figure...",IDC_MAIN_AUTOSTART,202,129,50,14
+    LTEXT           "Lo&gging Level:",IDC_STATIC,12,154,48,8
     COMBOBOX        IDC_MAIN_DEBUG,68,151,61,60,CBS_DROPDOWNLIST | 
                     WS_VSCROLL | WS_TABSTOP
-    PUSHBUTTON      "&Info",IDC_MAIN_INFO,7,178,50,14
-    PUSHBUTTON   "&Test",IDC_MAIN_TEST,131,179,50,14
-    DEFPUSHBUTTON      "Start",IDOK,187,179,50,14
+    DEFPUSHBUTTON   "&Test",IDC_MAIN_TEST,131,179,50,14
+    PUSHBUTTON      "Start",IDOK,187,179,50,14
     PUSHBUTTON      "Quit",IDCANCEL,243,179,50,14
 END
 
@@ -206,8 +202,8 @@ BEGIN
                     IDC_STATIC,7,176,193,8
     CONTROL         "Synchronize screen savers",IDC_GLOBAL_SCREENSAVER_SYNC,
                     "Button",BS_AUTOCHECKBOX | WS_TABSTOP,7,192,101,10
-    LTEXT           "Relative mouse moves on secondary screens.",IDC_STATIC,
-                    7,213,193,8
+    LTEXT           "Experimental: Relative mouse moves on secondary screens.",
+                    IDC_STATIC,7,213,193,8
     CONTROL         "Use relative mouse moves",IDC_GLOBAL_RELATIVE_MOVES,
                     "Button",BS_AUTOCHECKBOX | WS_TABSTOP,7,229,99,10
     CONTROL         "Don't take foreground window on Windows servers",
@@ -240,163 +236,32 @@ BEGIN
     PUSHBUTTON      "Cancel",IDCANCEL,173,165,50,14
 END
 
-IDD_SCREENS_LINKS DIALOG DISCARDABLE  0, 0, 354, 213
+IDD_SCREENS_LINKS DIALOG DISCARDABLE  0, 0, 282, 117
 STYLE DS_MODALFRAME | WS_POPUP | WS_CAPTION | WS_SYSMENU
 CAPTION "Screens & Links"
 FONT 8, "MS Sans Serif"
 BEGIN
     LTEXT           "&Screens:",IDC_STATIC,7,7,29,8
-    LISTBOX         IDC_SCREENS_SCREENS,7,18,100,36,LBS_SORT | 
+    LISTBOX         IDC_SCREENS_SCREENS,7,18,106,36,LBS_SORT | 
                     LBS_NOINTEGRALHEIGHT | WS_VSCROLL | WS_TABSTOP
     PUSHBUTTON      "+",IDC_SCREENS_ADD_SCREEN,7,57,17,14
     PUSHBUTTON      "-",IDC_SCREENS_REMOVE_SCREEN,28,57,17,14
     PUSHBUTTON      "Edit",IDC_SCREENS_EDIT_SCREEN,49,57,24,14
-    LTEXT           "&Links:",IDC_STATIC,7,83,20,8
-    LISTBOX         IDC_SCREENS_LINKS,7,94,339,59,LBS_SORT | 
-                    LBS_NOINTEGRALHEIGHT | WS_VSCROLL | WS_TABSTOP
-    EDITTEXT        IDC_SCREENS_SRC_START,7,156,16,12,ES_AUTOHSCROLL | 
-                    ES_NUMBER
-    LTEXT           "to",IDC_STATIC,25,158,8,8
-    EDITTEXT        IDC_SCREENS_SRC_END,33,156,16,12,ES_AUTOHSCROLL | 
-                    ES_NUMBER
-    LTEXT           "% of the",IDC_STATIC,52,158,27,8
-    COMBOBOX        IDC_SCREENS_SRC_SIDE,80,156,48,69,CBS_DROPDOWNLIST | 
-                    WS_VSCROLL | WS_TABSTOP
-    LTEXT           "of",IDC_STATIC,129,158,8,8
-    COMBOBOX        IDC_SCREENS_SRC_SCREEN,139,156,59,53,CBS_DROPDOWNLIST | 
-                    WS_VSCROLL | WS_TABSTOP
-    LTEXT           "goes to",IDC_STATIC,200,158,24,8
-    EDITTEXT        IDC_SCREENS_DST_START,225,156,16,12,ES_AUTOHSCROLL | 
-                    ES_NUMBER
-    LTEXT           "to",IDC_STATIC,243,158,8,8
-    EDITTEXT        IDC_SCREENS_DST_END,251,156,16,12,ES_AUTOHSCROLL | 
-                    ES_NUMBER
-    LTEXT           "% of",IDC_STATIC,270,158,15,8
-    COMBOBOX        IDC_SCREENS_DST_SCREEN,287,156,59,53,CBS_DROPDOWNLIST | 
-                    WS_VSCROLL | WS_TABSTOP
-    PUSHBUTTON      "+",IDC_SCREENS_ADD_LINK,7,172,17,14
-    PUSHBUTTON      "-",IDC_SCREENS_REMOVE_LINK,28,172,17,14
-    DEFPUSHBUTTON   "OK",IDOK,241,192,50,14
-    PUSHBUTTON      "Cancel",IDCANCEL,297,192,50,14
-    LTEXT           "Source edge overlaps an existing edge.",
-                    IDC_SCREENS_OVERLAP_ERROR,72,175,126,8,NOT WS_VISIBLE | 
-                    NOT WS_GROUP
-END
-
-IDD_INFO DIALOG DISCARDABLE  0, 0, 186, 95
-STYLE DS_MODALFRAME | WS_POPUP | WS_CAPTION | WS_SYSMENU
-CAPTION "Info"
-FONT 8, "MS Sans Serif"
-BEGIN
-    LTEXT           "Version:",IDC_STATIC,7,7,26,8
-    EDITTEXT        IDC_INFO_VERSION,52,7,127,12,ES_AUTOHSCROLL | 
-                    ES_READONLY | NOT WS_BORDER
-    LTEXT           "Hostname:",IDC_STATIC,7,19,35,8
-    EDITTEXT        IDC_INFO_HOSTNAME,52,19,127,12,ES_AUTOHSCROLL | 
-                    ES_READONLY | NOT WS_BORDER
-    LTEXT           "IP Address:",IDC_STATIC,7,31,37,8
-    EDITTEXT        IDC_INFO_IP_ADDRESS,52,31,127,12,ES_AUTOHSCROLL | 
-                    ES_READONLY | NOT WS_BORDER
-    LTEXT           "User Config:",IDC_STATIC,7,43,40,8
-    EDITTEXT        IDC_INFO_USER_CONFIG,52,43,127,12,ES_AUTOHSCROLL | 
-                    ES_READONLY | NOT WS_BORDER
-    LTEXT           "Sys Config:",IDC_STATIC,7,55,36,8
-    EDITTEXT        IDC_INFO_SYS_CONFIG,52,55,127,12,ES_AUTOHSCROLL | 
-                    ES_READONLY | NOT WS_BORDER
-    DEFPUSHBUTTON   "OK",IDOK,129,74,50,14
-END
-
-IDD_HOTKEY_OPTIONS DIALOG DISCARDABLE  0, 0, 360, 151
-STYLE DS_MODALFRAME | WS_POPUP | WS_CAPTION | WS_SYSMENU
-CAPTION "Hot Keys"
-FONT 8, "MS Sans Serif"
-BEGIN
-    LTEXT           "&Hot Keys:",IDC_STATIC,7,7,32,8
-    LISTBOX         IDC_HOTKEY_HOTKEYS,7,18,169,88,LBS_SORT | 
-                    LBS_NOINTEGRALHEIGHT | WS_VSCROLL | WS_TABSTOP
-    PUSHBUTTON      "+",IDC_HOTKEY_ADD_HOTKEY,7,109,17,14
-    PUSHBUTTON      "-",IDC_HOTKEY_REMOVE_HOTKEY,28,109,17,14
-    PUSHBUTTON      "Edit",IDC_HOTKEY_EDIT_HOTKEY,49,109,24,14
-    LTEXT           "&Actions:",IDC_STATIC,183,7,26,8
-    LISTBOX         IDC_HOTKEY_ACTIONS,183,18,169,88,LBS_SORT | 
-                    LBS_NOINTEGRALHEIGHT | WS_VSCROLL | WS_TABSTOP
-    PUSHBUTTON      "+",IDC_HOTKEY_ADD_ACTION,183,109,17,14
-    PUSHBUTTON      "-",IDC_HOTKEY_REMOVE_ACTION,204,109,17,14
-    PUSHBUTTON      "Edit",IDC_HOTKEY_EDIT_ACTION,225,109,24,14
-    DEFPUSHBUTTON   "OK",IDOK,302,130,50,14
-END
-
-IDD_HOTKEY_CONDITION DIALOG DISCARDABLE  0, 0, 183, 58
-STYLE DS_MODALFRAME | WS_POPUP | WS_CAPTION | WS_SYSMENU
-CAPTION "Hot Key"
-FONT 8, "MS Sans Serif"
-BEGIN
-    LTEXT           "Enter &new hot key or mouse button:",IDC_STATIC,7,7,113,
-                    8
-    EDITTEXT        IDC_HOTKEY_CONDITION_HOTKEY,7,17,169,12,ES_WANTRETURN
-    DEFPUSHBUTTON   "OK",IDOK,70,37,50,14
-    PUSHBUTTON      "Cancel",IDCANCEL,126,37,50,14
-END
-
-IDD_HOTKEY_ACTION DIALOG DISCARDABLE  0, 0, 183, 218
-STYLE DS_MODALFRAME | WS_POPUP | WS_CAPTION | WS_SYSMENU
-CAPTION "Action"
-FONT 8, "MS Sans Serif"
-BEGIN
-    LTEXT           "&Action:",IDC_STATIC,7,7,23,8
-    CONTROL         "Press:",IDC_HOTKEY_ACTION_DOWN,"Button",
-                    BS_AUTORADIOBUTTON | WS_TABSTOP,7,19,35,10
-    CONTROL         "Release:",IDC_HOTKEY_ACTION_UP,"Button",
-                    BS_AUTORADIOBUTTON,7,31,44,10
-    CONTROL         "Press && Release:",IDC_HOTKEY_ACTION_DOWNUP,"Button",
-                    BS_AUTORADIOBUTTON,7,43,69,10
-    CONTROL         "Switch To Screen:",IDC_HOTKEY_ACTION_SWITCH_TO,"Button",
-                    BS_AUTORADIOBUTTON,7,85,75,10
-    CONTROL         "Switch In Direction:",IDC_HOTKEY_ACTION_SWITCH_IN,
-                    "Button",BS_AUTORADIOBUTTON,7,101,77,10
-    CONTROL         "Lock Cursor to Screen:",IDC_HOTKEY_ACTION_LOCK,"Button",
-                    BS_AUTORADIOBUTTON,7,117,89,10
-    CONTROL         "Keyboard broadcasting:",
-                    IDC_HOTKEY_ACTION_KEYBOARD_BROADCAST,"Button",
-                    BS_AUTORADIOBUTTON,7,133,89,10
-    LTEXT           "&Hot key or mouse button:",IDC_STATIC,7,55,80,8
-    EDITTEXT        IDC_HOTKEY_ACTION_HOTKEY,7,67,152,12,ES_WANTRETURN
-    PUSHBUTTON      "...",IDC_HOTKEY_ACTION_SCREENS,162,67,14,12
-    COMBOBOX        IDC_HOTKEY_ACTION_SWITCH_TO_LIST,87,83,89,62,
-                    CBS_DROPDOWNLIST | WS_VSCROLL | WS_TABSTOP
-    COMBOBOX        IDC_HOTKEY_ACTION_SWITCH_IN_LIST,106,99,70,66,
-                    CBS_DROPDOWNLIST | WS_VSCROLL | WS_TABSTOP
-    COMBOBOX        IDC_HOTKEY_ACTION_LOCK_LIST,106,115,70,58,
-                    CBS_DROPDOWNLIST | WS_VSCROLL | WS_TABSTOP
-    COMBOBOX        IDC_HOTKEY_ACTION_KEYBOARD_BROADCAST_LIST,106,131,53,58,
-                    CBS_DROPDOWNLIST | WS_VSCROLL | WS_TABSTOP
-    PUSHBUTTON      "...",IDC_HOTKEY_ACTION_KEYBOARD_BROADCAST_SCREENS,
-                    162,131,14,12
-    LTEXT           "Action takes place &when:",IDC_STATIC,7,153,81,8
-    CONTROL         "Hot key is pressed",IDC_HOTKEY_ACTION_ON_ACTIVATE,
-                    "Button",BS_AUTORADIOBUTTON | WS_TABSTOP,7,165,74,10
-    CONTROL         "Hot key is released",IDC_HOTKEY_ACTION_ON_DEACTIVATE,
-                    "Button",BS_AUTORADIOBUTTON,7,177,76,10
-    DEFPUSHBUTTON   "OK",IDOK,70,197,50,14
-    PUSHBUTTON      "Cancel",IDCANCEL,126,197,50,14
-END
-
-IDD_HOTKEY_SCREENS DIALOG DISCARDABLE  0, 0, 237, 79
-STYLE DS_MODALFRAME | WS_POPUP | WS_CAPTION | WS_SYSMENU
-CAPTION "Target Screens"
-FONT 8, "MS Sans Serif"
-BEGIN
-    LTEXT           "&Available screens:",IDC_STATIC,7,7,58,8
-    LISTBOX         IDC_HOTKEY_SCREENS_SRC,7,17,100,36,LBS_NOINTEGRALHEIGHT | 
-                    LBS_EXTENDEDSEL | WS_VSCROLL | WS_TABSTOP
-    LISTBOX         IDC_HOTKEY_SCREENS_DST,130,17,100,36,
-                    LBS_NOINTEGRALHEIGHT | LBS_EXTENDEDSEL | WS_VSCROLL | 
-                    WS_TABSTOP
-    PUSHBUTTON      "-->",IDC_HOTKEY_SCREENS_ADD,109,21,17,14
-    PUSHBUTTON      "<--",IDC_HOTKEY_SCREENS_REMOVE,109,38,17,14
-    DEFPUSHBUTTON   "OK",IDOK,124,58,50,14
-    PUSHBUTTON      "Cancel",IDCANCEL,180,58,50,14
-    LTEXT           "&Send action to screens:",IDC_STATIC,130,7,76,8
+    LTEXT           "&Links:",IDC_STATIC,129,7,20,8
+    LTEXT           "Left:",IDC_STATIC,135,21,15,8
+    COMBOBOX        IDC_SCREENS_LEFT_COMBO,163,20,112,75,CBS_DROPDOWNLIST | 
+                    CBS_SORT | WS_VSCROLL | WS_TABSTOP
+    LTEXT           "Right:",IDC_STATIC,135,37,20,8
+    COMBOBOX        IDC_SCREENS_RIGHT_COMBO,163,36,112,75,CBS_DROPDOWNLIST | 
+                    CBS_SORT | WS_VSCROLL | WS_TABSTOP
+    LTEXT           "Above:",IDC_STATIC,135,53,24,8
+    COMBOBOX        IDC_SCREENS_TOP_COMBO,163,52,112,75,CBS_DROPDOWNLIST | 
+                    CBS_SORT | WS_VSCROLL | WS_TABSTOP
+    LTEXT           "Below:",IDC_STATIC,135,69,22,8
+    COMBOBOX        IDC_SCREENS_BOTTOM_COMBO,163,68,112,75,CBS_DROPDOWNLIST | 
+                    CBS_SORT | WS_VSCROLL | WS_TABSTOP
+    DEFPUSHBUTTON   "OK",IDOK,170,96,50,14
+    PUSHBUTTON      "Cancel",IDCANCEL,225,96,50,14
 END
 
 
@@ -459,49 +324,9 @@ BEGIN
     IDD_SCREENS_LINKS, DIALOG
     BEGIN
         LEFTMARGIN, 7
-        RIGHTMARGIN, 347
+        RIGHTMARGIN, 275
         TOPMARGIN, 7
-        BOTTOMMARGIN, 206
-    END
-
-    IDD_INFO, DIALOG
-    BEGIN
-        LEFTMARGIN, 7
-        RIGHTMARGIN, 179
-        TOPMARGIN, 7
-        BOTTOMMARGIN, 88
-    END
-
-    IDD_HOTKEY_OPTIONS, DIALOG
-    BEGIN
-        LEFTMARGIN, 7
-        RIGHTMARGIN, 353
-        TOPMARGIN, 7
-        BOTTOMMARGIN, 144
-    END
-
-    IDD_HOTKEY_CONDITION, DIALOG
-    BEGIN
-        LEFTMARGIN, 7
-        RIGHTMARGIN, 176
-        TOPMARGIN, 7
-        BOTTOMMARGIN, 51
-    END
-
-    IDD_HOTKEY_ACTION, DIALOG
-    BEGIN
-        LEFTMARGIN, 7
-        RIGHTMARGIN, 176
-        TOPMARGIN, 7
-        BOTTOMMARGIN, 195
-    END
-
-    IDD_HOTKEY_SCREENS, DIALOG
-    BEGIN
-        LEFTMARGIN, 7
-        RIGHTMARGIN, 230
-        TOPMARGIN, 7
-        BOTTOMMARGIN, 72
+        BOTTOMMARGIN, 110
     END
 END
 #endif    // APSTUDIO_INVOKED
@@ -566,7 +391,7 @@ BEGIN
     IDS_UNINSTALLED_SYSTEM  "Removed auto-start.  Synergy will not automatically start each time you start or reboot your computer."
     IDS_UNINSTALLED_USER    "Removed auto-start.  Synergy will not automatically start each time you log in."
     IDS_INVALID_SERVER_NAME "Server name `%{1}' is invalid."
-	IDS_TITLE               "%{1} Version %{2}"
+    IDS_TITLE               "Synergy - Version %{1}"
     IDS_SERVER_IS_CLIENT    "Please enter the name of the computer sharing a\nkeyboard and mouse, not the name of this computer,\nin the Other Computer's Host Name field."
     IDS_ADD_SCREEN          "Add Screen"
     IDS_EDIT_SCREEN         "Edit Screen %{1}"
@@ -591,13 +416,6 @@ BEGIN
     IDS_EDGE_TOP            "top"
     IDS_EDGE_BOTTOM         "bottom"
     IDS_AUTOSTART_SAVE_FAILED "Failed to save autostart configuration: %{1}"
-    IDS_LOAD_FAILED         "Failed to load configuration."
-    IDS_CONFIG_CHANGED      "Configuration changed on disk.  Reload?"
-    IDS_MODE_OFF            "off"
-    IDS_MODE_ON             "on"
-    IDS_MODE_TOGGLE         "toggle"
-    IDS_ALL_SCREENS         "All Screens"
-    IDS_ACTIVE_SCREEN       "Active Screen"
 END
 
 #endif    // English (U.S.) resources

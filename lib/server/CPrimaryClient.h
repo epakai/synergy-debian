@@ -1,6 +1,5 @@
 /*
- * synergy-plus -- mouse and keyboard sharing utility
- * Copyright (C) 2009 The Synergy+ Project
+ * synergy -- mouse and keyboard sharing utility
  * Copyright (C) 2002 Chris Schoeneman
  * 
  * This package is free software; you can redistribute it and/or
@@ -11,15 +10,12 @@
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
 #ifndef CPRIMARYCLIENT_H
 #define CPRIMARYCLIENT_H
 
-#include "CBaseClientProxy.h"
+#include "IClient.h"
 #include "ProtocolTypes.h"
 
 class CScreen;
@@ -30,7 +26,7 @@ The primary screen does not have a client associated with it.  This
 class provides a pseudo-client to allow the primary screen to be
 treated as if it was a client.
 */
-class CPrimaryClient : public CBaseClientProxy {
+class CPrimaryClient : public IClient {
 public:
 	/*!
 	\c name is the name of the server and \p screen is primary screen.
@@ -59,21 +55,6 @@ public:
 	Unregisters a previously registered hot key.
 	*/
 	void				unregisterHotKey(UInt32 id);
-
-	//! Prepare to synthesize input on primary screen
-	/*!
-	Prepares the primary screen to receive synthesized input.  We do not
-	want to receive this synthesized input as user input so this method
-	ensures that we ignore it.  Calls to \c fakeInputBegin() and
-	\c fakeInputEnd() may be nested;  only the outermost have an effect.
-	*/
-	void				fakeInputBegin();
-
-	//! Done synthesizing input on primary screen
-	/*!
-	Undoes whatever \c fakeInputBegin() did.
-	*/
-	void				fakeInputEnd();
 
 	//@}
 	//! @name accessors
@@ -135,15 +116,16 @@ public:
 	virtual void		mouseUp(ButtonID);
 	virtual void		mouseMove(SInt32 xAbs, SInt32 yAbs);
 	virtual void		mouseRelativeMove(SInt32 xRel, SInt32 yRel);
-	virtual void		mouseWheel(SInt32 xDelta, SInt32 yDelta);
+	virtual void		mouseWheel(SInt32 delta);
 	virtual void		screensaver(bool activate);
 	virtual void		resetOptions();
 	virtual void		setOptions(const COptionsList& options);
+	virtual CString		getName() const;
 
 private:
+	CString				m_name;
 	CScreen*			m_screen;
 	bool				m_clipboardDirty[kClipboardEnd];
-	SInt32				m_fakeInputCount;
 };
 
 #endif

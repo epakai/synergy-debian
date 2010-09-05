@@ -1,6 +1,5 @@
 /*
- * synergy-plus -- mouse and keyboard sharing utility
- * Copyright (C) 2009 The Synergy+ Project
+ * synergy -- mouse and keyboard sharing utility
  * Copyright (C) 2002 Chris Schoeneman
  * 
  * This package is free software; you can redistribute it and/or
@@ -11,9 +10,6 @@
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
 #ifndef CSCREEN_H
@@ -159,12 +155,12 @@ public:
 
 	//! Notify of mouse wheel motion
 	/*!
-	Synthesize mouse events to generate mouse wheel motion of \c xDelta
-	and \c yDelta.  Deltas are positive for motion away from the user or
-	to the right and negative for motion towards the user or to the left.
-	Each wheel click should generate a delta of +/-120.
+	Synthesize mouse events to generate mouse wheel motion of \c delta.
+	\c delta is positive for motion away from the user and negative for
+	motion towards the user.  Each wheel click should generate a delta
+	of +/-120.
 	*/
-	void				mouseWheel(SInt32 xDelta, SInt32 yDelta);
+	void				mouseWheel(SInt32 delta);
 
 	//! Notify of options changes
 	/*!
@@ -197,21 +193,6 @@ public:
 	Unregisters a previously registered hot key.
 	*/
 	void				unregisterHotKey(UInt32 id);
-
-	//! Prepare to synthesize input on primary screen
-	/*!
-	Prepares the primary screen to receive synthesized input.  We do not
-	want to receive this synthesized input as user input so this method
-	ensures that we ignore it.  Calls to \c fakeInputBegin() may not be
-	nested.
-	*/
-	void				fakeInputBegin();
-
-	//! Done synthesizing input on primary screen
-	/*!
-	Undoes whatever \c fakeInputBegin() did.
-	*/
-	void				fakeInputEnd();
 
 	//@}
 	//! @name accessors
@@ -300,9 +281,6 @@ private:
 	// note toggle keys that toggles on up/down (false) or on
 	// transition (true)
 	KeyModifierMask		m_halfDuplex;
-
-	// true if we're faking input on a primary screen
-	bool				m_fakeInput;
 };
 
 #endif
