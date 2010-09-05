@@ -1,6 +1,5 @@
 /*
- * synergy-plus -- mouse and keyboard sharing utility
- * Copyright (C) 2009 The Synergy+ Project
+ * synergy -- mouse and keyboard sharing utility
  * Copyright (C) 2002 Chris Schoeneman
  * 
  * This package is free software; you can redistribute it and/or
@@ -11,9 +10,6 @@
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
 #include "CConfig.h"
@@ -74,7 +70,7 @@ CAddScreen::doModal()
 {
 	// do dialog
 	return (DialogBoxParam(s_instance, MAKEINTRESOURCE(IDD_ADD),
-								m_parent, (DLGPROC)dlgProc, (LPARAM)this) != 0);
+								m_parent, dlgProc, (LPARAM)this) != 0);
 }
 
 CString
@@ -321,7 +317,10 @@ CAddScreen::save(HWND hwnd)
 	}
 	else {
 		// edited screen
-		m_config->removeAliases(m_name);
+		for (CStringList::const_iterator index = oldAliases.begin();
+								index != oldAliases.end(); ++index) {
+			m_config->removeAlias(*index);
+		}
 		m_config->removeOptions(m_name);
 		m_config->renameScreen(m_name, newName);
 	}

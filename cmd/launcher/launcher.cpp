@@ -1,6 +1,5 @@
 /*
- * synergy-plus -- mouse and keyboard sharing utility
- * Copyright (C) 2009 The Synergy+ Project
+ * synergy -- mouse and keyboard sharing utility
  * Copyright (C) 2002 Chris Schoeneman
  * 
  * This package is free software; you can redistribute it and/or
@@ -11,9 +10,6 @@
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
 #include "CConfig.h"
@@ -32,12 +28,14 @@
 // these must come after the above because it includes windows.h
 #include "LaunchUtil.h"
 #include "CAddScreen.h"
-#include "CAdvancedOptions.h"
 #include "CAutoStart.h"
 #include "CGlobalOptions.h"
-#include "CHotkeyOptions.h"
-#include "CInfo.h"
+#include "CAdvancedOptions.h"
 #include "CScreensLinks.h"
+
+#define CONFIG_NAME "synergy.sgc"
+#define CLIENT_APP "synergyc.exe"
+#define SERVER_APP "synergys.exe"
 
 typedef std::vector<CString> CStringList;
 
@@ -66,22 +64,10 @@ HINSTANCE s_instance = NULL;
 
 static CGlobalOptions*		s_globalOptions   = NULL;
 static CAdvancedOptions*	s_advancedOptions = NULL;
-static CHotkeyOptions*		s_hotkeyOptions   = NULL;
 static CScreensLinks*		s_screensLinks    = NULL;
-static CInfo*				s_info            = NULL;
-
-static bool		s_userConfig = true;
-static time_t	s_configTime = 0;
-static CConfig	s_lastConfig;
 
 static const TCHAR* s_mainClass   = TEXT("GoSynergy");
 static const TCHAR* s_layoutClass = TEXT("SynergyLayout");
-
-enum SaveMode {
-	SAVE_QUITING,
-	SAVE_NORMAL,
-	SAVE_QUIET
-};
 
 //
 // program arguments
@@ -124,8 +110,6 @@ enableMainWindowControls(HWND hwnd)
 	enableItem(hwnd, IDC_MAIN_CLIENT_SERVER_NAME_EDIT, client);
 	enableItem(hwnd, IDC_MAIN_SERVER_SCREENS_LABEL, !client);
 	enableItem(hwnd, IDC_MAIN_SCREENS, !client);
-	enableItem(hwnd, IDC_MAIN_OPTIONS, !client);
-	enableItem(hwnd, IDC_MAIN_HOTKEYS, !client);
 }
 
 static
@@ -252,21 +236,9 @@ getCommandLine(HWND hwnd, bool testing, bool silent)
 }
 
 static
-bool
-launchApp(HWND hwnd, bool testing, HANDLE* thread, DWORD* threadID)
+HANDLE
+launchApp(HWND hwnd, bool testing, DWORD* threadID)
 {
-	if (thread != NULL) {
-		*thread = NULL;
-	}
-	if (threadID != NULL) {
-		*threadID = 0;
-	}
-
-	// start daemon if it's installed and we're not testing
-	if (!testing && CAutoStart::startDaemon()) {
-		return true;
-	}
-
 	// decide if client or server
 	const bool isClient = isClientChecked(hwnd);
 	const char* app = isClient ? CLIENT_APP : SERVER_APP;
@@ -274,7 +246,7 @@ launchApp(HWND hwnd, bool testing, HANDLE* thread, DWORD* threadID)
 	// prepare command line
 	CString cmdLine = getCommandLine(hwnd, testing, false);
 	if (cmdLine.empty()) {
-		return false;
+		return NULL;
 	}
 
 	// start child
@@ -283,21 +255,19 @@ launchApp(HWND hwnd, bool testing, HANDLE* thread, DWORD* threadID)
 		showError(hwnd, CStringUtil::format(
 								getString(IDS_STARTUP_FAILED).c_str(),
 								getErrorString(GetLastError()).c_str()));
-		return false;
+		return NULL;
 	}
 
 	// don't need process handle
 	CloseHandle(procInfo.hProcess);
 
-	// save thread handle and thread ID if desired
-	if (thread != NULL) {
-		*thread = procInfo.hThread;
-	}
+	// save thread ID if desired
 	if (threadID != NULL) {
 		*threadID = procInfo.dwThreadId;
 	}
 
-	return true;
+	// return thread handle
+	return procInfo.hThread;
 }
 
 static
@@ -383,7 +353,7 @@ waitForChild(HWND hwnd, HANDLE thread, DWORD threadID)
 
 	// do dialog that let's the user terminate the test
 	DialogBoxParam(s_instance, MAKEINTRESOURCE(IDD_WAIT), hwnd,
-								(DLGPROC)waitDlgProc, (LPARAM)&info);
+								waitDlgProc, (LPARAM)&info);
 
 	// force the waiter thread to finish and wait for it
 	SetEvent(info.m_ready);
@@ -402,14 +372,10 @@ initMainWindow(HWND hwnd)
 {
 	// append version number to title
 	CString titleFormat = getString(IDS_TITLE);
-	setWindowText(hwnd, CStringUtil::format(titleFormat.c_str(), kApplication, kVersion));
+	setWindowText(hwnd, CStringUtil::format(titleFormat.c_str(), VERSION));
 
 	// load configuration
-	bool configLoaded =
-		loadConfig(ARG->m_config, s_configTime, s_userConfig);
-	if (configLoaded) {
-		s_lastConfig = ARG->m_config;
-	}
+	bool configLoaded = loadConfig(ARG->m_config);
 
 	// get settings from registry
 	bool isServer = configLoaded;
@@ -459,7 +425,7 @@ initMainWindow(HWND hwnd)
 
 static
 bool
-saveMainWindow(HWND hwnd, SaveMode mode, CString* cmdLineOut = NULL)
+saveMainWindow(HWND hwnd, bool quiting, CString* cmdLineOut = NULL)
 {
 	DWORD errorID = 0;
 	CString arg;
@@ -474,48 +440,34 @@ saveMainWindow(HWND hwnd, SaveMode mode, CString* cmdLineOut = NULL)
 		CArchMiscWindows::setValue(key, "server", getWindowText(child));
 		child = getItem(hwnd, IDC_MAIN_DEBUG);
 		CArchMiscWindows::setValue(key, "debug",
-								(DWORD)SendMessage(child, CB_GETCURSEL, 0, 0));
+								SendMessage(child, CB_GETCURSEL, 0, 0));
 		CArchMiscWindows::setValue(key, "isServer", isClient ? 0 : 1);
 		CArchMiscWindows::closeKey(key);
 	}
 
 	// save user's configuration
-	if (!s_userConfig || ARG->m_config != s_lastConfig) {
-		time_t t;
-		if (!saveConfig(ARG->m_config, false, t)) {
-			errorID = IDS_SAVE_FAILED;
-			arg     = getErrorString(GetLastError());
-			goto failed;
-		}
-		if (s_userConfig) {
-			s_configTime = t;
-			s_lastConfig = ARG->m_config;
-		}
+	if (!saveConfig(ARG->m_config, false)) {
+		errorID = IDS_SAVE_FAILED;
+		arg     = getErrorString(GetLastError());
+		goto failed;
 	}
 
 	// save autostart configuration
 	if (CAutoStart::isDaemonInstalled()) {
-		if (s_userConfig || ARG->m_config != s_lastConfig) {
-			time_t t;
-			if (!saveConfig(ARG->m_config, true, t)) {
-				errorID = IDS_AUTOSTART_SAVE_FAILED;
-				arg     = getErrorString(GetLastError());
-				goto failed;
-			}
-			if (!s_userConfig) {
-				s_configTime = t;
-				s_lastConfig = ARG->m_config;
-			}
+		if (!saveConfig(ARG->m_config, true)) {
+			errorID = IDS_AUTOSTART_SAVE_FAILED;
+			arg     = getErrorString(GetLastError());
+			goto failed;
 		}
 	}
 
 	// get autostart command
-	cmdLine = getCommandLine(hwnd, false, mode == SAVE_QUITING);
+	cmdLine = getCommandLine(hwnd, false, quiting);
 	if (cmdLineOut != NULL) {
 		*cmdLineOut = cmdLine;
 	}
 	if (cmdLine.empty()) {
-		return (mode == SAVE_QUITING);
+		return quiting;
 	}
 
 	// save autostart command
@@ -536,14 +488,14 @@ saveMainWindow(HWND hwnd, SaveMode mode, CString* cmdLineOut = NULL)
 failed:
 	CString errorMessage =
 		CStringUtil::format(getString(errorID).c_str(), arg.c_str());
-	if (mode == SAVE_QUITING) {
+	if (quiting) {
 		errorMessage += "\n";
 		errorMessage += getString(IDS_UNSAVED_DATA_REALLY_QUIT);
 		if (askVerify(hwnd, errorMessage)) {
 			return true;
 		}
 	}
-	else if (mode == SAVE_NORMAL) {
+	else {
 		showError(hwnd, errorMessage);
 	}
 	return false;
@@ -554,43 +506,11 @@ LRESULT CALLBACK
 mainWndProc(HWND hwnd, UINT message, WPARAM wParam, LPARAM lParam)
 {
 	switch (message) {
-	case WM_ACTIVATE:
-		if (LOWORD(wParam) != WA_INACTIVE) {
-			// activated
-
-			// see if the configuration changed
-			if (isConfigNewer(s_configTime, s_userConfig)) {
-				CString message2 = getString(IDS_CONFIG_CHANGED);
-				if (askVerify(hwnd, message2)) {
-					time_t configTime;
-					bool userConfig;
-					CConfig newConfig;
-					if (loadConfig(newConfig, configTime, userConfig) &&
-						userConfig == s_userConfig) {
-						ARG->m_config = newConfig;
-						s_lastConfig  = ARG->m_config;
-					}
-					else {
-						message2 = getString(IDS_LOAD_FAILED);
-						showError(hwnd, message2);
-						s_lastConfig = CConfig();
-					}
-				}
-			}
-		}
-		else {
-			// deactivated;  write configuration
-			if (!isShowingDialog()) {
-				saveMainWindow(hwnd, SAVE_QUIET);
-			}
-		}
-		break;
-
 	case WM_COMMAND:
 		switch (LOWORD(wParam)) {
 		case IDCANCEL:
 			// save data
-			if (saveMainWindow(hwnd, SAVE_QUITING)) {
+			if (saveMainWindow(hwnd, true)) {
 				// quit
 				PostQuitMessage(0);
 			}
@@ -602,11 +522,11 @@ mainWndProc(HWND hwnd, UINT message, WPARAM wParam, LPARAM lParam)
 			const bool testing = (LOWORD(wParam) == IDC_MAIN_TEST);
 
 			// save data
-			if (saveMainWindow(hwnd, SAVE_NORMAL)) {
+			if (saveMainWindow(hwnd, false)) {
 				// launch child app
 				DWORD threadID;
-				HANDLE thread;
-				if (!launchApp(hwnd, testing, &thread, &threadID)) {
+				HANDLE thread = launchApp(hwnd, testing, &threadID);
+				if (thread == NULL) {
 					return 0;
 				}
 
@@ -620,12 +540,11 @@ mainWndProc(HWND hwnd, UINT message, WPARAM wParam, LPARAM lParam)
 				}
 				else {
 					// don't need thread handle
-					if (thread != NULL) {
-						CloseHandle(thread);
-					}
+					CloseHandle(thread);
 
-					// notify of success: now disabled - it's silly to notify a success
-					//askOkay(hwnd, getString(IDS_STARTED_TITLE), getString(IDS_STARTED));
+					// notify of success
+					askOkay(hwnd, getString(IDS_STARTED_TITLE),
+									getString(IDS_STARTED));
 
 					// quit
 					PostQuitMessage(0);
@@ -636,7 +555,7 @@ mainWndProc(HWND hwnd, UINT message, WPARAM wParam, LPARAM lParam)
 
 		case IDC_MAIN_AUTOSTART: {
 			CString cmdLine;
-			if (saveMainWindow(hwnd, SAVE_NORMAL, &cmdLine)) {
+			if (saveMainWindow(hwnd, false, &cmdLine)) {
 				// run dialog
 				CAutoStart autoStart(hwnd, !isClientChecked(hwnd), cmdLine);
 				autoStart.doModal();
@@ -660,14 +579,6 @@ mainWndProc(HWND hwnd, UINT message, WPARAM wParam, LPARAM lParam)
 		case IDC_MAIN_ADVANCED:
 			s_advancedOptions->doModal(isClientChecked(hwnd));
 			break;
-
-		case IDC_MAIN_HOTKEYS:
-			s_hotkeyOptions->doModal();
-			break;
-
-		case IDC_MAIN_INFO:
-			s_info->doModal();
-			break;
 		}
 
 	default:
@@ -679,9 +590,7 @@ mainWndProc(HWND hwnd, UINT message, WPARAM wParam, LPARAM lParam)
 int WINAPI
 WinMain(HINSTANCE instance, HINSTANCE, LPSTR cmdLine, int nCmdShow)
 {
-	CArchMiscWindows::setInstanceWin32(instance);
-
-	CArch arch;
+	CArch arch(instance);
 	CLOG;
 	CArgs args;
 
@@ -726,9 +635,7 @@ WinMain(HINSTANCE instance, HINSTANCE, LPSTR cmdLine, int nCmdShow)
 	initMainWindow(mainWindow);
 	s_globalOptions   = new CGlobalOptions(mainWindow, &ARG->m_config);
 	s_advancedOptions = new CAdvancedOptions(mainWindow, &ARG->m_config);
-	s_hotkeyOptions   = new CHotkeyOptions(mainWindow, &ARG->m_config); 
 	s_screensLinks    = new CScreensLinks(mainWindow, &ARG->m_config);
-	s_info            = new CInfo(mainWindow);
 
 	// show window
 	ShowWindow(mainWindow, nCmdShow);
@@ -756,5 +663,5 @@ WinMain(HINSTANCE instance, HINSTANCE, LPSTR cmdLine, int nCmdShow)
 		}
 	} while (!done);
 
-	return (int)msg.wParam;
+	return msg.wParam;
 }

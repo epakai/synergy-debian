@@ -1,6 +1,5 @@
 /*
- * synergy-plus -- mouse and keyboard sharing utility
- * Copyright (C) 2009 The Synergy+ Project
+ * synergy -- mouse and keyboard sharing utility
  * Copyright (C) 2002 Chris Schoeneman
  * 
  * This package is free software; you can redistribute it and/or
@@ -11,9 +10,6 @@
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
 #include "CStreamBuffer.h"
@@ -40,12 +36,6 @@ const void*
 CStreamBuffer::peek(UInt32 n)
 {
 	assert(n <= m_size);
-
-	// if requesting no data then return NULL so we don't try to access
-	// an empty list.
-	if (n == 0) {
-		return NULL;
-	}
 
 	// reserve space in first chunk
 	ChunkList::iterator head = m_chunks.begin();
@@ -80,7 +70,7 @@ CStreamBuffer::pop(UInt32 n)
 	ChunkList::iterator scan = m_chunks.begin();
 	assert(scan != m_chunks.end());
 	while (scan->size() - m_headUsed <= n) {
-		n         -= (UInt32)scan->size() - m_headUsed;
+		n         -= scan->size() - m_headUsed;
 		m_headUsed = 0;
 		scan       = m_chunks.erase(scan);
 		assert(scan != m_chunks.end());
@@ -122,7 +112,7 @@ CStreamBuffer::write(const void* vdata, UInt32 n)
 	while (n > 0) {
 		// choose number of bytes for next chunk
 		assert(scan->size() <= kChunkSize);
-		UInt32 count = kChunkSize - (UInt32)scan->size();
+		UInt32 count = kChunkSize - scan->size();
 		if (count > n)
 			count = n;
 

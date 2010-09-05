@@ -1,6 +1,5 @@
 /*
- * synergy-plus -- mouse and keyboard sharing utility
- * Copyright (C) 2009 The Synergy+ Project
+ * synergy -- mouse and keyboard sharing utility
  * Copyright (C) 2002 Chris Schoeneman
  * 
  * This package is free software; you can redistribute it and/or
@@ -11,28 +10,11 @@
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
 #include "CSynergyHook.h"
 #include "ProtocolTypes.h"
 #include <zmouse.h>
-#include <tchar.h>
- 
-#if _MSC_VER >= 1400
-// VS2005 hack - we don't use assert here because we don't want to link with the CRT.
-#undef assert
-#if _DEBUG
-#define assert(_X_) if (!(_X_)) __debugbreak()
-#else
-#define assert(_X_) __noop()
-#endif
-// VS2005 is a bit more smart than VC6 and optimize simple copy loop to
-// intrinsic memcpy.
-#pragma function(memcpy)
-#endif
 
 //
 // debugging compile flag.  when not zero the server doesn't grab
@@ -113,12 +95,11 @@ static SInt32			g_yScreen         = 0;
 static SInt32			g_wScreen         = 0;
 static SInt32			g_hScreen         = 0;
 static WPARAM			g_deadVirtKey     = 0;
-static WPARAM			g_deadRelease     = 0;
 static LPARAM			g_deadLParam      = 0;
+static WPARAM			g_oldDeadVirtKey  = 0;
 static BYTE				g_deadKeyState[256] = { 0 };
 static DWORD			g_hookThread      = 0;
 static DWORD			g_attachedThread  = 0;
-static bool				g_fakeInput       = false;
 
 #if defined(_MSC_VER)
 #pragma data_seg()
@@ -160,9 +141,6 @@ attachThreadToForeground()
 	// already in the right thread.
 	if (g_hookThread != 0) {
 		HWND window    = GetForegroundWindow();
-        if (window == NULL)
-            return false;
-
 		DWORD threadID = GetWindowThreadProcessId(window, NULL);
 		// skip if no change
 		if (g_attachedThread != threadID) {
@@ -183,242 +161,192 @@ attachThreadToForeground()
 #if !NO_GRAB_KEYBOARD
 static
 WPARAM
-makeKeyMsg(UINT virtKey, char c, bool noAltGr)
+makeKeyMsg(UINT virtKey, char c)
 {
-	return MAKEWPARAM(MAKEWORD(virtKey & 0xff, (BYTE)c), noAltGr ? 1 : 0);
+	return MAKEWPARAM(MAKEWORD(virtKey & 0xff, (BYTE)c), 0);
 }
 
 static
 void
 keyboardGetState(BYTE keys[256])
 {
-	// we have to use GetAsyncKeyState() rather than GetKeyState() because
-	// we don't pass through most keys so the event synchronous state
-	// doesn't get updated.  we do that because certain modifier keys have
-	// side effects, like alt and the windows key.
-	SHORT key;
-	for (int i = 0; i < 256; ++i) {
-		key     = GetAsyncKeyState(i);
-		keys[i] = (BYTE)((key < 0) ? 0x80u : 0);
+	if (g_hookThread != 0) {
+		GetKeyboardState(keys);
 	}
-	key = GetKeyState(VK_CAPITAL);
-	keys[VK_CAPITAL] = (BYTE)(((key < 0) ? 0x80 : 0) | (key & 1));
+	else {
+		SHORT key;
+		for (int i = 0; i < 256; ++i) {
+			key     = GetAsyncKeyState(i);
+			keys[i] = (BYTE)((key < 0) ? 0x80u : 0);
+		}
+		key = GetKeyState(VK_CAPITAL);
+		keys[VK_CAPITAL] = (BYTE)(((key < 0) ? 0x80 : 0) | (key & 1));
+	}
 }
 
 static
 bool
 doKeyboardHookHandler(WPARAM wParam, LPARAM lParam)
 {
-	// check for special events indicating if we should start or stop
-	// passing events through and not report them to the server.  this
-	// is used to allow the server to synthesize events locally but
-	// not pick them up as user events.
-	if (wParam == SYNERGY_HOOK_FAKE_INPUT_VIRTUAL_KEY &&
-		((lParam >> 16) & 0xffu) == SYNERGY_HOOK_FAKE_INPUT_SCANCODE) {
-		// update flag
-		g_fakeInput = ((lParam & 0x80000000u) == 0);
-		PostThreadMessage(g_threadID, SYNERGY_MSG_DEBUG,
-								0xff000000u | wParam, lParam);
-
-		// discard event
-		return true;
-	}
-
-	// if we're expecting fake input then just pass the event through
-	// and do not forward to the server
-	if (g_fakeInput) {
-		PostThreadMessage(g_threadID, SYNERGY_MSG_DEBUG,
-								0xfe000000u | wParam, lParam);
-		return false;
-	}
-
-	// VK_RSHIFT may be sent with an extended scan code but right shift
-	// is not an extended key so we reset that bit.
-	if (wParam == VK_RSHIFT) {
-		lParam &= ~0x01000000u;
-	}
-
-	// tell server about event
-	PostThreadMessage(g_threadID, SYNERGY_MSG_DEBUG, wParam, lParam);
-
-	// ignore dead key release
-	if ((g_deadVirtKey == wParam || g_deadRelease == wParam) &&
-		(lParam & 0x80000000u) != 0) {
-		g_deadRelease = 0;
-		PostThreadMessage(g_threadID, SYNERGY_MSG_DEBUG,
-						wParam | 0x04000000, lParam);
-		return false;
-	}
-
-	// we need the keyboard state for ToAscii()
-	BYTE keys[256];
-	keyboardGetState(keys);
-
-	// ToAscii() maps ctrl+letter to the corresponding control code
-	// and ctrl+backspace to delete.  we don't want those translations
-	// so clear the control modifier state.  however, if we want to
-	// simulate AltGr (which is ctrl+alt) then we must not clear it.
-	UINT control = keys[VK_CONTROL] | keys[VK_LCONTROL] | keys[VK_RCONTROL];
-	UINT menu    = keys[VK_MENU] | keys[VK_LMENU] | keys[VK_RMENU];
-	if ((control & 0x80) == 0 || (menu & 0x80) == 0) {
-		keys[VK_LCONTROL] = 0;
-		keys[VK_RCONTROL] = 0;
-		keys[VK_CONTROL]  = 0;
-	}
-	else {
-		keys[VK_LCONTROL] = 0x80;
-		keys[VK_RCONTROL] = 0x80;
-		keys[VK_CONTROL]  = 0x80;
-		keys[VK_LMENU]    = 0x80;
-		keys[VK_RMENU]    = 0x80;
-		keys[VK_MENU]     = 0x80;
-	}
-
-	// ToAscii() needs to know if a menu is active for some reason.
-	// we don't know and there doesn't appear to be any way to find
-	// out.  so we'll just assume a menu is active if the menu key
-	// is down.
-	// FIXME -- figure out some way to check if a menu is active
-	UINT flags = 0;
-	if ((menu & 0x80) != 0)
-		flags |= 1;
-
-	// if we're on the server screen then just pass numpad keys with alt
-	// key down as-is.  we won't pick up the resulting character but the
-	// local app will.  if on a client screen then grab keys as usual;
-	// if the client is a windows system it'll synthesize the expected
-	// character.  if not then it'll probably just do nothing.
-	if (g_mode != kHOOK_RELAY_EVENTS) {
-		// we don't use virtual keys because we don't know what the
-		// state of the numlock key is.  we'll hard code the scan codes
-		// instead.  hopefully this works across all keyboards.
-		UINT sc = (lParam & 0x01ff0000u) >> 16;
-		if (menu &&
-			(sc >= 0x47u && sc <= 0x52u && sc != 0x4au && sc != 0x4eu)) {
+	// check for dead keys.  we don't forward those to our window.
+	// instead we'll leave the key in the keyboard layout (a buffer
+	// internal to the system) for translation when the next key is
+	// pressed.  note that some systems set bit 31 to indicate a
+	// dead key and others bit 15.  nice.
+	UINT c = MapVirtualKey(wParam, 2);
+	PostThreadMessage(g_threadID, SYNERGY_MSG_DEBUG,
+							wParam | 0x00000000, c);
+	PostThreadMessage(g_threadID, SYNERGY_MSG_DEBUG,
+							wParam | (c << 8) | 0x01000000, lParam);
+	if ((c & 0x80008000u) != 0) {
+		if ((lParam & 0x80000000u) == 0) {
+			if (g_deadVirtKey == 0) {
+				// dead key press, no dead key in the buffer
+				g_deadVirtKey = wParam;
+				g_deadLParam  = lParam;
+				keyboardGetState(g_deadKeyState);
+				PostThreadMessage(g_threadID, SYNERGY_MSG_DEBUG,
+							wParam | 0x02000000, lParam);
+				return false;
+			}
+			// second dead key press in a row so let it pass
+			PostThreadMessage(g_threadID, SYNERGY_MSG_DEBUG,
+							wParam | 0x03000000, lParam);
+		}
+		else if (wParam == g_oldDeadVirtKey) {
+			// dead key release for second dead key in a row.  discard
+			// because we've already handled it.  also take it out of
+			// the keyboard buffer.
+			g_oldDeadVirtKey = 0;
+			WORD c;
+			UINT scanCode = ((lParam & 0x00ff0000u) >> 16);
+			ToAscii(wParam, scanCode, g_deadKeyState, &c, 0);
+			PostThreadMessage(g_threadID, SYNERGY_MSG_DEBUG,
+							wParam | 0x09000000, lParam);
+			return true;
+		}
+		else {
+			// dead key release
+			PostThreadMessage(g_threadID, SYNERGY_MSG_DEBUG,
+							wParam | 0x04000000, lParam);
 			return false;
 		}
 	}
 
-	WORD c        = 0;
+	// convert key to a character.  this combines a saved dead key,
+	// if any, with this key.  however, the dead key must remain in
+	// the keyboard layout for the application receiving this event
+	// so it can also convert the key to a character.  we only do
+	// this on a key press.
+	WPARAM charAndVirtKey = (wParam & 0xffu);
+	if (c != 0) {
+		// we need the keyboard state for ToAscii()
+		BYTE keys[256];
+		keyboardGetState(keys);
 
-	// map the key event to a character.  we have to put the dead
-	// key back first and this has the side effect of removing it.
-	if (g_deadVirtKey != 0) {
-		if(ToAscii((UINT)g_deadVirtKey, (g_deadLParam & 0x10ff0000u) >> 16,
-					g_deadKeyState, &c, flags) == 2)
-		{
-			// If ToAscii returned 2, it means that we accidentally removed
-			// a double dead key instead of restoring it. Thus, we call
-			// ToAscii again with the same parameters to restore the
-			// internal dead key state.
-			ToAscii((UINT)g_deadVirtKey, (g_deadLParam & 0x10ff0000u) >> 16,
-					g_deadKeyState, &c, flags);
-			
-			// We need to keep track of this because g_deadVirtKey will be
-			// cleared later on; this would cause the dead key release to
-			// incorrectly restore the dead key state.
-			g_deadRelease = g_deadVirtKey;
+		// ToAscii() maps ctrl+letter to the corresponding control code
+		// and ctrl+backspace to delete.  we don't want those translations
+		// so clear the control modifier state.  however, if we want to
+		// simulate AltGr (which is ctrl+alt) then we must not clear it.
+		UINT control = keys[VK_CONTROL] | keys[VK_LCONTROL] | keys[VK_RCONTROL];
+		UINT menu    = keys[VK_MENU] | keys[VK_LMENU] | keys[VK_RMENU];
+		if ((control & 0x80) == 0 || (menu & 0x80) == 0) {
+			keys[VK_LCONTROL] = 0;
+			keys[VK_RCONTROL] = 0;
+			keys[VK_CONTROL]  = 0;
 		}
-	}
-	
-	UINT scanCode = ((lParam & 0x10ff0000u) >> 16);
-	int n         = ToAscii((UINT)wParam, scanCode, keys, &c, flags);
+		else {
+			keys[VK_LCONTROL] = 0x80;
+			keys[VK_RCONTROL] = 0x80;
+			keys[VK_CONTROL]  = 0x80;
+			keys[VK_LMENU]    = 0x80;
+			keys[VK_RMENU]    = 0x80;
+			keys[VK_MENU]     = 0x80;
+		}
 
-	// if mapping failed and ctrl and alt are pressed then try again
-	// with both not pressed.  this handles the case where ctrl and
-	// alt are being used as individual modifiers rather than AltGr.
-	// we note that's the case in the message sent back to synergy
-	// because there's no simple way to deduce it after the fact.
-	// we have to put the dead key back first, if there was one.
-	bool noAltGr = false;
-	if (n == 0 && (control & 0x80) != 0 && (menu & 0x80) != 0) {
-		noAltGr = true;
-		PostThreadMessage(g_threadID, SYNERGY_MSG_DEBUG,
+		// ToAscii() needs to know if a menu is active for some reason.
+		// we don't know and there doesn't appear to be any way to find
+		// out.  so we'll just assume a menu is active if the menu key
+		// is down.
+		// FIXME -- figure out some way to check if a menu is active
+		UINT flags = 0;
+		if ((menu & 0x80) != 0)
+			flags |= 1;
+
+		// map the key event to a character.  this has the side
+		// effect of removing the dead key from the system's keyboard
+		// layout buffer.
+		WORD c        = 0;
+		UINT scanCode = ((lParam & 0x00ff0000u) >> 16);
+		int n         = ToAscii(wParam, scanCode, keys, &c, flags);
+
+		// if mapping failed and ctrl and alt are pressed then try again
+		// with both not pressed.  this handles the case where ctrl and
+		// alt are being used as individual modifiers rather than AltGr.
+		// we have to put the dead key back first, if there was one.
+		if (n == 0 && (control & 0x80) != 0 && (menu & 0x80) != 0) {
+			PostThreadMessage(g_threadID, SYNERGY_MSG_DEBUG,
 							wParam | 0x05000000, lParam);
-		if (g_deadVirtKey != 0) {
-			if(ToAscii((UINT)g_deadVirtKey, (g_deadLParam & 0x10ff0000u) >> 16,
-							g_deadKeyState, &c, flags) == 2)
-			{
-				ToAscii((UINT)g_deadVirtKey, (g_deadLParam & 0x10ff0000u) >> 16,
+			if (g_deadVirtKey != 0) {
+				ToAscii(g_deadVirtKey, (g_deadLParam & 0x00ff0000u) >> 16,
 							g_deadKeyState, &c, flags);
-				g_deadRelease = g_deadVirtKey;
 			}
+			keys[VK_LCONTROL] = 0;
+			keys[VK_RCONTROL] = 0;
+			keys[VK_CONTROL]  = 0;
+			keys[VK_LMENU]    = 0;
+			keys[VK_RMENU]    = 0;
+			keys[VK_MENU]     = 0;
+			n = ToAscii(wParam, scanCode, keys, &c, flags);
 		}
-		BYTE keys2[256];
-		for (size_t i = 0; i < sizeof(keys) / sizeof(keys[0]); ++i) {
-			keys2[i] = keys[i];
-		}
-		keys2[VK_LCONTROL] = 0;
-		keys2[VK_RCONTROL] = 0;
-		keys2[VK_CONTROL]  = 0;
-		keys2[VK_LMENU]    = 0;
-		keys2[VK_RMENU]    = 0;
-		keys2[VK_MENU]     = 0;
-		n = ToAscii((UINT)wParam, scanCode, keys2, &c, flags);
-	}
 
-	PostThreadMessage(g_threadID, SYNERGY_MSG_DEBUG,
-							wParam | ((c & 0xff) << 8) |
-							((n & 0xff) << 16) | 0x06000000,
+		PostThreadMessage(g_threadID, SYNERGY_MSG_DEBUG,
+							wParam | (c << 8) | ((n & 0xff) << 16) | 0x06000000,
 							lParam);
-	WPARAM charAndVirtKey = 0;
-	bool clearDeadKey = false;
-	switch (n) {
-	default:
-		// key is a dead key
-
-		if(lParam & 0x80000000u)
-			// This handles the obscure situation where a key has been
-			// pressed which is both a dead key and a normal character
-			// depending on which modifiers have been pressed. We
-			// break here to prevent it from being considered a dead
-			// key.
+		switch (n) {
+		default:
+			// key is a dead key;  we're not expecting this since we
+			// bailed out above for any dead key.
+			g_deadVirtKey = wParam;
+			g_deadLParam  = lParam;
 			break;
 
-		g_deadVirtKey = wParam;
-		g_deadLParam  = lParam;
-		for (size_t i = 0; i < sizeof(keys) / sizeof(keys[0]); ++i) {
-			g_deadKeyState[i] = keys[i];
-		}
-		break;
+		case 0:
+			// key doesn't map to a character.  this can happen if
+			// non-character keys are pressed after a dead key.
+			break;
 
-	case 0:
-		// key doesn't map to a character.  this can happen if
-		// non-character keys are pressed after a dead key.
-		charAndVirtKey = makeKeyMsg((UINT)wParam, (char)0, noAltGr);
-		break;
+		case 1:
+			// key maps to a character composed with dead key
+			charAndVirtKey = makeKeyMsg(wParam, (char)LOBYTE(c));
+			break;
 
-	case 1:
-		// key maps to a character composed with dead key
-		charAndVirtKey = makeKeyMsg((UINT)wParam, (char)LOBYTE(c), noAltGr);
-		clearDeadKey   = true;
-		break;
-
-	case 2: {
-		// previous dead key not composed.  send a fake key press
-		// and release for the dead key to our window.
-		WPARAM deadCharAndVirtKey =
-							makeKeyMsg((UINT)g_deadVirtKey, (char)LOBYTE(c), noAltGr);
-		PostThreadMessage(g_threadID, SYNERGY_MSG_KEY,
+		case 2: {
+			// previous dead key not composed.  send a fake key press
+			// and release for the dead key to our window.
+			WPARAM deadCharAndVirtKey =
+							makeKeyMsg(g_deadVirtKey, (char)LOBYTE(c));
+			PostThreadMessage(g_threadID, SYNERGY_MSG_KEY,
 							deadCharAndVirtKey, g_deadLParam & 0x7fffffffu);
-		PostThreadMessage(g_threadID, SYNERGY_MSG_KEY,
+			PostThreadMessage(g_threadID, SYNERGY_MSG_KEY,
 							deadCharAndVirtKey, g_deadLParam | 0x80000000u);
 
-		// use uncomposed character
-		charAndVirtKey = makeKeyMsg((UINT)wParam, (char)HIBYTE(c), noAltGr);
-		clearDeadKey   = true;
-		break;
-	}
-	}
+			// use uncomposed character
+			charAndVirtKey = makeKeyMsg(wParam, (char)HIBYTE(c));
+			break;
+		}
+		}
 
-	// put back the dead key, if any, for the application to use
-	if (g_deadVirtKey != 0) {
-		ToAscii((UINT)g_deadVirtKey, (g_deadLParam & 0x10ff0000u) >> 16,
+		// put back the dead key, if any, for the application to use
+		if (g_deadVirtKey != 0) {
+			ToAscii(g_deadVirtKey, (g_deadLParam & 0x00ff0000u) >> 16,
 							g_deadKeyState, &c, flags);
-	}
+			for (int i = 0; i < 256; ++i) {
+				g_deadKeyState[i] = 0;
+			}
+		}
 
-	// clear out old dead key state
-	if (clearDeadKey) {
+		// clear out old dead key state
 		g_deadVirtKey = 0;
 		g_deadLParam  = 0;
 	}
@@ -427,12 +355,19 @@ doKeyboardHookHandler(WPARAM wParam, LPARAM lParam)
 	// forwarding events to clients because this'll keep our thread's
 	// key state table up to date.  that's important for querying
 	// the scroll lock toggle state.
-	// XXX -- with hot keys for actions we may only need to do this when
-	// forwarding.
-	if (charAndVirtKey != 0) {
-		PostThreadMessage(g_threadID, SYNERGY_MSG_DEBUG,
+	PostThreadMessage(g_threadID, SYNERGY_MSG_DEBUG,
 							charAndVirtKey | 0x07000000, lParam);
-		PostThreadMessage(g_threadID, SYNERGY_MSG_KEY, charAndVirtKey, lParam);
+	PostThreadMessage(g_threadID, SYNERGY_MSG_KEY, charAndVirtKey, lParam);
+
+	// send fake key release if the user just pressed two dead keys
+	// in a row, otherwise we'll lose the release because we always
+	// return from the top of this function for all dead key releases.
+	if ((c & 0x80008000u) != 0) {
+		g_oldDeadVirtKey = wParam;
+		PostThreadMessage(g_threadID, SYNERGY_MSG_DEBUG,
+							wParam | 0x08000000, lParam);
+		PostThreadMessage(g_threadID, SYNERGY_MSG_KEY,
+							charAndVirtKey, lParam | 0x80000000u);
 	}
 
 	if (g_mode == kHOOK_RELAY_EVENTS) {
@@ -446,13 +381,31 @@ doKeyboardHookHandler(WPARAM wParam, LPARAM lParam)
 			// lights may not stay synchronized.
 			break;
 
+		case VK_SHIFT:
+		case VK_LSHIFT:
+		case VK_RSHIFT:
+			// pass the shift modifiers.  if we don't do this
+			// we may not get the right dead key when caps lock
+			// is on.  for example, on the french layout (with
+			// english keycaps) on caps lock then press shift + [
+			// and q.  instead of an A with ^ above it you get an
+			// A with dots above it.
+			break;
+
+		case VK_CONTROL:
+		case VK_LCONTROL:
+		case VK_RCONTROL:
+		case VK_MENU:
+		case VK_LMENU:
+		case VK_RMENU:
 		case VK_HANGUL:
-			// pass these modifiers if using a low level hook, discard
-			// them if not.
+			// pass the control and alt modifiers if using a low
+			// level hook, discard them if not.
 			if (g_hookThread == 0) {
 				return true;
 			}
 			break;
+
 
 		default:
 			// discard
@@ -578,7 +531,7 @@ static
 bool
 mouseHookHandler(WPARAM wParam, SInt32 x, SInt32 y, SInt32 data)
 {
-//	attachThreadToForeground();
+	attachThreadToForeground();
 	return doMouseHookHandler(wParam, x, y, data);
 }
 
@@ -817,79 +770,6 @@ DllMain(HINSTANCE instance, DWORD reason, LPVOID)
 
 extern "C" {
 
-// VS2005 hack to not link with the CRT
-#if _MSC_VER >= 1400
-BOOL WINAPI _DllMainCRTStartup(
-		HINSTANCE instance, DWORD reason, LPVOID lpreserved)
-{
-  return DllMain(instance, reason, lpreserved);
-}
-
-// VS2005 is a bit more bright than VC6 and optimize simple copy loop to
-// intrinsic memcpy.
-void *  __cdecl memcpy(void * _Dst, const void * _Src, size_t _MaxCount)
-{
-  void * _DstBackup = _Dst;
-  switch (_MaxCount & 3) {
-  case 3:
-    ((char*)_Dst)[0] = ((char*)_Src)[0];
-    ++(char*&)_Dst;
-    ++(char*&)_Src;
-    --_MaxCount;
-  case 2:
-    ((char*)_Dst)[0] = ((char*)_Src)[0];
-    ++(char*&)_Dst;
-    ++(char*&)_Src;
-    --_MaxCount;
-  case 1:
-    ((char*)_Dst)[0] = ((char*)_Src)[0];
-    ++(char*&)_Dst;
-    ++(char*&)_Src;
-    --_MaxCount;
-    break;
-  case 0:
-    break;
-
-  default:
-    __assume(0);
-    break;
-  }
-
-  // I think it's faster on intel to deference than modify the pointer.
-  const size_t max = _MaxCount / sizeof(UINT_PTR);
-  for (size_t i = 0; i < max; ++i) {
-    ((UINT_PTR*)_Dst)[i] = ((UINT_PTR*)_Src)[i];
-  }
-
-  (UINT_PTR*&)_Dst += max;
-  (UINT_PTR*&)_Src += max;
-
-  switch (_MaxCount & 3) {
-  case 3:
-    ((char*)_Dst)[0] = ((char*)_Src)[0];
-    ++(char*&)_Dst;
-    ++(char*&)_Src;
-  case 2:
-    ((char*)_Dst)[0] = ((char*)_Src)[0];
-    ++(char*&)_Dst;
-    ++(char*&)_Src;
-  case 1:
-    ((char*)_Dst)[0] = ((char*)_Src)[0];
-    ++(char*&)_Dst;
-    ++(char*&)_Src;
-    break;
-  case 0:
-    break;
-
-  default:
-    __assume(0);
-    break;
-  }
-
-  return _DstBackup;
-}
-#endif
-
 int
 init(DWORD threadID)
 {
@@ -910,7 +790,7 @@ init(DWORD threadID)
 
 		// clean up after old process.  the system should've already
 		// removed the hooks so we just need to reset our state.
-		g_hinstance       = GetModuleHandle(_T("synrgyhk"));
+		g_hinstance       = GetModuleHandle("synrgyhk");
 		g_processID       = GetCurrentProcessId();
 		g_wheelSupport    = kWheelNone;
 		g_threadID        = 0;
@@ -924,7 +804,7 @@ init(DWORD threadID)
 
 	// save thread id.  we'll post messages to this thread's
 	// message queue.
-	g_threadID  = threadID;
+	g_threadID     = threadID;
 
 	// set defaults
 	g_mode      = kHOOK_DISABLE;
@@ -966,9 +846,6 @@ install()
 	// discard old dead keys
 	g_deadVirtKey = 0;
 	g_deadLParam  = 0;
-
-	// reset fake input flag
-	g_fakeInput = false;
 
 	// check for mouse wheel support
 	g_wheelSupport = getWheelSupport();

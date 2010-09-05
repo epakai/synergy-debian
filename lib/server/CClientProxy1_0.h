@@ -1,6 +1,5 @@
 /*
- * synergy-plus -- mouse and keyboard sharing utility
- * Copyright (C) 2009 The Synergy+ Project
+ * synergy -- mouse and keyboard sharing utility
  * Copyright (C) 2002 Chris Schoeneman
  * 
  * This package is free software; you can redistribute it and/or
@@ -11,9 +10,6 @@
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
 #ifndef CCLIENTPROXY1_0_H
@@ -54,7 +50,7 @@ public:
 	virtual void		mouseUp(ButtonID);
 	virtual void		mouseMove(SInt32 xAbs, SInt32 yAbs);
 	virtual void		mouseRelativeMove(SInt32 xRel, SInt32 yRel);
-	virtual void		mouseWheel(SInt32 xDelta, SInt32 yDelta);
+	virtual void		mouseWheel(SInt32 delta);
 	virtual void		screensaver(bool activate);
 	virtual void		resetOptions();
 	virtual void		setOptions(const COptionsList& options);
@@ -63,15 +59,11 @@ protected:
 	virtual bool		parseHandshakeMessage(const UInt8* code);
 	virtual bool		parseMessage(const UInt8* code);
 
-	virtual void		resetHeartbeatRate();
-	virtual void		setHeartbeatRate(double rate, double alarm);
-	virtual void		resetHeartbeatTimer();
-	virtual void		addHeartbeatTimer();
-	virtual void		removeHeartbeatTimer();
-
 private:
 	void				disconnect();
 	void				removeHandlers();
+	void				addHeartbeatTimer();
+	void				removeHeartbeatTimer();
 
 	void				handleData(const CEvent&, void*);
 	void				handleDisconnect(const CEvent&, void*);

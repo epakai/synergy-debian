@@ -1,6 +1,5 @@
 /*
- * synergy-plus -- mouse and keyboard sharing utility
- * Copyright (C) 2009 The Synergy+ Project
+ * synergy -- mouse and keyboard sharing utility
  * Copyright (C) 2002 Chris Schoeneman
  * 
  * This package is free software; you can redistribute it and/or
@@ -11,9 +10,6 @@
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
 #ifndef CSTRINGUTIL_H
@@ -51,6 +47,28 @@ public:
 	Equivalent to printf() except the result is returned as a CString.
 	*/
 	static CString		print(const char* fmt, ...);
+
+	//! Print a string using printf-style formatting
+	/*!
+	Same as print() except takes va_list.
+	*/
+	static CString		vprint(const char* fmt, va_list);
+
+	//! Print a string using printf-style formatting into a buffer
+	/*!
+	This is like print but print into a given buffer.  If the resulting
+	string will not fit into \c buffer then a new buffer is allocated and
+	returned, otherwise \c buffer is returned.  the caller must delete[]
+	the returned memory if is not \c buffer.
+	
+	\c prefix and \c suffix must be >= 0.  Exactly \c prefix characters and
+	at least \c suffix characters are available in the buffer before
+	and after the printed string, respectively.  \c bufferLength is the
+	length of buffer and should not be adjusted by the caller to
+	account for \c prefix or \c suffix.
+	*/
+	static char*		vsprint(char* buffer, int bufferLength,
+							int prefix, int suffix, const char* fmt, va_list);
 
 	//! Case-insensitive comparisons
 	/*!

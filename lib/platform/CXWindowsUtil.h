@@ -1,6 +1,5 @@
 /*
- * synergy-plus -- mouse and keyboard sharing utility
- * Copyright (C) 2009 The Synergy+ Project
+ * synergy -- mouse and keyboard sharing utility
  * Copyright (C) 2002 Chris Schoeneman
  * 
  * This package is free software; you can redistribute it and/or
@@ -11,9 +10,6 @@
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
 #ifndef CXWINDOWSUTIL_H
@@ -63,19 +59,37 @@ public:
 	*/
 	static Time			getCurrentTime(Display*, Window);
 
-	//! Convert KeySym to KeyID
+	//! Convert KeySym to UCS-4
 	/*!
-	Converts a KeySym to the equivalent KeyID.  Returns kKeyNone if the
-	KeySym cannot be mapped.
+	Converts a KeySym to the equivalent UCS-4 character.  Returns
+	0x0000ffff if the KeySym cannot be mapped.
 	*/
-	static UInt32		mapKeySymToKeyID(KeySym);
+	static UInt32		mapKeySymToUCS4(KeySym);
 
-	//! Convert KeySym to corresponding KeyModifierMask
+	//! Convert UCS-4 to KeySym
 	/*!
-	Converts a KeySym to the corresponding KeyModifierMask, or 0 if the
-	KeySym is not a modifier.
+	Converts a UCS-4 character to the equivalent KeySym.  Returns
+	NoSymbol (0) if the character cannot be mapped.
 	*/
-	static UInt32		getModifierBitForKeySym(KeySym keysym);
+	static KeySym		mapUCS4ToKeySym(UInt32);
+
+	//! Decompose a KeySym using dead keys
+	/*!
+	Decomposes \c keysym into its component keysyms.  All but the last
+	decomposed KeySym are dead keys.  Returns true iff the decomposition
+	was successful.
+	*/
+	static bool			decomposeKeySymWithDeadKeys(KeySym keysym,
+							KeySyms& decomposed);
+
+	//! Decompose a KeySym using the compose key
+	/*!
+	Decomposes \c keysym into its component keysyms.  The first key is
+	Multi_key and the rest are normal (i.e. not dead) keys.  Returns
+	true iff the decomposition was successful.
+	*/
+	static bool			decomposeKeySymWithCompose(KeySym keysym,
+							KeySyms& decomposed);
 
 	//! Convert Atom to its string
 	/*!
@@ -182,8 +196,13 @@ private:
 
 private:
 	typedef std::map<KeySym, UInt32> CKeySymMap;
+	typedef std::map<UInt32, KeySym> CUCS4Map;
+	typedef std::map<KeySym, KeySyms> CKeySymsMap;
 
 	static CKeySymMap	s_keySymToUCS4;
+	static CUCS4Map		s_UCS4ToKeySym;
+	static CKeySymsMap	s_deadKeyDecomposedKeySyms;
+	static CKeySymsMap	s_composeDecomposedKeySyms;
 };
 
 #endif

@@ -1,6 +1,5 @@
 /*
- * synergy-plus -- mouse and keyboard sharing utility
- * Copyright (C) 2009 The Synergy+ Project
+ * synergy -- mouse and keyboard sharing utility
  * Copyright (C) 2002 Chris Schoeneman
  * 
  * This package is free software; you can redistribute it and/or
@@ -11,9 +10,6 @@
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
 #ifndef PROTOCOLTYPES_H
@@ -24,11 +20,8 @@
 // protocol version number
 // 1.0:  initial protocol
 // 1.1:  adds KeyCode to key press, release, and repeat
-// 1.2:  adds mouse relative motion
-// 1.3:  adds keep alive and deprecates heartbeats,
-//       adds horizontal mouse scrolling
 static const SInt16		kProtocolMajorVersion = 1;
-static const SInt16		kProtocolMinorVersion = 3;
+static const SInt16		kProtocolMinorVersion = 2;
 
 // default contact port number
 static const UInt16		kDefaultPort = 24800;
@@ -36,16 +29,11 @@ static const UInt16		kDefaultPort = 24800;
 // maximum total length for greeting returned by client
 static const UInt32		kMaxHelloLength = 1024;
 
-// time between kMsgCKeepAlive (in seconds).  a non-positive value disables
-// keep alives.  this is the default rate that can be overridden using an
-// option.
-static const double		kKeepAliveRate = 3.0;
-
-// number of skipped kMsgCKeepAlive messages that indicates a problem
-static const double		kKeepAlivesUntilDeath = 3.0;
-
-// obsolete heartbeat stuff
+// time between heartbeats (in seconds).  negative value disables
+// heartbeat.
 static const double		kHeartRate = -1.0;
+
+// number of skipped heartbeats that constitutes death
 static const double		kHeartBeatsUntilDeath = 3.0;
 
 // direction constants
@@ -145,16 +133,6 @@ extern const char*		kMsgCResetOptions;
 // had sent a kMsgQInfo.
 extern const char*		kMsgCInfoAck;
 
-// keep connection alive:  primary <-> secondary
-// sent by the server periodically to verify that connections are still
-// up and running.  clients must reply in kind on receipt.  if the server
-// gets an error sending the message or does not receive a reply within
-// a reasonable time then the server disconnects the client.  if the
-// client doesn't receive these (or any message) periodically then it
-// should disconnect from the server.  the appropriate interval is
-// defined by an option.
-extern const char*		kMsgCKeepAlive;
-
 
 //
 // data codes
@@ -206,15 +184,10 @@ extern const char*		kMsgDMouseMove;
 // $1 = dx, $2 = dy.  dx,dy are motion deltas.
 extern const char*		kMsgDMouseRelMove;
 
-// mouse scroll:  primary -> secondary
-// $1 = xDelta, $2 = yDelta.  the delta should be +120 for one tick forward
-// (away from the user) or right and -120 for one tick backward (toward
-// the user) or left.
+// mouse button pressed:  primary -> secondary
+// $1 = delta.  the delta should be +120 for one tick forward (away
+// from the user) and -120 for one tick backward (toward the user).
 extern const char*		kMsgDMouseWheel;
-
-// mouse vertical scroll:  primary -> secondary
-// like as kMsgDMouseWheel except only sends $1 = yDelta.
-extern const char*		kMsgDMouseWheel1_0;
 
 // clipboard data:  primary <-> secondary
 // $2 = sequence number, $3 = clipboard data.  the sequence number
