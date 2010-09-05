@@ -1,6 +1,5 @@
 /*
- * synergy-plus -- mouse and keyboard sharing utility
- * Copyright (C) 2009 The Synergy+ Project
+ * synergy -- mouse and keyboard sharing utility
  * Copyright (C) 2002 Chris Schoeneman
  * 
  * This package is free software; you can redistribute it and/or
@@ -11,9 +10,6 @@
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
 #include "CConfig.h"
@@ -35,7 +31,6 @@
 #include "CAdvancedOptions.h"
 #include "CAutoStart.h"
 #include "CGlobalOptions.h"
-#include "CHotkeyOptions.h"
 #include "CInfo.h"
 #include "CScreensLinks.h"
 
@@ -66,7 +61,6 @@ HINSTANCE s_instance = NULL;
 
 static CGlobalOptions*		s_globalOptions   = NULL;
 static CAdvancedOptions*	s_advancedOptions = NULL;
-static CHotkeyOptions*		s_hotkeyOptions   = NULL;
 static CScreensLinks*		s_screensLinks    = NULL;
 static CInfo*				s_info            = NULL;
 
@@ -124,8 +118,6 @@ enableMainWindowControls(HWND hwnd)
 	enableItem(hwnd, IDC_MAIN_CLIENT_SERVER_NAME_EDIT, client);
 	enableItem(hwnd, IDC_MAIN_SERVER_SCREENS_LABEL, !client);
 	enableItem(hwnd, IDC_MAIN_SCREENS, !client);
-	enableItem(hwnd, IDC_MAIN_OPTIONS, !client);
-	enableItem(hwnd, IDC_MAIN_HOTKEYS, !client);
 }
 
 static
@@ -252,21 +244,9 @@ getCommandLine(HWND hwnd, bool testing, bool silent)
 }
 
 static
-bool
-launchApp(HWND hwnd, bool testing, HANDLE* thread, DWORD* threadID)
+HANDLE
+launchApp(HWND hwnd, bool testing, DWORD* threadID)
 {
-	if (thread != NULL) {
-		*thread = NULL;
-	}
-	if (threadID != NULL) {
-		*threadID = 0;
-	}
-
-	// start daemon if it's installed and we're not testing
-	if (!testing && CAutoStart::startDaemon()) {
-		return true;
-	}
-
 	// decide if client or server
 	const bool isClient = isClientChecked(hwnd);
 	const char* app = isClient ? CLIENT_APP : SERVER_APP;
@@ -274,7 +254,7 @@ launchApp(HWND hwnd, bool testing, HANDLE* thread, DWORD* threadID)
 	// prepare command line
 	CString cmdLine = getCommandLine(hwnd, testing, false);
 	if (cmdLine.empty()) {
-		return false;
+		return NULL;
 	}
 
 	// start child
@@ -283,21 +263,19 @@ launchApp(HWND hwnd, bool testing, HANDLE* thread, DWORD* threadID)
 		showError(hwnd, CStringUtil::format(
 								getString(IDS_STARTUP_FAILED).c_str(),
 								getErrorString(GetLastError()).c_str()));
-		return false;
+		return NULL;
 	}
 
 	// don't need process handle
 	CloseHandle(procInfo.hProcess);
 
-	// save thread handle and thread ID if desired
-	if (thread != NULL) {
-		*thread = procInfo.hThread;
-	}
+	// save thread ID if desired
 	if (threadID != NULL) {
 		*threadID = procInfo.dwThreadId;
 	}
 
-	return true;
+	// return thread handle
+	return procInfo.hThread;
 }
 
 static
@@ -383,7 +361,7 @@ waitForChild(HWND hwnd, HANDLE thread, DWORD threadID)
 
 	// do dialog that let's the user terminate the test
 	DialogBoxParam(s_instance, MAKEINTRESOURCE(IDD_WAIT), hwnd,
-								(DLGPROC)waitDlgProc, (LPARAM)&info);
+								waitDlgProc, (LPARAM)&info);
 
 	// force the waiter thread to finish and wait for it
 	SetEvent(info.m_ready);
@@ -402,7 +380,7 @@ initMainWindow(HWND hwnd)
 {
 	// append version number to title
 	CString titleFormat = getString(IDS_TITLE);
-	setWindowText(hwnd, CStringUtil::format(titleFormat.c_str(), kApplication, kVersion));
+	setWindowText(hwnd, CStringUtil::format(titleFormat.c_str(), VERSION));
 
 	// load configuration
 	bool configLoaded =
@@ -474,7 +452,7 @@ saveMainWindow(HWND hwnd, SaveMode mode, CString* cmdLineOut = NULL)
 		CArchMiscWindows::setValue(key, "server", getWindowText(child));
 		child = getItem(hwnd, IDC_MAIN_DEBUG);
 		CArchMiscWindows::setValue(key, "debug",
-								(DWORD)SendMessage(child, CB_GETCURSEL, 0, 0));
+								SendMessage(child, CB_GETCURSEL, 0, 0));
 		CArchMiscWindows::setValue(key, "isServer", isClient ? 0 : 1);
 		CArchMiscWindows::closeKey(key);
 	}
@@ -560,8 +538,8 @@ mainWndProc(HWND hwnd, UINT message, WPARAM wParam, LPARAM lParam)
 
 			// see if the configuration changed
 			if (isConfigNewer(s_configTime, s_userConfig)) {
-				CString message2 = getString(IDS_CONFIG_CHANGED);
-				if (askVerify(hwnd, message2)) {
+				CString message = getString(IDS_CONFIG_CHANGED);
+				if (askVerify(hwnd, message)) {
 					time_t configTime;
 					bool userConfig;
 					CConfig newConfig;
@@ -571,8 +549,8 @@ mainWndProc(HWND hwnd, UINT message, WPARAM wParam, LPARAM lParam)
 						s_lastConfig  = ARG->m_config;
 					}
 					else {
-						message2 = getString(IDS_LOAD_FAILED);
-						showError(hwnd, message2);
+						message = getString(IDS_LOAD_FAILED);
+						showError(hwnd, message);
 						s_lastConfig = CConfig();
 					}
 				}
@@ -605,8 +583,8 @@ mainWndProc(HWND hwnd, UINT message, WPARAM wParam, LPARAM lParam)
 			if (saveMainWindow(hwnd, SAVE_NORMAL)) {
 				// launch child app
 				DWORD threadID;
-				HANDLE thread;
-				if (!launchApp(hwnd, testing, &thread, &threadID)) {
+				HANDLE thread = launchApp(hwnd, testing, &threadID);
+				if (thread == NULL) {
 					return 0;
 				}
 
@@ -620,12 +598,11 @@ mainWndProc(HWND hwnd, UINT message, WPARAM wParam, LPARAM lParam)
 				}
 				else {
 					// don't need thread handle
-					if (thread != NULL) {
-						CloseHandle(thread);
-					}
+					CloseHandle(thread);
 
-					// notify of success: now disabled - it's silly to notify a success
-					//askOkay(hwnd, getString(IDS_STARTED_TITLE), getString(IDS_STARTED));
+					// notify of success
+					askOkay(hwnd, getString(IDS_STARTED_TITLE),
+									getString(IDS_STARTED));
 
 					// quit
 					PostQuitMessage(0);
@@ -661,10 +638,6 @@ mainWndProc(HWND hwnd, UINT message, WPARAM wParam, LPARAM lParam)
 			s_advancedOptions->doModal(isClientChecked(hwnd));
 			break;
 
-		case IDC_MAIN_HOTKEYS:
-			s_hotkeyOptions->doModal();
-			break;
-
 		case IDC_MAIN_INFO:
 			s_info->doModal();
 			break;
@@ -679,9 +652,7 @@ mainWndProc(HWND hwnd, UINT message, WPARAM wParam, LPARAM lParam)
 int WINAPI
 WinMain(HINSTANCE instance, HINSTANCE, LPSTR cmdLine, int nCmdShow)
 {
-	CArchMiscWindows::setInstanceWin32(instance);
-
-	CArch arch;
+	CArch arch(instance);
 	CLOG;
 	CArgs args;
 
@@ -726,7 +697,6 @@ WinMain(HINSTANCE instance, HINSTANCE, LPSTR cmdLine, int nCmdShow)
 	initMainWindow(mainWindow);
 	s_globalOptions   = new CGlobalOptions(mainWindow, &ARG->m_config);
 	s_advancedOptions = new CAdvancedOptions(mainWindow, &ARG->m_config);
-	s_hotkeyOptions   = new CHotkeyOptions(mainWindow, &ARG->m_config); 
 	s_screensLinks    = new CScreensLinks(mainWindow, &ARG->m_config);
 	s_info            = new CInfo(mainWindow);
 
@@ -756,5 +726,5 @@ WinMain(HINSTANCE instance, HINSTANCE, LPSTR cmdLine, int nCmdShow)
 		}
 	} while (!done);
 
-	return (int)msg.wParam;
+	return msg.wParam;
 }

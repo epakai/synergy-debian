@@ -1,6 +1,5 @@
 /*
- * synergy-plus -- mouse and keyboard sharing utility
- * Copyright (C) 2009 The Synergy+ Project
+ * synergy -- mouse and keyboard sharing utility
  * Copyright (C) 2004 Chris Schoeneman
  * 
  * This package is free software; you can redistribute it and/or
@@ -11,18 +10,13 @@
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
 #include "CKeyState.h"
 #include "IEventQueue.h"
 #include "CLog.h"
-#include <cstring>
+#include <string.h>
 #include <algorithm>
-#include <iterator>
-#include <list>
 
 static const KeyButton kButtonMask = (KeyButton)(IKeyState::kNumButtons - 1);
 
@@ -547,8 +541,8 @@ CKeyState::fakeKeyDown(KeyID id, KeyModifierMask mask, KeyButton serverID)
 	Keystrokes keys;
 	ModifierToKeys oldActiveModifiers = m_activeModifiers;
 	const CKeyMap::KeyItem* keyItem =
-		m_keyMap.mapKey(keys, id, pollActiveGroup(), m_activeModifiers,
-								getActiveModifiersRValue(), mask, false);
+		m_keyMap.mapKey(keys, id, pollActiveGroup(),
+								m_activeModifiers, m_mask, mask, false);
 	if (keyItem == NULL) {
 		return;
 	}
@@ -583,8 +577,8 @@ CKeyState::fakeKeyRepeat(
 	Keystrokes keys;
 	ModifierToKeys oldActiveModifiers = m_activeModifiers;
 	const CKeyMap::KeyItem* keyItem =
-		m_keyMap.mapKey(keys, id, pollActiveGroup(), m_activeModifiers,
-								getActiveModifiersRValue(), mask, true);
+		m_keyMap.mapKey(keys, id, pollActiveGroup(),
+								m_activeModifiers, m_mask, mask, true);
 	if (keyItem == NULL) {
 		return;
 	}
@@ -679,7 +673,6 @@ CKeyState::fakeAllKeysUp()
 		}
 	}
 	fakeKeys(keys, 1);
-	memset(&m_serverKeys, 0, sizeof(m_serverKeys));
 	m_activeModifiers.clear();
 	m_mask = pollActiveModifiers();
 }
@@ -692,12 +685,6 @@ CKeyState::isKeyDown(KeyButton button) const
 
 KeyModifierMask
 CKeyState::getActiveModifiers() const
-{
-	return m_mask;
-}
-
-KeyModifierMask&
-CKeyState::getActiveModifiersRValue()
 {
 	return m_mask;
 }

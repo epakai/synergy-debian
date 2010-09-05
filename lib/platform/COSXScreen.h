@@ -1,6 +1,5 @@
 /*
- * synergy-plus -- mouse and keyboard sharing utility
- * Copyright (C) 2009 The Synergy+ Project
+ * synergy -- mouse and keyboard sharing utility
  * Copyright (C) 2004 Chris Schoeneman
  * 
  * This package is free software; you can redistribute it and/or
@@ -11,22 +10,15 @@
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
 #ifndef COSXSCREEN_H
 #define COSXSCREEN_H
 
-#include <bitset>
-
+#include "CPlatformScreen.h"
 #include "stdmap.h"
 #include "stdvector.h"
-
 #include <Carbon/Carbon.h>
-#include "COSXClipboard.h"
-#include "CPlatformScreen.h"
 
 #include <mach/mach_port.h>
 #include <mach/mach_interface.h>
@@ -60,8 +52,6 @@ public:
 	virtual void		warpCursor(SInt32 x, SInt32 y);
 	virtual UInt32		registerHotKey(KeyID key, KeyModifierMask mask);
 	virtual void		unregisterHotKey(UInt32 id);
-	virtual void		fakeInputBegin();
-	virtual void		fakeInputEnd();
 	virtual SInt32		getJumpZoneSize() const;
 	virtual bool		isAnyMouseButtonDown() const;
 	virtual void		getCursorCenter(SInt32& x, SInt32& y) const;
@@ -94,7 +84,7 @@ protected:
 	virtual IKeyState*	getKeyState() const;
 
 private:
-	void				updateScreenShape(const CGDirectDisplayID, const CGDisplayChangeSummaryFlags);
+	void				updateScreenShape();
 	void				postMouseEvent(CGPoint&) const;
 	
 	// convenience function to send events
@@ -102,16 +92,16 @@ private:
 	void				sendClipboardEvent(CEvent::Type type, ClipboardID id) const;
 
 	// message handlers
-	bool				onMouseMove(SInt32 mx, SInt32 my);
+	bool				onMouseMove(SInt32 x, SInt32 y);
 	// mouse button handler.  pressed is true if this is a mousedown
 	// event, false if it is a mouseup event.  macButton is the index
 	// of the button pressed using the mac button mapping.
 	bool				onMouseButton(bool pressed, UInt16 macButton);
 	bool				onMouseWheel(SInt32 xDelta, SInt32 yDelta) const;
 
-	void				constructMouseButtonEventMap();
+	bool				onDisplayChange();
 
-	bool				onKey(CGEventRef event);
+	bool				onKey(EventRef event);
 	bool				onHotKey(EventRef event) const;
 
 	// map mac mouse button to synergy buttons
@@ -139,8 +129,8 @@ private:
 	void				handleClipboardCheck(const CEvent&, void*);
 
 	// Resolution switch callback
-	static void	displayReconfigurationCallback(CGDirectDisplayID,
-							CGDisplayChangeSummaryFlags, void*);
+	static pascal void	displayManagerCallback(void* inUserData,
+							SInt16 inMessage, void* inNotifyData);
 	
 	// fast user switch callback
 	static pascal OSStatus
@@ -162,12 +152,7 @@ private:
 	static bool			isGlobalHotKeyOperatingModeAvailable();
 	static void			setGlobalHotKeysEnabled(bool enabled);
 	static bool			getGlobalHotKeysEnabled();
-	
-	// Quartz event tap support
-	static CGEventRef	handleCGInputEvent(CGEventTapProxy proxy,
-										   CGEventType type,
-										   CGEventRef event,
-										   void* refcon);
+
 private:
 	struct CHotKeyItem {
 	public:
@@ -183,28 +168,6 @@ private:
 		UInt32			m_keycode;
 		UInt32			m_mask;
 	};
-
-	enum MouseButtonState {
-		kMouseButtonUp = 0,
-		kMouseButtonDragged,
-		kMouseButtonDown,
-		kMouseButtonStateMax
-	};
-	
-
-	class CMouseButtonState {
-	public:
-		void set(UInt32 button, MouseButtonState state);
-		bool any();
-		void reset(); 
-		void overwrite(UInt32 buttons);
-
-		bool test(UInt32 button) const;
-		SInt8 getFirstButtonDown() const;
-	private:
-		std::bitset<NumButtonIDs>	  m_buttons;
-	};
-
 	typedef std::map<UInt32, CHotKeyItem> HotKeyMap;
 	typedef std::vector<UInt32> HotKeyIDList;
 	typedef std::map<KeyModifierMask, UInt32> ModifierHotKeyMap;
@@ -227,17 +190,7 @@ private:
 	// mouse state
 	mutable SInt32		m_xCursor, m_yCursor;
 	mutable bool		m_cursorPosValid;
-	
-    /* FIXME: this data structure is explicitly marked mutable due
-       to a need to track the state of buttons since the remote
-       side only lets us know of change events, and because the
-       fakeMouseButton button method is marked 'const'. This is
-       Evil, and this should be moved to a place where it need not
-       be mutable as soon as possible. */
-	mutable CMouseButtonState m_buttonState;
-	typedef std::map<UInt16, CGEventType> MouseButtonEventMapType;
-	std::vector<MouseButtonEventMapType> MouseButtonEventMap;
-
+	mutable boolean_t	m_buttons[5];
 	bool				m_cursorHidden;
 	SInt32				m_dragNumButtonsDown;
 	Point				m_dragLastPoint;
@@ -247,7 +200,6 @@ private:
 	COSXKeyState*		m_keyState;
 
 	// clipboards
-	COSXClipboard       m_pasteboard;
 	UInt32				m_sequenceNumber;
 
 	// screen saver stuff
@@ -264,6 +216,10 @@ private:
 	// window object that gets user input events when the server
 	// does not have focus.
 	WindowRef			m_userInputWindow;
+
+	// display manager stuff (to get screen resolution switches).
+	DMExtendedNotificationUPP   m_displayManagerNotificationUPP;
+	ProcessSerialNumber			m_PSN;
 
 	// fast user switching
 	EventHandlerRef			m_switchEventHandlerRef;
@@ -289,10 +245,6 @@ private:
 
 	// events
 	static CEvent::Type		s_confirmSleepEvent;
-	
-	// Quartz input event support
-	CFMachPortRef			m_eventTapPort;
-	CFRunLoopSourceRef		m_eventTapRLSR;
 };
 
 #endif

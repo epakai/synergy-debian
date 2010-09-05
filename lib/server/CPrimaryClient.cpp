@@ -1,6 +1,5 @@
 /*
- * synergy-plus -- mouse and keyboard sharing utility
- * Copyright (C) 2009 The Synergy+ Project
+ * synergy -- mouse and keyboard sharing utility
  * Copyright (C) 2002 Chris Schoeneman
  * 
  * This package is free software; you can redistribute it and/or
@@ -11,9 +10,6 @@
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
 #include "CPrimaryClient.h"
@@ -26,9 +22,8 @@
 //
 
 CPrimaryClient::CPrimaryClient(const CString& name, CScreen* screen) :
-	CBaseClientProxy(name),
-	m_screen(screen),
-	m_fakeInputCount(0)
+	m_name(name),
+	m_screen(screen)
 {
 	// all clipboards are clean
 	for (UInt32 i = 0; i < kClipboardEnd; ++i) {
@@ -57,22 +52,6 @@ void
 CPrimaryClient::unregisterHotKey(UInt32 id)
 {
 	m_screen->unregisterHotKey(id);
-}
-
-void
-CPrimaryClient::fakeInputBegin()
-{
-	if (++m_fakeInputCount == 1) {
-		m_screen->fakeInputBegin();
-	}
-}
-
-void
-CPrimaryClient::fakeInputEnd()
-{
-	if (--m_fakeInputCount == 0) {
-		m_screen->fakeInputEnd();
-	}
 }
 
 SInt32
@@ -183,15 +162,9 @@ CPrimaryClient::setClipboardDirty(ClipboardID id, bool dirty)
 }
 
 void
-CPrimaryClient::keyDown(KeyID key, KeyModifierMask mask, KeyButton button)
+CPrimaryClient::keyDown(KeyID, KeyModifierMask, KeyButton)
 {
-	if (m_fakeInputCount > 0) {
-// XXX -- don't forward keystrokes to primary screen for now
-		(void)key;
-		(void)mask;
-		(void)button;
-//		m_screen->keyDown(key, mask, button);
-	}
+	// ignore
 }
 
 void
@@ -201,15 +174,9 @@ CPrimaryClient::keyRepeat(KeyID, KeyModifierMask, SInt32, KeyButton)
 }
 
 void
-CPrimaryClient::keyUp(KeyID key, KeyModifierMask mask, KeyButton button)
+CPrimaryClient::keyUp(KeyID, KeyModifierMask, KeyButton)
 {
-	if (m_fakeInputCount > 0) {
-// XXX -- don't forward keystrokes to primary screen for now
-		(void)key;
-		(void)mask;
-		(void)button;
-//		m_screen->keyUp(key, mask, button);
-	}
+	// ignore
 }
 
 void
@@ -258,4 +225,10 @@ void
 CPrimaryClient::setOptions(const COptionsList& options)
 {
 	m_screen->setOptions(options);
+}
+
+CString
+CPrimaryClient::getName() const
+{
+	return m_name;
 }

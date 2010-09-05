@@ -1,6 +1,5 @@
 /*
- * synergy-plus -- mouse and keyboard sharing utility
- * Copyright (C) 2009 The Synergy+ Project
+ * synergy -- mouse and keyboard sharing utility
  * Copyright (C) 2002 Chris Schoeneman
  * 
  * This package is free software; you can redistribute it and/or
@@ -11,9 +10,6 @@
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
 #include "CTCPSocket.h"
@@ -27,9 +23,7 @@
 #include "IEventJob.h"
 #include "CArch.h"
 #include "XArch.h"
-#include <cstring>
-#include <cstdlib>
-#include <memory>
+#include <string.h>
 
 //
 // CTCPSocket
@@ -129,7 +123,7 @@ CTCPSocket::read(void* buffer, UInt32 n)
 	if (n > size) {
 		n = size;
 	}
-	if (buffer != NULL && n != 0) {
+	if (buffer != NULL) {
 		memcpy(buffer, m_inputBuffer.peek(n), n);
 	}
 	m_inputBuffer.pop(n);
@@ -350,9 +344,11 @@ CTCPSocket::newJob()
 void
 CTCPSocket::sendConnectionFailedEvent(const char* msg)
 {
-	CConnectionFailedInfo* info = new CConnectionFailedInfo(msg);
+	CConnectionFailedInfo* info = (CConnectionFailedInfo*)malloc(
+							sizeof(CConnectionFailedInfo) + strlen(msg));
+	strcpy(info->m_what, msg);
 	EVENTQUEUE->addEvent(CEvent(getConnectionFailedEvent(),
-							getEventTarget(), info, CEvent::kDontFreeData));
+							getEventTarget(), info));
 }
 
 void
@@ -489,9 +485,8 @@ CTCPSocket::serviceConnected(ISocketMultiplexerJob* job,
 			sendEvent(getDisconnectedEvent());
 			needNewJob = true;
 		}
-		catch (XArchNetwork& e) {
+		catch (XArchNetwork&) {
 			// other write error
-			LOG((CLOG_WARN "error writing socket: %s", e.what().c_str()));
 			onDisconnected();
 			sendEvent(getOutputErrorEvent());
 			sendEvent(getDisconnectedEvent());
@@ -508,7 +503,7 @@ CTCPSocket::serviceConnected(ISocketMultiplexerJob* job,
 
 				// slurp up as much as possible
 				do {
-					m_inputBuffer.write(buffer, (UInt32)n);
+					m_inputBuffer.write(buffer, n);
 					n = ARCH->readSocket(m_socket, buffer, sizeof(buffer));
 				} while (n > 0);
 
@@ -536,9 +531,8 @@ CTCPSocket::serviceConnected(ISocketMultiplexerJob* job,
 			onDisconnected();
 			needNewJob = true;
 		}
-		catch (XArchNetwork& e) {
+		catch (XArchNetwork&) {
 			// ignore other read error
-			LOG((CLOG_WARN "error reading socket: %s", e.what().c_str()));
 		}
 	}
 

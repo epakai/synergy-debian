@@ -1,6 +1,5 @@
 /*
- * synergy-plus -- mouse and keyboard sharing utility
- * Copyright (C) 2009 The Synergy+ Project
+ * synergy -- mouse and keyboard sharing utility
  * Copyright (C) 2002 Chris Schoeneman
  * 
  * This package is free software; you can redistribute it and/or
@@ -11,9 +10,6 @@
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
 #include "CConfig.h"
@@ -23,7 +19,7 @@
 #include "XSocket.h"
 #include "stdistream.h"
 #include "stdostream.h"
-#include <cstdlib>
+#include <stdlib.h>
 
 //
 // CConfig
@@ -91,11 +87,11 @@ CConfig::renameScreen(const CString& oldName,
 
 	// update alias targets
 	if (CStringUtil::CaselessCmp::equal(oldName, oldCanonical)) {
-		for (CNameMap::iterator iter = m_nameToCanonicalName.begin();
-							iter != m_nameToCanonicalName.end(); ++iter) {
+		for (CNameMap::iterator index = m_nameToCanonicalName.begin();
+							index != m_nameToCanonicalName.end(); ++index) {
 			if (CStringUtil::CaselessCmp::equal(
-							iter->second, oldCanonical)) {
-				iter->second = newName;
+							index->second, oldCanonical)) {
+				index->second = newName;
 			}
 		}
 	}
@@ -123,10 +119,10 @@ CConfig::removeScreen(const CString& name)
 	}
 
 	// remove aliases (and canonical name)
-	for (CNameMap::iterator iter = m_nameToCanonicalName.begin();
-								iter != m_nameToCanonicalName.end(); ) {
-		if (iter->second == canonical) {
-			m_nameToCanonicalName.erase(iter++);
+	for (CNameMap::iterator index = m_nameToCanonicalName.begin();
+								index != m_nameToCanonicalName.end(); ) {
+		if (index->second == canonical) {
+			m_nameToCanonicalName.erase(index++);
 		}
 		else {
 			++index;
@@ -593,11 +589,6 @@ CConfig::operator==(const CConfig& x) const
 		}
 	}
 
-	// compare input filters
-	if (m_inputFilter != x.m_inputFilter) {
-		return false;
-	}
-
 	return true;
 }
 
@@ -894,10 +885,6 @@ CConfig::readSectionScreens(CConfigReadContext& s)
 			else if (name == "switchCornerSize") {
 				addOption(screen, kOptionScreenSwitchCornerSize,
 					s.parseInt(value));
-			}
-			else if (name == "preserveFocus") {
-				addOption(screen, kOptionScreenPreserveFocus,
-					s.parseBoolean(value));
 			}
 			else {
 				// unknown argument
@@ -1211,36 +1198,6 @@ CConfig::parseAction(CConfigReadContext& s,
 		action = new CInputFilter::CLockCursorToScreenAction(mode);
 	}
 
-	else if (name == "keyboardBroadcast") {
-		if (args.size() > 2) {
-			throw XConfigRead(s, "syntax for action: keyboardBroadcast([{off|on|toggle}[,screens]])");
-		}
-
-		CInputFilter::CKeyboardBroadcastAction::Mode mode =
-			CInputFilter::CKeyboardBroadcastAction::kToggle;
-		if (args.size() >= 1) {
-			if (args[0] == "off") {
-				mode = CInputFilter::CKeyboardBroadcastAction::kOff;
-			}
-			else if (args[0] == "on") {
-				mode = CInputFilter::CKeyboardBroadcastAction::kOn;
-			}
-			else if (args[0] == "toggle") {
-				mode = CInputFilter::CKeyboardBroadcastAction::kToggle;
-			}
-			else {
-				throw XConfigRead(s, "syntax for action: keyboardBroadcast([{off|on|toggle}[,screens]])");
-			}
-		}
-
-		std::set<CString> screens;
-		if (args.size() >= 2) {
-			parseScreens(s, args[1], screens);
-		}
-
-		action = new CInputFilter::CKeyboardBroadcastAction(mode, screens);
-	}
-
 	else {
 		throw XConfigRead(s, "unknown action argument \"%{1}\"", name);
 	}
@@ -1340,9 +1297,6 @@ CConfig::getOptionName(OptionID id)
 	if (id == kOptionWin32KeepForeground) {
 		return "win32KeepForeground";
 	}
-	if (id == kOptionScreenPreserveFocus) {
-		return "preserveFocus";
-	}
 	return NULL;
 }
 
@@ -1355,8 +1309,7 @@ CConfig::getOptionValue(OptionID id, OptionValue value)
 		id == kOptionScreenSaverSync ||
 		id == kOptionXTestXineramaUnaware ||
 		id == kOptionRelativeMouseMoves ||
-		id == kOptionWin32KeepForeground ||
-		id == kOptionScreenPreserveFocus) {
+		id == kOptionWin32KeepForeground) {
 		return (value != 0) ? "true" : "false";
 	}
 	if (id == kOptionModifierMapForShift ||

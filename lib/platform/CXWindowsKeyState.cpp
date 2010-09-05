@@ -1,6 +1,5 @@
 /*
- * synergy-plus -- mouse and keyboard sharing utility
- * Copyright (C) 2009 The Synergy+ Project
+ * synergy -- mouse and keyboard sharing utility
  * Copyright (C) 2003 Chris Schoeneman
  * 
  * This package is free software; you can redistribute it and/or
@@ -11,9 +10,6 @@
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
 #include "CXWindowsKeyState.h"
@@ -37,7 +33,6 @@
 CXWindowsKeyState::CXWindowsKeyState(Display* display, bool useXKB) :
 	m_display(display)
 {
-	XGetKeyboardControl(m_display, &m_keyboardState);
 #if HAVE_XKB_EXTENSION
 	if (useXKB) {
 		m_xkb = XkbGetMap(m_display, XkbKeyActionsMask | XkbKeyBehaviorsMask |
@@ -73,12 +68,6 @@ CXWindowsKeyState::setActiveGroup(SInt32 group)
 		assert(group >= 0);
 		m_group = group;
 	}
-}
-
-void
-CXWindowsKeyState::setAutoRepeat(const XKeyboardState& state)
-{
-	m_keyboardState = state;
 }
 
 KeyModifierMask
@@ -185,12 +174,6 @@ CXWindowsKeyState::pollPressedKeys(KeyButtonSet& pressedKeys) const
 void
 CXWindowsKeyState::getKeyMap(CKeyMap& keyMap)
 {
-	// get autorepeat info.  we must use the global_auto_repeat told to
-	// us because it may have modified by synergy.
-	int oldGlobalAutoRepeat = m_keyboardState.global_auto_repeat;
-	XGetKeyboardControl(m_display, &m_keyboardState);
-	m_keyboardState.global_auto_repeat = oldGlobalAutoRepeat;
-
 #if HAVE_XKB_EXTENSION
 	if (m_xkb != NULL) {
 		XkbGetUpdatedMap(m_display, XkbKeyActionsMask | XkbKeyBehaviorsMask |
@@ -210,16 +193,6 @@ CXWindowsKeyState::fakeKey(const Keystroke& keystroke)
 	switch (keystroke.m_type) {
 	case Keystroke::kButton:
 		LOG((CLOG_DEBUG1 "  %03x (%08x) %s", keystroke.m_data.m_button.m_button, keystroke.m_data.m_button.m_client, keystroke.m_data.m_button.m_press ? "down" : "up"));
-		if (keystroke.m_data.m_button.m_repeat) {
-			int c = keystroke.m_data.m_button.m_button;
-			int i = (c >> 3);
-			int b = 1 << (c & 7);
-			if (m_keyboardState.global_auto_repeat == AutoRepeatModeOff ||
-				(c!=113 && c!=116 && (m_keyboardState.auto_repeats[i] & b) == 0)) {
-				LOG((CLOG_DEBUG1 "  discard autorepeat"));
-				break;
-			}
-		}
 		XTestFakeKeyEvent(m_display, keystroke.m_data.m_button.m_button,
 							keystroke.m_data.m_button.m_press ? True : False,
 							CurrentTime);
@@ -228,30 +201,14 @@ CXWindowsKeyState::fakeKey(const Keystroke& keystroke)
 	case Keystroke::kGroup:
 		if (keystroke.m_data.m_group.m_absolute) {
 			LOG((CLOG_DEBUG1 "  group %d", keystroke.m_data.m_group.m_group));
-#if HAVE_XKB_EXTENSION
-			if (m_xkb != NULL) {
-				XkbLockGroup(m_display, XkbUseCoreKbd,
+			XkbLockGroup(m_display, XkbUseCoreKbd,
 							keystroke.m_data.m_group.m_group);
-			}
-			else
-#endif
-			{
-				LOG((CLOG_DEBUG1 "  ignored"));
-			}
 		}
 		else {
 			LOG((CLOG_DEBUG1 "  group %+d", keystroke.m_data.m_group.m_group));
-#if HAVE_XKB_EXTENSION
-			if (m_xkb != NULL) {
-				XkbLockGroup(m_display, XkbUseCoreKbd,
+			XkbLockGroup(m_display, XkbUseCoreKbd,
 							getEffectiveGroup(pollActiveGroup(),
 								keystroke.m_data.m_group.m_group));
-			}
-			else
-#endif
-			{
-				LOG((CLOG_DEBUG1 "  ignored"));
-			}
 		}
 		break;
 	}
@@ -277,9 +234,6 @@ CXWindowsKeyState::updateKeysymMap(CKeyMap& keyMap)
 	m_modifierToX[KeyModifierShift]    = ShiftMask;
 	m_modifierToX[KeyModifierCapsLock] = LockMask;
 	m_modifierToX[KeyModifierControl]  = ControlMask;
-
-	// prepare map from KeyID to KeyCode
-	m_keyCodeFromKey.clear();
 
 	// get the number of keycodes
 	int minKeycode, maxKeycode;
@@ -427,19 +381,7 @@ CXWindowsKeyState::updateKeysymMap(CKeyMap& keyMap)
 		for (int j = 0; j < maxKeysyms; ++j) {
 			item.m_id = CXWindowsUtil::mapKeySymToKeyID(keysyms[j]);
 			if (item.m_id == kKeyNone) {
-				if (j != 0 && modifierButtons.count(keycode) > 0) {
-					// pretend the modifier works in other shift levels
-					// because it probably does.
-					if (keysyms[1] == NoSymbol || j != 3) {
-						item.m_id = CXWindowsUtil::mapKeySymToKeyID(keysyms[0]);
-					}
-					else {
-						item.m_id = CXWindowsUtil::mapKeySymToKeyID(keysyms[1]);
-					}
-				}
-				if (item.m_id == kKeyNone) {
-					continue;
-				}
+				continue;
 			}
 
 			// group is 0 for levels 0 and 1 and 1 for levels 2 and 3

@@ -1,6 +1,5 @@
 /*
- * synergy-plus -- mouse and keyboard sharing utility
- * Copyright (C) 2009 The Synergy+ Project
+ * synergy -- mouse and keyboard sharing utility
  * Copyright (C) 2002 Chris Schoeneman
  * 
  * This package is free software; you can redistribute it and/or
@@ -11,9 +10,6 @@
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
 #ifndef IPLATFORMSCREEN_H
@@ -152,8 +148,6 @@ public:
 	virtual void		warpCursor(SInt32 x, SInt32 y) = 0;
 	virtual UInt32		registerHotKey(KeyID key, KeyModifierMask mask) = 0;
 	virtual void		unregisterHotKey(UInt32 id) = 0;
-	virtual void		fakeInputBegin() = 0;
-	virtual void		fakeInputEnd() = 0;
 	virtual SInt32		getJumpZoneSize() const = 0;
 	virtual bool		isAnyMouseButtonDown() const = 0;
 	virtual void		getCursorCenter(SInt32& x, SInt32& y) const = 0;

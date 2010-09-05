@@ -1,6 +1,5 @@
 /*
- * synergy-plus -- mouse and keyboard sharing utility
- * Copyright (C) 2009 The Synergy+ Project
+ * synergy -- mouse and keyboard sharing utility
  * Copyright (C) 2003 Chris Schoeneman
  * 
  * This package is free software; you can redistribute it and/or
@@ -11,9 +10,6 @@
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
 #include "CScreen.h"
@@ -31,8 +27,7 @@ CScreen::CScreen(IPlatformScreen* platformScreen) :
 	m_isPrimary(platformScreen->isPrimary()),
 	m_enabled(false),
 	m_entered(m_isPrimary),
-	m_screenSaverSync(true),
-	m_fakeInput(false)
+	m_screenSaverSync(true)
 {
 	assert(m_screen != NULL);
 
@@ -178,7 +173,7 @@ CScreen::screensaver(bool activate)
 void
 CScreen::keyDown(KeyID id, KeyModifierMask mask, KeyButton button)
 {
-	assert(!m_isPrimary || m_fakeInput);
+	assert(!m_isPrimary);
 
 	// check for ctrl+alt+del emulation
 	if (id == kKeyDelete &&
@@ -203,7 +198,7 @@ CScreen::keyRepeat(KeyID id,
 void
 CScreen::keyUp(KeyID, KeyModifierMask, KeyButton button)
 {
-	assert(!m_isPrimary || m_fakeInput);
+	assert(!m_isPrimary);
 	m_screen->fakeKeyUp(button);
 }
 
@@ -266,7 +261,7 @@ CScreen::setOptions(const COptionsList& options)
 {
 	// update options
 	bool oldScreenSaverSync = m_screenSaverSync;
-	for (UInt32 i = 0, n = (UInt32)options.size(); i < n; i += 2) {
+	for (UInt32 i = 0, n = options.size(); i < n; i += 2) {
 		if (options[i] == kOptionScreenSaverSync) {
 			m_screenSaverSync = (options[i + 1] != 0);
 			LOG((CLOG_DEBUG1 "screen saver synchronization %s", m_screenSaverSync ? "on" : "off"));
@@ -333,24 +328,6 @@ void
 CScreen::unregisterHotKey(UInt32 id)
 {
 	m_screen->unregisterHotKey(id);
-}
-
-void
-CScreen::fakeInputBegin()
-{
-	assert(!m_fakeInput);
-
-	m_fakeInput = true;
-	m_screen->fakeInputBegin();
-}
-
-void
-CScreen::fakeInputEnd()
-{
-	assert(m_fakeInput);
-
-	m_fakeInput = false;
-	m_screen->fakeInputEnd();
 }
 
 bool
