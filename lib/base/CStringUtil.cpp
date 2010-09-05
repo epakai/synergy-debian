@@ -1,6 +1,5 @@
 /*
- * synergy-plus -- mouse and keyboard sharing utility
- * Copyright (C) 2009 The Synergy+ Project
+ * synergy -- mouse and keyboard sharing utility
  * Copyright (C) 2002 Chris Schoeneman
  * 
  * This package is free software; you can redistribute it and/or
@@ -11,9 +10,6 @@
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
 #include "CStringUtil.h"
@@ -23,7 +19,6 @@
 #include <cctype>
 #include <cstdio>
 #include <cstdlib>
-#include <cstring>
 #include <algorithm>
 
 //
@@ -121,37 +116,54 @@ CStringUtil::vformat(const char* fmt, va_list args)
 CString
 CStringUtil::print(const char* fmt, ...)
 {
+	va_list args;
+	va_start(args, fmt);
+	CString result = vprint(fmt, args);
+	va_end(args);
+	return result;
+}
+
+CString
+CStringUtil::vprint(const char* fmt, va_list args)
+{
 	char tmp[1024];
-	char* buffer = tmp;
-	int len      = (int)(sizeof(tmp) / sizeof(tmp[0]));
-	CString result;
-	while (buffer != NULL) {
-		// try printing into the buffer
-		va_list args;
-		va_start(args, fmt);
-		int n = ARCH->vsnprintf(buffer, len, fmt, args);
-		va_end(args);
+	char* buffer = vsprint(tmp, sizeof(tmp) / sizeof(tmp[0]), 0, 0, fmt, args);
+	if (buffer == tmp) {
+		return buffer;
+	}
+	else {
+		CString result(buffer);
+		delete[] buffer;
+		return result;
+	}
+}
 
-		// if the buffer wasn't big enough then make it bigger and try again
-		if (n < 0 || n > len) {
-			if (buffer != tmp) {
-				delete[] buffer;
-			}
-			len   *= 2;
-			buffer = new char[len];
-		}
+char*
+CStringUtil::vsprint(char* buffer, int len,
+				int prefix, int suffix, const char* fmt, va_list args)
+{
+	assert(len > 0);
 
-		// if it was big enough then save the string and don't try again
-		else {
-			result = buffer;
-			if (buffer != tmp) {
-				delete[] buffer;
-			}
-			buffer = NULL;
-		}
+	// try writing to input buffer
+	int n;
+	if (buffer != NULL && len >= prefix + suffix) {
+		n = ARCH->vsnprintf(buffer + prefix,
+							len - (prefix + suffix), fmt, args);
+		if (n >= 0 && n <= len - (prefix + suffix))
+			return buffer;
 	}
 
-	return result;
+	// start allocating buffers until we write the whole string
+	buffer = NULL;
+	do {
+		delete[] buffer;
+		len *= 2;
+		buffer = new char[len + (prefix + suffix)];
+		n = ARCH->vsnprintf(buffer + prefix,
+							len - (prefix + suffix), fmt, args);
+	} while (n < 0 || n > len - (prefix + suffix));
+
+	return buffer;
 }
 
 

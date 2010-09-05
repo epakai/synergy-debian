@@ -1,6 +1,5 @@
 /*
- * synergy-plus -- mouse and keyboard sharing utility
- * Copyright (C) 2009 The Synergy+ Project
+ * synergy -- mouse and keyboard sharing utility
  * Copyright (C) 2002 Chris Schoeneman
  * 
  * This package is free software; you can redistribute it and/or
@@ -11,9 +10,6 @@
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
 #include "CConfig.h"
@@ -23,7 +19,7 @@
 #include "resource.h"
 #include "stdfstream.h"
 
-size_t s_showingDialog = 0;
+#define CONFIG_NAME "synergy.sgc"
 
 CString
 getString(DWORD id)
@@ -41,34 +37,22 @@ void
 showError(HWND hwnd, const CString& msg)
 {
 	CString title = getString(IDS_ERROR);
-	++s_showingDialog;
 	MessageBox(hwnd, msg.c_str(), title.c_str(), MB_OK | MB_APPLMODAL);
-	--s_showingDialog;
 }
 
 void
 askOkay(HWND hwnd, const CString& title, const CString& msg)
 {
-	++s_showingDialog;
 	MessageBox(hwnd, msg.c_str(), title.c_str(), MB_OK | MB_APPLMODAL);
-	--s_showingDialog;
 }
 
 bool
 askVerify(HWND hwnd, const CString& msg)
 {
 	CString title = getString(IDS_VERIFY);
-	++s_showingDialog;
 	int result = MessageBox(hwnd, msg.c_str(),
 								title.c_str(), MB_OKCANCEL | MB_APPLMODAL);
-	--s_showingDialog;
 	return (result == IDOK);
-}
-
-bool
-isShowingDialog()
-{
-	return (s_showingDialog != 0);
 }
 
 void
@@ -126,39 +110,6 @@ getAppPath(const CString& appName)
 }
 
 static
-void
-getFileTime(const CString& path, time_t& t)
-{
-	struct _stat s;
-	if (_stat(path.c_str(), &s) != -1) {
-		t = s.st_mtime;
-	}
-}
-
-bool
-isConfigNewer(time_t& oldTime, bool userConfig)
-{
-	time_t newTime = oldTime;
-	if (userConfig) {
-		CString path = ARCH->getUserDirectory();
-		if (!path.empty()) {
-			path = ARCH->concatPath(path, CONFIG_NAME);
-			getFileTime(path, newTime);
-		}
-	}
-	else {
-		CString path = ARCH->getSystemDirectory();
-		if (!path.empty()) {
-			path = ARCH->concatPath(path, CONFIG_NAME);
-			getFileTime(path, newTime);
-		}
-	}
-	bool result = (newTime > oldTime);
-	oldTime = newTime;
-	return result;
-}
-
-static
 bool
 loadConfig(const CString& pathname, CConfig& config)
 {
@@ -176,7 +127,7 @@ loadConfig(const CString& pathname, CConfig& config)
 }
 
 bool
-loadConfig(CConfig& config, time_t& t, bool& userConfig)
+loadConfig(CConfig& config)
 {
 	// load configuration
 	bool configLoaded = false;
@@ -186,8 +137,6 @@ loadConfig(CConfig& config, time_t& t, bool& userConfig)
 		path = ARCH->concatPath(path, CONFIG_NAME);
 		if (loadConfig(path, config)) {
 			configLoaded = true;
-			userConfig   = true;
-			getFileTime(path, t);
 		}
 		else {
 			// try the system-wide config file
@@ -196,8 +145,6 @@ loadConfig(CConfig& config, time_t& t, bool& userConfig)
 				path = ARCH->concatPath(path, CONFIG_NAME);
 				if (loadConfig(path, config)) {
 					configLoaded = true;
-					userConfig   = false;
-					getFileTime(path, t);
 				}
 			}
 		}
@@ -223,7 +170,7 @@ saveConfig(const CString& pathname, const CConfig& config)
 }
 
 bool
-saveConfig(const CConfig& config, bool sysOnly, time_t& t)
+saveConfig(const CConfig& config, bool sysOnly)
 {
 	// try saving the user's configuration
 	if (!sysOnly) {
@@ -231,7 +178,6 @@ saveConfig(const CConfig& config, bool sysOnly, time_t& t)
 		if (!path.empty()) {
 			path = ARCH->concatPath(path, CONFIG_NAME);
 			if (saveConfig(path, config)) {
-				getFileTime(path, t);
 				return true;
 			}
 		}
@@ -243,7 +189,6 @@ saveConfig(const CConfig& config, bool sysOnly, time_t& t)
 		if (!path.empty()) {
 			path = ARCH->concatPath(path, CONFIG_NAME);
 			if (saveConfig(path, config)) {
-				getFileTime(path, t);
 				return true;
 			}
 		}

@@ -1,6 +1,5 @@
 /*
- * synergy-plus -- mouse and keyboard sharing utility
- * Copyright (C) 2009 The Synergy+ Project
+ * synergy -- mouse and keyboard sharing utility
  * Copyright (C) 2002 Chris Schoeneman
  * 
  * This package is free software; you can redistribute it and/or
@@ -11,9 +10,6 @@
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
 #ifndef CXWINDOWSSCREEN_H
@@ -35,7 +31,7 @@ class CXWindowsScreenSaver;
 //! Implementation of IPlatformScreen for X11
 class CXWindowsScreen : public CPlatformScreen {
 public:
-	CXWindowsScreen(const char* displayName, bool isPrimary, int mouseScrollDelta=0);
+	CXWindowsScreen(const char* displayName, bool isPrimary);
 	virtual ~CXWindowsScreen();
 
 	//! @name manipulators
@@ -53,10 +49,6 @@ public:
 	// IPrimaryScreen overrides
 	virtual void		reconfigure(UInt32 activeSides);
 	virtual void		warpCursor(SInt32 x, SInt32 y);
-	virtual UInt32		registerHotKey(KeyID key, KeyModifierMask mask);
-	virtual void		unregisterHotKey(UInt32 id);
-	virtual void		fakeInputBegin();
-	virtual void		fakeInputEnd();
 	virtual SInt32		getJumpZoneSize() const;
 	virtual bool		isAnyMouseButtonDown() const;
 	virtual void		getCursorCenter(SInt32& x, SInt32& y) const;
@@ -65,7 +57,7 @@ public:
 	virtual void		fakeMouseButton(ButtonID id, bool press) const;
 	virtual void		fakeMouseMove(SInt32 x, SInt32 y) const;
 	virtual void		fakeMouseRelativeMove(SInt32 dx, SInt32 dy) const;
-	virtual void		fakeMouseWheel(SInt32 xDelta, SInt32 yDelta) const;
+	virtual void		fakeMouseWheel(SInt32 delta) const;
 
 	// IPlatformScreen overrides
 	virtual void		enable();
@@ -120,7 +112,7 @@ private:
 		KeyCode			m_keycode;
 	};
 
-	Display*			openDisplay(const char* displayName);
+	Display*			openDisplay(const char* displayName) const;
 	void				saveShape();
 	Window				openWindow() const;
 	void				openIM();
@@ -128,7 +120,6 @@ private:
 	bool				grabMouseAndKeyboard();
 	void				onKeyPress(XKeyEvent&);
 	void				onKeyRelease(XKeyEvent&, bool isRepeat);
-	bool				onHotKey(XKeyEvent&, bool isRepeat);
 	void				onMousePress(const XButtonEvent&);
 	void				onMouseRelease(const XButtonEvent&);
 	void				onMouseMove(const XMotionEvent&);
@@ -142,30 +133,12 @@ private:
 
 	void				warpCursorNoFlush(SInt32 x, SInt32 y);
 
-	void				refreshKeyboard(XEvent*);
-
 	static Bool			findKeyEvent(Display*, XEvent* xevent, XPointer arg);
 
 private:
-	struct CHotKeyItem {
-	public:
-		CHotKeyItem(int, unsigned int);
-
-		bool			operator<(const CHotKeyItem&) const;
-
-	private:
-		int				m_keycode;
-		unsigned int	m_mask;
-	};
 	typedef std::set<bool> CFilteredKeycodes;
-	typedef std::vector<std::pair<int, unsigned int> > HotKeyList;
-	typedef std::map<UInt32, HotKeyList> HotKeyMap;
-	typedef std::vector<UInt32> HotKeyIDList;
-	typedef std::map<CHotKeyItem, UInt32> HotKeyToIDMap;
-
 	// true if screen is being used as a primary screen, false otherwise
 	bool				m_isPrimary;
-	int 				m_mouseScrollDelta;
 
 	Display*			m_display;
 	Window				m_root;
@@ -184,11 +157,6 @@ private:
 
 	// keyboard stuff
 	CXWindowsKeyState*	m_keyState;
-
-	// hot key stuff
-	HotKeyMap			m_hotKeys;
-	HotKeyIDList		m_oldHotKeyIDs;
-	HotKeyToIDMap		m_hotKeyToIDMap;
 
 	// input focus stuff
 	Window				m_lastFocus;
@@ -221,14 +189,6 @@ private:
 	// a screen other than screen 0.
 	bool				m_xtestIsXineramaUnaware;
 	bool				m_xinerama;
-
-	// stuff to work around lost focus issues on certain systems
-	// (ie: a MythTV front-end).
-	bool				m_preserveFocus;
-
-	// XKB extension stuff
-	bool				m_xkb;
-	int					m_xkbEventBase;
 
 	// pointer to (singleton) screen.  this is only needed by
 	// ioErrorHandler().

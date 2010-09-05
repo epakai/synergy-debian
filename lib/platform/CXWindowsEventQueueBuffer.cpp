@@ -1,6 +1,5 @@
 /*
- * synergy-plus -- mouse and keyboard sharing utility
- * Copyright (C) 2009 The Synergy+ Project
+ * synergy -- mouse and keyboard sharing utility
  * Copyright (C) 2004 Chris Schoeneman
  * 
  * This package is free software; you can redistribute it and/or
@@ -11,9 +10,6 @@
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
 #include "CXWindowsEventQueueBuffer.h"
@@ -21,10 +17,6 @@
 #include "CThread.h"
 #include "CEvent.h"
 #include "IEventQueue.h"
-#include <fcntl.h>
-#if HAVE_UNISTD_H
-#	include <unistd.h>
-#endif
 #if HAVE_POLL
 #	include <poll.h>
 #else
@@ -36,6 +28,9 @@
 #	endif
 #	if HAVE_SYS_TYPES_H
 #		include <sys/types.h>
+#	endif
+#	if HAVE_UNISTD_H
+#		include <unistd.h>
 #	endif
 #endif
 
@@ -60,39 +55,17 @@ CXWindowsEventQueueBuffer::CXWindowsEventQueueBuffer(
 	assert(m_window  != None);
 
 	m_userEvent = XInternAtom(m_display, "SYNERGY_USER_EVENT", False);
-	// set up for pipe hack
-	int result = pipe(m_pipefd);
-	assert(result == 0);
-
-	int pipeflags;
-	pipeflags = fcntl(m_pipefd[0], F_GETFL);
-	fcntl(m_pipefd[0], F_SETFL, pipeflags | O_NONBLOCK);
-	pipeflags = fcntl(m_pipefd[1], F_GETFL);
-	fcntl(m_pipefd[1], F_SETFL, pipeflags | O_NONBLOCK);
 }
 
 CXWindowsEventQueueBuffer::~CXWindowsEventQueueBuffer()
 {
-	// release pipe hack resources
-	close(m_pipefd[0]);
-	close(m_pipefd[1]);
+	// do nothing
 }
 
 void
 CXWindowsEventQueueBuffer::waitForEvent(double dtimeout)
 {
 	CThread::testCancel();
-
-	// clear out the pipe in preparation for waiting.
-
-	char buf[16];
-	ssize_t read_response = read(m_pipefd[0], buf, 15);
-	
-	// with linux automake, warnings are treated as errors by default
-	if (read_response < 0)
-	{
-		// todo: handle read response
-	}
 
 	{
 		CLock lock(&m_mutex);
@@ -102,24 +75,15 @@ CXWindowsEventQueueBuffer::waitForEvent(double dtimeout)
 		// push out pending events
 		flush();
 	}
-	// calling flush may have queued up a new event.
-	if (!CXWindowsEventQueueBuffer::isEmpty()) {
-		CThread::testCancel();
-		return;
-	}
 
 	// use poll() to wait for a message from the X server or for timeout.
 	// this is a good deal more efficient than polling and sleeping.
 #if HAVE_POLL
-	struct pollfd pfds[2];
+	struct pollfd pfds[1];
 	pfds[0].fd     = ConnectionNumber(m_display);
 	pfds[0].events = POLLIN;
-	pfds[1].fd     = m_pipefd[0];
-	pfds[1].events = POLLIN;
 	int timeout    = (dtimeout < 0.0) ? -1 :
 						static_cast<int>(1000.0 * dtimeout);
-	int remaining  =  timeout;
-	int retval     =  0;
 #else
 	struct timeval timeout;
 	struct timeval* timeoutPtr;
@@ -137,53 +101,20 @@ CXWindowsEventQueueBuffer::waitForEvent(double dtimeout)
 	fd_set rfds;
 	FD_ZERO(&rfds);
 	FD_SET(ConnectionNumber(m_display), &rfds);
-	FD_SET(m_pipefd[0], &rfds);
- 	int nfds;
- 	if (ConnectionNumber(m_display) > m_pipefd[0]) {
- 		nfds = ConnectionNumber(m_display) + 1;
- 	}
- 	else {
- 		nfds = m_pipefd[0] + 1;
- 	}
 #endif
-	// It's possible that the X server has queued events locally
-	// in xlib's event buffer and not pushed on to the fd. Hence we
-	// can't simply monitor the fd as we may never be woken up.
-	// ie addEvent calls flush, XFlush may not send via the fd hence
-	// there is an event waiting to be sent but we must exit the poll
-	// before it can.
-	// Instead we poll for a brief period of time (so if events
-	// queued locally in the xlib buffer can be processed)
-	// and continue doing this until timeout is reached.
-	// The human eye can notice 60hz (ansi) which is 16ms, however
-	// we want to give the cpu a chance s owe up this to 25ms
-#define TIMEOUT_DELAY 25
 
-	while( ((dtimeout < 0.0) || (remaining > 0)) && QLength(m_display)==0 && retval==0){
+	// wait for message from X server or for timeout.  also check
+	// if the thread has been cancelled.  poll() should return -1
+	// with EINTR when the thread is cancelled.
 #if HAVE_POLL
-	retval = poll(pfds, 2, TIMEOUT_DELAY); //16ms = 60hz, but we make it > to play nicely with the cpu
- 	if (pfds[1].revents & POLLIN) {
- 		ssize_t read_response = read(m_pipefd[0], buf, 15);
-		
-		// with linux automake, warnings are treated as errors by default
-		if (read_response < 0)
-		{
-			// todo: handle read response
-		}
-
- 	}
+	poll(pfds, 1, timeout);
 #else
-	retval = select(nfds,
+	select(ConnectionNumber(m_display) + 1,
 						SELECT_TYPE_ARG234 &rfds,
 						SELECT_TYPE_ARG234 NULL,
 						SELECT_TYPE_ARG234 NULL,
-						SELECT_TYPE_ARG5   TIMEOUT_DELAY);
-	if (FD_SET(m_pipefd[0], &rfds) {
-		read(m_pipefd[0], buf, 15);
-	}
+						SELECT_TYPE_ARG5   timeoutPtr);
 #endif
-	    remaining-=TIMEOUT_DELAY;
-	}
 
 	{
 		// we're no longer waiting for events
@@ -239,17 +170,6 @@ CXWindowsEventQueueBuffer::addEvent(UInt32 dataID)
 	// too.
 	if (m_waiting) {
 		flush();
-		// Send a character through the round-trip pipe to wake a thread
-		// that is waiting for a ConnectionNumber() socket to be readable.
-		// The flush call can read incoming data from the socket and put
-		// it in Xlib's input buffer.  That sneaks it past the other thread.
-		ssize_t write_response = write(m_pipefd[1], "!", 1);
-
-		// with linux automake, warnings are treated as errors by default
-		if (write_response < 0)
-		{
-			// todo: handle read response
-		}
 	}
 
 	return true;
@@ -259,7 +179,7 @@ bool
 CXWindowsEventQueueBuffer::isEmpty() const
 {
 	CLock lock(&m_mutex);
-	return (XPending(m_display) == 0 );
+	return (XPending(m_display) == 0);
 }
 
 CEventQueueTimer*

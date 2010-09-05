@@ -1,6 +1,5 @@
 /*
- * synergy-plus -- mouse and keyboard sharing utility
- * Copyright (C) 2009 The Synergy+ Project
+ * synergy -- mouse and keyboard sharing utility
  * Copyright (C) 2004 Chris Schoeneman
  * 
  * This package is free software; you can redistribute it and/or
@@ -11,9 +10,6 @@
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
 #ifndef CPLATFORMSCREEN_H
@@ -42,11 +38,6 @@ public:
 	// IPrimaryScreen overrides
 	virtual void		reconfigure(UInt32 activeSides) = 0;
 	virtual void		warpCursor(SInt32 x, SInt32 y) = 0;
-	virtual UInt32		registerHotKey(KeyID key,
-							KeyModifierMask mask) = 0;
-	virtual void		unregisterHotKey(UInt32 id) = 0;
-	virtual void		fakeInputBegin() = 0;
-	virtual void		fakeInputEnd() = 0;
 	virtual SInt32		getJumpZoneSize() const = 0;
 	virtual bool		isAnyMouseButtonDown() const = 0;
 	virtual void		getCursorCenter(SInt32& x, SInt32& y) const = 0;
@@ -55,26 +46,24 @@ public:
 	virtual void		fakeMouseButton(ButtonID id, bool press) const = 0;
 	virtual void		fakeMouseMove(SInt32 x, SInt32 y) const = 0;
 	virtual void		fakeMouseRelativeMove(SInt32 dx, SInt32 dy) const = 0;
-	virtual void		fakeMouseWheel(SInt32 xDelta, SInt32 yDelta) const = 0;
+	virtual void		fakeMouseWheel(SInt32 delta) const = 0;
 
 	// IKeyState overrides
-	virtual void		updateKeyMap();
-	virtual void		updateKeyState();
+	virtual void		updateKeys();
 	virtual void		setHalfDuplexMask(KeyModifierMask);
 	virtual void		fakeKeyDown(KeyID id, KeyModifierMask mask,
 							KeyButton button);
 	virtual void		fakeKeyRepeat(KeyID id, KeyModifierMask mask,
 							SInt32 count, KeyButton button);
 	virtual void		fakeKeyUp(KeyButton button);
-	virtual void		fakeAllKeysUp();
+	virtual void		fakeToggle(KeyModifierMask modifier);
 	virtual bool		fakeCtrlAltDel();
 	virtual bool		isKeyDown(KeyButton) const;
 	virtual KeyModifierMask
 						getActiveModifiers() const;
 	virtual KeyModifierMask
 						pollActiveModifiers() const;
-	virtual SInt32		pollActiveGroup() const;
-	virtual void		pollPressedKeys(KeyButtonSet& pressedKeys) const;
+	virtual const char*	getKeyName(KeyButton) const;
 
 	// IPlatformScreen overrides
 	virtual void		enable() = 0;

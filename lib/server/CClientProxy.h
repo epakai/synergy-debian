@@ -1,6 +1,5 @@
 /*
- * synergy-plus -- mouse and keyboard sharing utility
- * Copyright (C) 2009 The Synergy+ Project
+ * synergy -- mouse and keyboard sharing utility
  * Copyright (C) 2002 Chris Schoeneman
  * 
  * This package is free software; you can redistribute it and/or
@@ -11,22 +10,19 @@
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
 #ifndef CCLIENTPROXY_H
 #define CCLIENTPROXY_H
 
-#include "CBaseClientProxy.h"
+#include "IClient.h"
 #include "CEvent.h"
 #include "CString.h"
 
 class IStream;
 
 //! Generic proxy for client
-class CClientProxy : public CBaseClientProxy {
+class CClientProxy : public IClient {
 public:
 	/*!
 	\c name is the name of the client.
@@ -101,12 +97,14 @@ public:
 	virtual void		mouseUp(ButtonID) = 0;
 	virtual void		mouseMove(SInt32 xAbs, SInt32 yAbs) = 0;
 	virtual void		mouseRelativeMove(SInt32 xRel, SInt32 yRel) = 0;
-	virtual void		mouseWheel(SInt32 xDelta, SInt32 yDelta) = 0;
+	virtual void		mouseWheel(SInt32 delta) = 0;
 	virtual void		screensaver(bool activate) = 0;
 	virtual void		resetOptions() = 0;
 	virtual void		setOptions(const COptionsList& options) = 0;
+	virtual CString		getName() const;
 
 private:
+	CString				m_name;
 	IStream*			m_stream;
 
 	static CEvent::Type	s_readyEvent;

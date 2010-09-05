@@ -1,6 +1,5 @@
 /*
- * synergy-plus -- mouse and keyboard sharing utility
- * Copyright (C) 2009 The Synergy+ Project
+ * synergy -- mouse and keyboard sharing utility
  * Copyright (C) 2004 Chris Schoeneman
  * 
  * This package is free software; you can redistribute it and/or
@@ -11,16 +10,12 @@
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
 #include "CClientProxyUnknown.h"
 #include "CClientProxy1_0.h"
 #include "CClientProxy1_1.h"
 #include "CClientProxy1_2.h"
-#include "CClientProxy1_3.h"
 #include "ProtocolTypes.h"
 #include "CProtocolUtil.h"
 #include "XSynergy.h"
@@ -223,10 +218,6 @@ CClientProxyUnknown::handleData(const CEvent&, void*)
 
 			case 2:
 				m_proxy = new CClientProxy1_2(name, m_stream);
-				break;
-
-			case 3:
-				m_proxy = new CClientProxy1_3(name, m_stream);
 				break;
 			}
 		}

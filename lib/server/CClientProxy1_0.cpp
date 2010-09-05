@@ -1,6 +1,5 @@
 /*
- * synergy-plus -- mouse and keyboard sharing utility
- * Copyright (C) 2009 The Synergy+ Project
+ * synergy -- mouse and keyboard sharing utility
  * Copyright (C) 2002 Chris Schoeneman
  * 
  * This package is free software; you can redistribute it and/or
@@ -11,9 +10,6 @@
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
 #include "CClientProxy1_0.h"
@@ -31,6 +27,7 @@
 
 CClientProxy1_0::CClientProxy1_0(const CString& name, IStream* stream) :
 	CClientProxy(name, stream),
+	m_heartbeatAlarm(kHeartRate * kHeartBeatsUntilDeath),
 	m_heartbeatTimer(NULL),
 	m_parser(&CClientProxy1_0::parseHandshakeMessage)
 {
@@ -54,8 +51,6 @@ CClientProxy1_0::CClientProxy1_0(const CString& name, IStream* stream) :
 	EVENTQUEUE->adoptHandler(CEvent::kTimer, this,
 							new TMethodEventJob<CClientProxy1_0>(this,
 								&CClientProxy1_0::handleFlatline, NULL));
-
-	setHeartbeatRate(kHeartRate, kHeartRate * kHeartBeatsUntilDeath);
 
 	LOG((CLOG_DEBUG1 "querying client \"%s\" info", getName().c_str()));
 	CProtocolUtil::writef(getStream(), kMsgQInfo);
@@ -110,26 +105,6 @@ CClientProxy1_0::removeHeartbeatTimer()
 }
 
 void
-CClientProxy1_0::resetHeartbeatTimer()
-{
-	// reset the alarm
-	removeHeartbeatTimer();
-	addHeartbeatTimer();
-}
-
-void
-CClientProxy1_0::resetHeartbeatRate()
-{
-	setHeartbeatRate(kHeartRate, kHeartRate * kHeartBeatsUntilDeath);
-}
-
-void
-CClientProxy1_0::setHeartbeatRate(double, double alarm)
-{
-	m_heartbeatAlarm = alarm;
-}
-
-void
 CClientProxy1_0::handleData(const CEvent&, void*)
 {
 	// handle messages until there are no more.  first read message code.
@@ -146,7 +121,7 @@ CClientProxy1_0::handleData(const CEvent&, void*)
 		// parse message
 		LOG((CLOG_DEBUG2 "msg from \"%s\": %c%c%c%c", getName().c_str(), code[0], code[1], code[2], code[3]));
 		if (!(this->*m_parser)(code)) {
-			LOG((CLOG_ERR "invalid message from client \"%s\": %c%c%c%c", getName().c_str(), code[0], code[1], code[2], code[3]));
+			LOG((CLOG_ERR "invalid message from client \"%s\"", getName().c_str()));
 			disconnect();
 			return;
 		}
@@ -156,7 +131,8 @@ CClientProxy1_0::handleData(const CEvent&, void*)
 	}
 
 	// restart heartbeat timer
-	resetHeartbeatTimer();
+	removeHeartbeatTimer();
+	addHeartbeatTimer();
 }
 
 bool
@@ -172,7 +148,6 @@ CClientProxy1_0::parseHandshakeMessage(const UInt8* code)
 		m_parser = &CClientProxy1_0::parseMessage;
 		if (recvInfo()) {
 			EVENTQUEUE->addEvent(CEvent(getReadyEvent(), getEventTarget()));
-			addHeartbeatTimer();
 			return true;
 		}
 	}
@@ -350,11 +325,10 @@ CClientProxy1_0::mouseRelativeMove(SInt32, SInt32)
 }
 
 void
-CClientProxy1_0::mouseWheel(SInt32, SInt32 yDelta)
+CClientProxy1_0::mouseWheel(SInt32 delta)
 {
-	// clients prior to 1.3 only support the y axis
-	LOG((CLOG_DEBUG2 "send mouse wheel to \"%s\" %+d", getName().c_str(), yDelta));
-	CProtocolUtil::writef(getStream(), kMsgDMouseWheel1_0, yDelta);
+	LOG((CLOG_DEBUG2 "send mouse wheel to \"%s\" %+d", getName().c_str(), delta));
+	CProtocolUtil::writef(getStream(), kMsgDMouseWheel, delta);
 }
 
 void
@@ -371,7 +345,7 @@ CClientProxy1_0::resetOptions()
 	CProtocolUtil::writef(getStream(), kMsgCResetOptions);
 
 	// reset heart rate and death
-	resetHeartbeatRate();
+	m_heartbeatAlarm = kHeartRate * kHeartBeatsUntilDeath;
 	removeHeartbeatTimer();
 	addHeartbeatTimer();
 }
@@ -383,13 +357,13 @@ CClientProxy1_0::setOptions(const COptionsList& options)
 	CProtocolUtil::writef(getStream(), kMsgDSetOptions, &options);
 
 	// check options
-	for (UInt32 i = 0, n = (UInt32)options.size(); i < n; i += 2) {
+	for (UInt32 i = 0, n = options.size(); i < n; i += 2) {
 		if (options[i] == kOptionHeartbeat) {
 			double rate = 1.0e-3 * static_cast<double>(options[i + 1]);
 			if (rate <= 0.0) {
 				rate = -1.0;
 			}
-			setHeartbeatRate(rate, rate * kHeartBeatsUntilDeath);
+			m_heartbeatAlarm = rate * kHeartBeatsUntilDeath;
 			removeHeartbeatTimer();
 			addHeartbeatTimer();
 		}
@@ -405,15 +379,11 @@ CClientProxy1_0::recvInfo()
 							&x, &y, &w, &h, &dummy1, &mx, &my)) {
 		return false;
 	}
-	LOG((CLOG_DEBUG "received client \"%s\" info shape=%d,%d %dx%d at %d,%d", getName().c_str(), x, y, w, h, mx, my));
+	LOG((CLOG_DEBUG "received client \"%s\" info shape=%d,%d %dx%d", getName().c_str(), x, y, w, h));
 
 	// validate
 	if (w <= 0 || h <= 0) {
 		return false;
-	}
-	if (mx < x || mx >= x + w || my < y || my >= y + h) {
-		mx = x + w / 2;
-		my = y + h / 2;
 	}
 
 	// save

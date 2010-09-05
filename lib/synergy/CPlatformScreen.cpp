@@ -1,6 +1,5 @@
 /*
- * synergy-plus -- mouse and keyboard sharing utility
- * Copyright (C) 2009 The Synergy+ Project
+ * synergy -- mouse and keyboard sharing utility
  * Copyright (C) 2004 Chris Schoeneman
  * 
  * This package is free software; you can redistribute it and/or
@@ -11,9 +10,6 @@
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
 #include "CPlatformScreen.h"
@@ -29,15 +25,9 @@ CPlatformScreen::~CPlatformScreen()
 }
 
 void
-CPlatformScreen::updateKeyMap()
+CPlatformScreen::updateKeys()
 {
-	getKeyState()->updateKeyMap();
-}
-
-void
-CPlatformScreen::updateKeyState()
-{
-	getKeyState()->updateKeyState();
+	getKeyState()->updateKeys();
 	updateButtons();
 }
 
@@ -68,9 +58,9 @@ CPlatformScreen::fakeKeyUp(KeyButton button)
 }
 
 void
-CPlatformScreen::fakeAllKeysUp()
+CPlatformScreen::fakeToggle(KeyModifierMask modifier)
 {
-	getKeyState()->fakeAllKeysUp();
+	getKeyState()->fakeToggle(modifier);
 }
 
 bool
@@ -97,14 +87,8 @@ CPlatformScreen::pollActiveModifiers() const
 	return getKeyState()->pollActiveModifiers();
 }
 
-SInt32
-CPlatformScreen::pollActiveGroup() const
+const char*
+CPlatformScreen::getKeyName(KeyButton button) const
 {
-	return getKeyState()->pollActiveGroup();
-}
-
-void
-CPlatformScreen::pollPressedKeys(KeyButtonSet& pressedKeys) const
-{
-	getKeyState()->pollPressedKeys(pressedKeys);
+	return getKeyState()->getKeyName(button);
 }

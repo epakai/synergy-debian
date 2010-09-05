@@ -1,6 +1,5 @@
 /*
- * synergy-plus -- mouse and keyboard sharing utility
- * Copyright (C) 2009 The Synergy+ Project
+ * synergy -- mouse and keyboard sharing utility
  * Copyright (C) 2002 Chris Schoeneman
  * 
  * This package is free software; you can redistribute it and/or
@@ -11,9 +10,6 @@
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
 #include "CClientProxy.h"
@@ -30,7 +26,7 @@ CEvent::Type			CClientProxy::s_disconnectedEvent    = CEvent::kUnknown;
 CEvent::Type			CClientProxy::s_clipboardChangedEvent= CEvent::kUnknown;
 
 CClientProxy::CClientProxy(const CString& name, IStream* stream) :
-	CBaseClientProxy(name),
+	m_name(name),
 	m_stream(stream)
 {
 	// do nothing
@@ -55,6 +51,12 @@ IStream*
 CClientProxy::getStream() const
 {
 	return m_stream;
+}
+
+CString
+CClientProxy::getName() const
+{
+	return m_name;
 }
 
 CEvent::Type

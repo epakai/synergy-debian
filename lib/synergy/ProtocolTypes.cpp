@@ -1,6 +1,5 @@
 /*
- * synergy-plus -- mouse and keyboard sharing utility
- * Copyright (C) 2009 The Synergy+ Project
+ * synergy -- mouse and keyboard sharing utility
  * Copyright (C) 2002 Chris Schoeneman
  * 
  * This package is free software; you can redistribute it and/or
@@ -11,9 +10,6 @@
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
 #include "ProtocolTypes.h"
@@ -28,7 +24,6 @@ const char*				kMsgCClipboard 		= "CCLP%1i%4i";
 const char*				kMsgCScreenSaver 	= "CSEC%1i";
 const char*				kMsgCResetOptions	= "CROP";
 const char*				kMsgCInfoAck		= "CIAK";
-const char*				kMsgCKeepAlive		= "CALV";
 const char*				kMsgDKeyDown		= "DKDN%2i%2i%2i";
 const char*				kMsgDKeyDown1_0		= "DKDN%2i%2i";
 const char*				kMsgDKeyRepeat		= "DKRP%2i%2i%2i%2i";
@@ -39,8 +34,7 @@ const char*				kMsgDMouseDown		= "DMDN%1i";
 const char*				kMsgDMouseUp		= "DMUP%1i";
 const char*				kMsgDMouseMove		= "DMMV%2i%2i";
 const char*				kMsgDMouseRelMove	= "DMRM%2i%2i";
-const char*				kMsgDMouseWheel		= "DMWM%2i%2i";
-const char*				kMsgDMouseWheel1_0	= "DMWM%2i";
+const char*				kMsgDMouseWheel		= "DMWM%2i";
 const char*				kMsgDClipboard		= "DCLP%1i%4i%s";
 const char*				kMsgDInfo			= "DINF%2i%2i%2i%2i%2i%2i%2i";
 const char*				kMsgDSetOptions		= "DSOP%4I";

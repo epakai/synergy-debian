@@ -1,6 +1,5 @@
 /*
- * synergy-plus -- mouse and keyboard sharing utility
- * Copyright (C) 2009 The Synergy+ Project
+ * synergy -- mouse and keyboard sharing utility
  * Copyright (C) 2002 Chris Schoeneman
  * 
  * This package is free software; you can redistribute it and/or
@@ -11,9 +10,6 @@
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
 #ifndef IARCHCONSOLE_H
@@ -47,20 +43,18 @@ public:
 	*/
 	virtual void		closeConsole() = 0;
 
-	//! Show the console
-	/*!
-	Causes the console to become visible.  This generally only makes sense
-	for a console in a graphical user interface.  Other implementations
-	will do nothing.  Iff \p showIfEmpty is \c false then the implementation
-	may optionally only show the console if it's not empty.
-	*/
-	virtual void		showConsole(bool showIfEmpty) = 0;
-
 	//! Write to the console
 	/*!
 	Writes the given string to the console, opening it if necessary.
 	*/
 	virtual void		writeConsole(const char*) = 0;
+
+	//! Returns the newline sequence for the console
+	/*!
+	Different consoles use different character sequences for newlines.
+	This method returns the appropriate newline sequence for the console.
+	*/
+	virtual const char*	getNewlineForConsole() = 0;
 
 	//@}
 };
