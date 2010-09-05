@@ -1,6 +1,5 @@
 /*
- * synergy-plus -- mouse and keyboard sharing utility
- * Copyright (C) 2009 The Synergy+ Project
+ * synergy -- mouse and keyboard sharing utility
  * Copyright (C) 2002 Chris Schoeneman
  * 
  * This package is free software; you can redistribute it and/or
@@ -11,9 +10,6 @@
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
 #ifndef CSERVERPROXY_H
@@ -63,8 +59,7 @@ private:
 
 	void				sendInfo(const CClientInfo&);
 
-	void				resetKeepAliveAlarm();
-	void				setKeepAliveRate(double);
+	void				installHeartBeat(double);
 
 	// modifier key translation
 	KeyID				translateKey(KeyID) const;
@@ -72,7 +67,7 @@ private:
 
 	// event handlers
 	void				handleData(const CEvent&, void*);
-	void				handleKeepAliveAlarm(const CEvent&, void*);
+	void				handleHeartBeat(const CEvent&, void*);
 
 	// message handlers
 	void				enter();
@@ -98,6 +93,7 @@ private:
 
 	CClient*			m_client;
 	IStream*			m_stream;
+	CEventQueueTimer*	m_timer;
 
 	UInt32				m_seqNum;
 
@@ -109,9 +105,7 @@ private:
 	bool				m_ignoreMouse;
 
 	KeyModifierID		m_modifierTranslationTable[kKeyModifierIDLast];
-
-	double				m_keepAliveAlarm;
-	CEventQueueTimer*	m_keepAliveAlarmTimer;
+	double				m_heartRate;
 
 	MessageParser		m_parser;
 };

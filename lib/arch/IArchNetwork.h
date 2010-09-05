@@ -1,6 +1,5 @@
 /*
- * synergy-plus -- mouse and keyboard sharing utility
- * Copyright (C) 2009 The Synergy+ Project
+ * synergy -- mouse and keyboard sharing utility
  * Copyright (C) 2002 Chris Schoeneman
  * 
  * This package is free software; you can redistribute it and/or
@@ -11,9 +10,6 @@
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
 #ifndef IARCHNETWORK_H
@@ -229,13 +225,6 @@ public:
 	messages into one packet (false).  Returns the previous state.
 	*/
 	virtual bool		setNoDelayOnSocket(CArchSocket, bool noDelay) = 0;
-
-	//! Turn address reuse on or off on socket
-	/*!
-	Allows the address this socket is bound to to be reused while in the
-	TIME_WAIT state.  Returns the previous state.
-	*/
-	virtual bool		setReuseAddrOnSocket(CArchSocket, bool reuse) = 0;
 
 	//! Return local host's name
 	virtual std::string		getHostName() = 0;

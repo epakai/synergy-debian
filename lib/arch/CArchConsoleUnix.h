@@ -1,6 +1,5 @@
 /*
- * synergy-plus -- mouse and keyboard sharing utility
- * Copyright (C) 2009 The Synergy+ Project
+ * synergy -- mouse and keyboard sharing utility
  * Copyright (C) 2002 Chris Schoeneman
  * 
  * This package is free software; you can redistribute it and/or
@@ -11,19 +10,26 @@
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#pragma once
+#ifndef CARCHCONSOLEUNIX_H
+#define CARCHCONSOLEUNIX_H
 
-#include "CArchConsoleStd.h"
+#include "IArchConsole.h"
 
 #define ARCH_CONSOLE CArchConsoleUnix
 
-class CArchConsoleUnix : public CArchConsoleStd {
+//! Unix implementation of IArchConsole
+class CArchConsoleUnix : public IArchConsole {
 public:
 	CArchConsoleUnix();
 	virtual ~CArchConsoleUnix();
+
+	// IArchConsole overrides
+	virtual void		openConsole(const char* title);
+	virtual void		closeConsole();
+	virtual void		writeConsole(const char*);
+	virtual const char*	getNewlineForConsole();
 };
+
+#endif

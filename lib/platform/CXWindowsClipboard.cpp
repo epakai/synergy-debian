@@ -1,6 +1,5 @@
 /*
- * synergy-plus -- mouse and keyboard sharing utility
- * Copyright (C) 2009 The Synergy+ Project
+ * synergy -- mouse and keyboard sharing utility
  * Copyright (C) 2002 Chris Schoeneman
  * 
  * This package is free software; you can redistribute it and/or
@@ -11,9 +10,6 @@
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
 #include "CXWindowsClipboard.h"
@@ -507,10 +503,11 @@ CXWindowsClipboard::icccmFillCache()
 		(target != m_atomAtom && target != m_atomTargets)) {
 		LOG((CLOG_DEBUG1 "selection doesn't support TARGETS"));
 		data = "";
-		CXWindowsUtil::appendAtomData(data, XA_STRING);
+
+		target = XA_STRING;
+		data.append(reinterpret_cast<char*>(&target), sizeof(target));
 	}
 
-	CXWindowsUtil::convertAtomProperty(data);
 	const Atom* targets = reinterpret_cast<const Atom*>(data.data());
 	const UInt32 numTargets = data.size() / sizeof(Atom);
 	LOG((CLOG_DEBUG "  available targets: %s", CXWindowsUtil::atomsToString(m_display, targets, numTargets).c_str()));
@@ -528,18 +525,12 @@ CXWindowsClipboard::icccmFillCache()
 
 		// see if atom is in target list
 		Atom target = None;
-		// XXX -- just ask for the converter's target to see if it's
-		// available rather than checking TARGETS.  i've seen clipboard
-		// owners that don't report all the targets they support.
-		target = converter->getAtom();
-		/*
 		for (UInt32 i = 0; i < numTargets; ++i) {
 			if (converter->getAtom() == targets[i]) {
 				target = targets[i];
 				break;
 			}
 		}
-		*/
 		if (target == None) {
 			continue;
 		}
@@ -670,7 +661,7 @@ CXWindowsClipboard::motifOwnsClipboard() const
 						reinterpret_cast<const CMotifClipHeader*>(data.data());
 	if (data.size() >= sizeof(CMotifClipHeader) &&
 		header->m_id == kMotifClipHeader) {
-		if (static_cast<Window>(header->m_selectionOwner) == owner) {
+		if (header->m_selectionOwner == owner) {
 			return true;
 		}
 	}
@@ -844,12 +835,12 @@ CXWindowsClipboard::insertMultipleReply(Window requestor,
 	}
 
 	// fail if the requested targets isn't of the correct form
-	if (format != 32 || target != m_atomAtomPair) {
+	if (format != 32 ||
+		target != m_atomAtomPair) {
 		return false;
 	}
 
 	// data is a list of atom pairs:  target, property
-	CXWindowsUtil::convertAtomProperty(data);
 	const Atom* targets = reinterpret_cast<const Atom*>(data.data());
 	const UInt32 numTargets = data.size() / sizeof(Atom);
 
@@ -860,7 +851,10 @@ CXWindowsClipboard::insertMultipleReply(Window requestor,
 		const Atom property = targets[i + 1];
 		if (!addSimpleRequest(requestor, target, time, property)) {
 			// note that we can't perform the requested conversion
-			CXWindowsUtil::replaceAtomData(data, i, None);
+			static const Atom none = None;
+			data.replace(i * sizeof(Atom), sizeof(Atom),
+								reinterpret_cast<const char*>(&none),
+								sizeof(Atom));
 			changed = true;
 		}
 	}
@@ -906,18 +900,16 @@ CXWindowsClipboard::insertReply(CReply* reply)
 	if (newWindow) {
 		// note errors while we adjust event masks
 		bool error = false;
-		{
-			CXWindowsUtil::CErrorLock lock(m_display, &error);
+		CXWindowsUtil::CErrorLock lock(m_display, &error);
 
-			// get and save the current event mask
-			XWindowAttributes attr;
-			XGetWindowAttributes(m_display, reply->m_requestor, &attr);
-			m_eventMasks[reply->m_requestor] = attr.your_event_mask;
+		// get and save the current event mask
+		XWindowAttributes attr;
+		XGetWindowAttributes(m_display, reply->m_requestor, &attr);
+		m_eventMasks[reply->m_requestor] = attr.your_event_mask;
 
-			// add the events we want
-			XSelectInput(m_display, reply->m_requestor, attr.your_event_mask |
-									StructureNotifyMask | PropertyChangeMask);
-		}
+		// add the events we want
+		XSelectInput(m_display, reply->m_requestor, attr.your_event_mask |
+								StructureNotifyMask | PropertyChangeMask);
 
 		// if we failed then the window has already been destroyed
 		if (error) {
@@ -933,19 +925,16 @@ CXWindowsClipboard::pushReplies()
 	// send the first reply for each window if that reply hasn't
 	// been sent yet.
 	for (CReplyMap::iterator index = m_replies.begin();
-								index != m_replies.end(); ) {
+								index != m_replies.end(); ++index) {
 		assert(!index->second.empty());
 		if (!index->second.front()->m_replied) {
 			pushReplies(index, index->second, index->second.begin());
-		}
-		else {
-			++index;
 		}
 	}
 }
 
 void
-CXWindowsClipboard::pushReplies(CReplyMap::iterator& mapIndex,
+CXWindowsClipboard::pushReplies(CReplyMap::iterator mapIndex,
 				CReplyList& replies, CReplyList::iterator index)
 {
 	CReply* reply = *index;
@@ -966,11 +955,8 @@ CXWindowsClipboard::pushReplies(CReplyMap::iterator& mapIndex,
 		CXWindowsUtil::CErrorLock lock(m_display);
 		Window requestor = mapIndex->first;
 		XSelectInput(m_display, requestor, m_eventMasks[requestor]);
-		m_replies.erase(mapIndex++);
+		m_replies.erase(mapIndex);
 		m_eventMasks.erase(requestor);
-	}
-	else {
-		++mapIndex;
 	}
 }
 
@@ -1198,7 +1184,7 @@ CXWindowsClipboard::wasOwnedAtTime(::Time time) const
 	// compare time to range
 	Time duration = lost - m_timeOwned;
 	Time when     = time - m_timeOwned;
-	return (/*when >= 0 &&*/ when <= duration);
+	return (/*when >= 0 &&*/ when < duration);
 }
 
 Atom
@@ -1207,9 +1193,13 @@ CXWindowsClipboard::getTargetsData(CString& data, int* format) const
 	assert(format != NULL);
 
 	// add standard targets
-	CXWindowsUtil::appendAtomData(data, m_atomTargets);
-	CXWindowsUtil::appendAtomData(data, m_atomMultiple);
-	CXWindowsUtil::appendAtomData(data, m_atomTimestamp);
+	Atom atom;
+	atom = m_atomTargets;
+	data.append(reinterpret_cast<char*>(&atom), sizeof(Atom));
+	atom = m_atomMultiple;
+	data.append(reinterpret_cast<char*>(&atom), sizeof(Atom));
+	atom = m_atomTimestamp;
+	data.append(reinterpret_cast<char*>(&atom), sizeof(Atom));
 
 	// add targets we can convert to
 	for (ConverterList::const_iterator index = m_converters.begin();
@@ -1218,7 +1208,8 @@ CXWindowsClipboard::getTargetsData(CString& data, int* format) const
 
 		// skip formats we don't have
 		if (m_added[converter->getFormat()]) {
-			CXWindowsUtil::appendAtomData(data, converter->getAtom());
+			atom = converter->getAtom();
+			data.append(reinterpret_cast<char*>(&atom), sizeof(Atom));
 		}
 	}
 
@@ -1231,8 +1222,9 @@ CXWindowsClipboard::getTimestampData(CString& data, int* format) const
 {
 	assert(format != NULL);
 
+	assert(sizeof(m_timeOwned) == 4);
 	checkCache();
-	CXWindowsUtil::appendTimeData(data, m_timeOwned);
+	data.append(reinterpret_cast<const char*>(&m_timeOwned), 4);
 	*format = 32;
 	return m_atomInteger;
 }
@@ -1271,9 +1263,6 @@ CXWindowsClipboard::CICCCMGetClipboard::readClipboard(Display* display,
 	assert(data         != NULL);
 
 	LOG((CLOG_DEBUG1 "request selection=%s, target=%s, window=%x", CXWindowsUtil::atomToString(display, selection).c_str(), CXWindowsUtil::atomToString(display, target).c_str(), m_requestor));
-
-	m_atomNone = XInternAtom(display, "NONE", False);
-	m_atomIncr = XInternAtom(display, "INCR", False);
 
 	// save output pointers
 	m_actualTarget = actualTarget;
@@ -1372,8 +1361,7 @@ CXWindowsClipboard::CICCCMGetClipboard::processEvent(
 	case SelectionNotify:
 		if (xevent->xselection.requestor == m_requestor) {
 			// done if we can't convert
-			if (xevent->xselection.property == None ||
-				xevent->xselection.property == m_atomNone) {
+			if (xevent->xselection.property == None) {
 				m_done = true;
 				return true;
 			}
@@ -1421,7 +1409,7 @@ CXWindowsClipboard::CICCCMGetClipboard::processEvent(
 	// note if incremental.  if we're already incremental then the
 	// selection owner is busted.  if the INCR property has no size
 	// then the selection owner is busted.
-	if (target == m_atomIncr) {
+	if (target == XInternAtom(display, "INCR", False)) {
 		if (m_incr) {
 			m_failed = true;
 			m_error  = true;

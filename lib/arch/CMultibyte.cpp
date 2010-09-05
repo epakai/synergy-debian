@@ -1,19 +1,15 @@
 /*
- * synergy-plus -- mouse and keyboard sharing utility
- * Copyright (C) 2009 The Synergy+ Project
+ * synergy -- mouse and keyboard sharing utility
  * Copyright (C) 2002 Chris Schoeneman
  * 
- * This package is free software; you can redistribute it and/or
+ * This package is free software you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
  * found in the file COPYING that should have accompanied this file.
  * 
  * This package is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * but WITHOUT ANY WARRANTY without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
 #ifndef CMULTIBYTE_H
@@ -21,17 +17,13 @@
 
 #include "common.h"
 #include "CArch.h"
-#include <climits>
-#include <cstring>
-#include <cstdlib>
-#if HAVE_LOCALE_H
-#	include <locale.h>
-#endif
+#include <limits.h>
+#include <string.h>
 #if HAVE_WCHAR_H || defined(_MSC_VER)
 #	include <wchar.h>
 #elif __APPLE__
 	// wtf?  Darwin puts mbtowc() et al. in stdlib
-#	include <cstdlib>
+#	include <stdlib.h>
 #else
 	// platform apparently has no wchar_t support.  provide dummy
 	// implementations.  hopefully at least the C++ compiler has
@@ -64,15 +56,6 @@ static CArchMutex		s_mutex = NULL;
 ARCH_STRING::ARCH_STRING()
 {
 	s_mutex = ARCH->newMutex();
-
-#if HAVE_LOCALE_H
-	// see if we can convert a Latin-1 character
-	char mb[MB_LEN_MAX];
-	if (wctomb(mb, 0xe3) == -1) {
-		// can't convert.  try another locale so we can convert latin-1.
-		setlocale(LC_CTYPE, "en_US");
-	}
-#endif
 }
 
 ARCH_STRING::~ARCH_STRING()

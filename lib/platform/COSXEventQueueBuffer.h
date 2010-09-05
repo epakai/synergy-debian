@@ -1,6 +1,5 @@
 /*
- * synergy-plus -- mouse and keyboard sharing utility
- * Copyright (C) 2009 The Synergy+ Project
+ * synergy -- mouse and keyboard sharing utility
  * Copyright (C) 2004 Chris Schoeneman
  * 
  * This package is free software; you can redistribute it and/or
@@ -11,16 +10,13 @@
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
 #ifndef COSXEVENTQUEUEBUFFER_H
 #define COSXEVENTQUEUEBUFFER_H
 
-#include <Carbon/Carbon.h>
 #include "IEventQueueBuffer.h"
+#include <Carbon/Carbon.h>
 
 //! Event queue buffer for OS X
 class COSXEventQueueBuffer : public IEventQueueBuffer {
@@ -36,6 +32,9 @@ public:
 	virtual CEventQueueTimer*
 						newTimer(double duration, bool oneShot) const;
 	virtual void		deleteTimer(CEventQueueTimer*) const;
+
+protected:
+	void				setOSXEvent(EventRef event);
 
 private:
 	EventRef			m_event;

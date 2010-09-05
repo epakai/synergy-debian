@@ -1,6 +1,5 @@
 /*
- * synergy-plus -- mouse and keyboard sharing utility
- * Copyright (C) 2009 The Synergy+ Project
+ * synergy -- mouse and keyboard sharing utility
  * Copyright (C) 2004 Chris Schoeneman
  * 
  * This package is free software; you can redistribute it and/or
@@ -11,9 +10,6 @@
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
 #include "COSXEventQueueBuffer.h"
@@ -38,10 +34,7 @@ COSXEventQueueBuffer::COSXEventQueueBuffer() :
 
 COSXEventQueueBuffer::~COSXEventQueueBuffer()
 {
-	// release the last event
-	if (m_event != NULL) {
-		ReleaseEvent(m_event);
-	}
+	setOSXEvent(NULL);
 }
 
 void
@@ -54,16 +47,10 @@ COSXEventQueueBuffer::waitForEvent(double timeout)
 IEventQueueBuffer::Type
 COSXEventQueueBuffer::getEvent(CEvent& event, UInt32& dataID)
 {
-	// release the previous event
-	if (m_event != NULL) {
-		ReleaseEvent(m_event);
-		m_event = NULL;
-	}
+	EventRef carbonEvent = NULL;
+	OSStatus error = ReceiveNextEvent(0, NULL, 0.0, true, &carbonEvent);
+	setOSXEvent(carbonEvent);
 
-	// get the next event
-	OSStatus error = ReceiveNextEvent(0, NULL, 0.0, true, &m_event);
-
-	// handle the event
 	if (error == eventLoopQuitErr) {
 		event = CEvent(CEvent::kQuit);
 		return kSystem;
@@ -125,4 +112,13 @@ void
 COSXEventQueueBuffer::deleteTimer(CEventQueueTimer* timer) const
 {
 	delete timer;
+}
+
+void 
+COSXEventQueueBuffer::setOSXEvent(EventRef event)
+{
+	if (m_event != NULL) {
+		ReleaseEvent(m_event);
+	}
+	m_event = RetainEvent(event);
 }

@@ -1,19 +1,15 @@
 /*
- * synergy-plus -- mouse and keyboard sharing utility
- * Copyright (C) 2009 The Synergy+ Project
+ * synergy -- mouse and keyboard sharing utility
  * Copyright (C) 2002 Chris Schoeneman
  * 
- * This package is free software; you can redistribute it and/or
+ * This package is free software you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
  * found in the file COPYING that should have accompanied this file.
  * 
  * This package is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * but WITHOUT ANY WARRANTY without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
 #include "CArchMultithreadPosix.h"
@@ -53,7 +49,6 @@ setSignalSet(sigset_t* sigset)
 	sigaddset(sigset, SIGHUP);
 	sigaddset(sigset, SIGINT);
 	sigaddset(sigset, SIGTERM);
-	sigaddset(sigset, SIGUSR2);
 }
 
 //
@@ -776,7 +771,7 @@ CArchMultithreadPosix::threadSignalHandler(void*)
 	for (;;) {
 		// wait
 #if HAVE_POSIX_SIGWAIT
-		int signal = 0;
+		int signal;
 		sigwait(&sigset, &signal);
 #else
 		sigwait(&sigset);
@@ -794,10 +789,6 @@ CArchMultithreadPosix::threadSignalHandler(void*)
 
 		case SIGHUP:
 			ARCH->raiseSignal(kHANGUP);
-			break;
-
-		case SIGUSR2:
-			ARCH->raiseSignal(kUSER);
 			break;
 
 		default:
