@@ -1,6 +1,5 @@
 /*
- * synergy-plus -- mouse and keyboard sharing utility
- * Copyright (C) 2009 The Synergy+ Project
+ * synergy -- mouse and keyboard sharing utility
  * Copyright (C) 2003 Chris Schoeneman
  * 
  * This package is free software; you can redistribute it and/or
@@ -11,9 +10,6 @@
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
 #include "CXWindowsKeyState.h"
@@ -215,7 +211,7 @@ CXWindowsKeyState::fakeKey(const Keystroke& keystroke)
 			int i = (c >> 3);
 			int b = 1 << (c & 7);
 			if (m_keyboardState.global_auto_repeat == AutoRepeatModeOff ||
-				(c!=113 && c!=116 && (m_keyboardState.auto_repeats[i] & b) == 0)) {
+				(m_keyboardState.auto_repeats[i] & b) == 0) {
 				LOG((CLOG_DEBUG1 "  discard autorepeat"));
 				break;
 			}

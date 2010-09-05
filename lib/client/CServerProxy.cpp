@@ -1,6 +1,5 @@
 /*
- * synergy-plus -- mouse and keyboard sharing utility
- * Copyright (C) 2009 The Synergy+ Project
+ * synergy -- mouse and keyboard sharing utility
  * Copyright (C) 2002 Chris Schoeneman
  * 
  * This package is free software; you can redistribute it and/or
@@ -11,9 +10,6 @@
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
 #include "CServerProxy.h"
@@ -28,7 +24,6 @@
 #include "TMethodEventJob.h"
 #include "XBase.h"
 #include <memory>
-#include <cstring>
 
 //
 // CServerProxy
@@ -775,7 +770,7 @@ CServerProxy::setOptions()
 	m_client->setOptions(options);
 
 	// update modifier table
-	for (UInt32 i = 0, n = (UInt32)options.size(); i < n; i += 2) {
+	for (UInt32 i = 0, n = options.size(); i < n; i += 2) {
 		KeyModifierID id = kKeyModifierIDNull;
 		if (options[i] == kOptionModifierMapForShift) {
 			id = kKeyModifierIDShift;

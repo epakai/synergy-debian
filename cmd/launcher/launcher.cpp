@@ -1,6 +1,5 @@
 /*
- * synergy-plus -- mouse and keyboard sharing utility
- * Copyright (C) 2009 The Synergy+ Project
+ * synergy -- mouse and keyboard sharing utility
  * Copyright (C) 2002 Chris Schoeneman
  * 
  * This package is free software; you can redistribute it and/or
@@ -11,9 +10,6 @@
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
 #include "CConfig.h"
@@ -383,7 +379,7 @@ waitForChild(HWND hwnd, HANDLE thread, DWORD threadID)
 
 	// do dialog that let's the user terminate the test
 	DialogBoxParam(s_instance, MAKEINTRESOURCE(IDD_WAIT), hwnd,
-								(DLGPROC)waitDlgProc, (LPARAM)&info);
+								waitDlgProc, (LPARAM)&info);
 
 	// force the waiter thread to finish and wait for it
 	SetEvent(info.m_ready);
@@ -402,7 +398,7 @@ initMainWindow(HWND hwnd)
 {
 	// append version number to title
 	CString titleFormat = getString(IDS_TITLE);
-	setWindowText(hwnd, CStringUtil::format(titleFormat.c_str(), kApplication, kVersion));
+	setWindowText(hwnd, CStringUtil::format(titleFormat.c_str(), VERSION));
 
 	// load configuration
 	bool configLoaded =
@@ -474,7 +470,7 @@ saveMainWindow(HWND hwnd, SaveMode mode, CString* cmdLineOut = NULL)
 		CArchMiscWindows::setValue(key, "server", getWindowText(child));
 		child = getItem(hwnd, IDC_MAIN_DEBUG);
 		CArchMiscWindows::setValue(key, "debug",
-								(DWORD)SendMessage(child, CB_GETCURSEL, 0, 0));
+								SendMessage(child, CB_GETCURSEL, 0, 0));
 		CArchMiscWindows::setValue(key, "isServer", isClient ? 0 : 1);
 		CArchMiscWindows::closeKey(key);
 	}
@@ -560,8 +556,8 @@ mainWndProc(HWND hwnd, UINT message, WPARAM wParam, LPARAM lParam)
 
 			// see if the configuration changed
 			if (isConfigNewer(s_configTime, s_userConfig)) {
-				CString message2 = getString(IDS_CONFIG_CHANGED);
-				if (askVerify(hwnd, message2)) {
+				CString message = getString(IDS_CONFIG_CHANGED);
+				if (askVerify(hwnd, message)) {
 					time_t configTime;
 					bool userConfig;
 					CConfig newConfig;
@@ -571,8 +567,8 @@ mainWndProc(HWND hwnd, UINT message, WPARAM wParam, LPARAM lParam)
 						s_lastConfig  = ARG->m_config;
 					}
 					else {
-						message2 = getString(IDS_LOAD_FAILED);
-						showError(hwnd, message2);
+						message = getString(IDS_LOAD_FAILED);
+						showError(hwnd, message);
 						s_lastConfig = CConfig();
 					}
 				}
@@ -624,8 +620,9 @@ mainWndProc(HWND hwnd, UINT message, WPARAM wParam, LPARAM lParam)
 						CloseHandle(thread);
 					}
 
-					// notify of success: now disabled - it's silly to notify a success
-					//askOkay(hwnd, getString(IDS_STARTED_TITLE), getString(IDS_STARTED));
+					// notify of success
+					askOkay(hwnd, getString(IDS_STARTED_TITLE),
+									getString(IDS_STARTED));
 
 					// quit
 					PostQuitMessage(0);
@@ -679,9 +676,7 @@ mainWndProc(HWND hwnd, UINT message, WPARAM wParam, LPARAM lParam)
 int WINAPI
 WinMain(HINSTANCE instance, HINSTANCE, LPSTR cmdLine, int nCmdShow)
 {
-	CArchMiscWindows::setInstanceWin32(instance);
-
-	CArch arch;
+	CArch arch(instance);
 	CLOG;
 	CArgs args;
 
@@ -756,5 +751,5 @@ WinMain(HINSTANCE instance, HINSTANCE, LPSTR cmdLine, int nCmdShow)
 		}
 	} while (!done);
 
-	return (int)msg.wParam;
+	return msg.wParam;
 }

@@ -1,6 +1,5 @@
 /*
- * synergy-plus -- mouse and keyboard sharing utility
- * Copyright (C) 2009 The Synergy+ Project
+ * synergy -- mouse and keyboard sharing utility
  * Copyright (C) 2003 Chris Schoeneman
  * 
  * This package is free software; you can redistribute it and/or
@@ -11,9 +10,6 @@
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
 #include "CScreen.h"
@@ -266,7 +262,7 @@ CScreen::setOptions(const COptionsList& options)
 {
 	// update options
 	bool oldScreenSaverSync = m_screenSaverSync;
-	for (UInt32 i = 0, n = (UInt32)options.size(); i < n; i += 2) {
+	for (UInt32 i = 0, n = options.size(); i < n; i += 2) {
 		if (options[i] == kOptionScreenSaverSync) {
 			m_screenSaverSync = (options[i + 1] != 0);
 			LOG((CLOG_DEBUG1 "screen saver synchronization %s", m_screenSaverSync ? "on" : "off"));

@@ -1,6 +1,5 @@
 /*
- * synergy-plus -- mouse and keyboard sharing utility
- * Copyright (C) 2009 The Synergy+ Project
+ * synergy -- mouse and keyboard sharing utility
  * Copyright (C) 2002 Chris Schoeneman
  * 
  * This package is free software; you can redistribute it and/or
@@ -11,9 +10,6 @@
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
 #include "CLog.h"
@@ -25,8 +21,8 @@
 #include "LaunchUtil.h"
 #include "resource.h"
 
-static const char* CLIENT_DAEMON_NAME = "Synergy+ Client";
-static const char* SERVER_DAEMON_NAME = "Synergy+ Server";
+static const char* CLIENT_DAEMON_NAME = "Synergy Client";
+static const char* SERVER_DAEMON_NAME = "Synergy Server";
 static const char* CLIENT_DAEMON_INFO = "Uses a shared mouse and keyboard.";
 static const char* SERVER_DAEMON_INFO = "Shares this system's mouse and keyboard with others.";
 
@@ -91,7 +87,7 @@ CAutoStart::doModal()
 
 	// do dialog
 	DialogBoxParam(s_instance, MAKEINTRESOURCE(IDD_AUTOSTART),
-								m_parent, (DLGPROC)dlgProc, (LPARAM)this);
+								m_parent, dlgProc, (LPARAM)this);
 
 	// remove log outputter
 	CLOG->pop_front();

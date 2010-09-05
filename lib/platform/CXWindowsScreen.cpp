@@ -1,6 +1,5 @@
 /*
- * synergy-plus -- mouse and keyboard sharing utility
- * Copyright (C) 2009 The Synergy+ Project
+ * synergy -- mouse and keyboard sharing utility
  * Copyright (C) 2002 Chris Schoeneman
  * 
  * This package is free software; you can redistribute it and/or
@@ -11,9 +10,6 @@
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
 #include "CXWindowsScreen.h"
@@ -25,14 +21,12 @@
 #include "CClipboard.h"
 #include "CKeyMap.h"
 #include "XScreen.h"
-#include "XArch.h"
 #include "CLog.h"
 #include "CStopwatch.h"
 #include "CStringUtil.h"
 #include "IEventQueue.h"
 #include "TMethodEventJob.h"
 #include <cstring>
-#include <cstdlib>
 #if X_DISPLAY_MISSING
 #	error X11 is required to build synergy
 #else
@@ -41,11 +35,6 @@
 #	define XK_MISCELLANY
 #	define XK_XKB_KEYS
 #	include <X11/keysymdef.h>
-#	if HAVE_X11_EXTENSIONS_DPMS_H
-		extern "C" {
-#		include <X11/extensions/dpms.h>
-		}
-#	endif
 #	if HAVE_X11_EXTENSIONS_XTEST_H
 #		include <X11/extensions/XTest.h>
 #	else
@@ -81,9 +70,8 @@
 
 CXWindowsScreen*		CXWindowsScreen::s_screen = NULL;
 
-CXWindowsScreen::CXWindowsScreen(const char* displayName, bool isPrimary, int mouseScrollDelta) :
+CXWindowsScreen::CXWindowsScreen(const char* displayName, bool isPrimary) :
 	m_isPrimary(isPrimary),
-	m_mouseScrollDelta(mouseScrollDelta),
 	m_display(NULL),
 	m_root(None),
 	m_window(None),
@@ -102,21 +90,11 @@ CXWindowsScreen::CXWindowsScreen(const char* displayName, bool isPrimary, int mo
 	m_screensaver(NULL),
 	m_screensaverNotify(false),
 	m_xtestIsXineramaUnaware(true),
-	m_preserveFocus(false),
 	m_xkb(false)
 {
 	assert(s_screen == NULL);
 
-	if (mouseScrollDelta==0) m_mouseScrollDelta=120;
 	s_screen = this;
-	
-	// initializes Xlib support for concurrent threads.
-	// ...which breaks badly on RHEL for some reason, upstream #194
-	//if (XInitThreads() == 0)
-	//{
-	//	throw XArch("XInitThreads() returned zero");
-	//}
-	
 
 	// set the X I/O error handler so we catch the display disconnecting
 	XSetIOErrorHandler(&CXWindowsScreen::ioErrorHandler);
@@ -232,15 +210,13 @@ CXWindowsScreen::disable()
 
 	// restore auto-repeat state
 	if (!m_isPrimary && m_autoRepeat) {
-		//XAutoRepeatOn(m_display);
+		XAutoRepeatOn(m_display);
 	}
 }
 
 void
 CXWindowsScreen::enter()
 {
-	screensaver(false);
-
 	// release input context focus
 	if (m_ic != NULL) {
 		XUnsetICFocus(m_ic);
@@ -253,21 +229,6 @@ CXWindowsScreen::enter()
 		XSetInputFocus(m_display, m_lastFocus, m_lastFocusRevert, CurrentTime);
 	}
 
-	#if HAVE_X11_EXTENSIONS_DPMS_H
-	// Force the DPMS to turn screen back on since we don't
-	// actually cause physical hardware input to trigger it
-	int dummy;
-	CARD16 powerlevel;
-	BOOL enabled;
-	if (DPMSQueryExtension(m_display, &dummy, &dummy) &&
-	    DPMSCapable(m_display) &&
-	    DPMSInfo(m_display, &powerlevel, &enabled))
-	{
-		if (enabled && powerlevel != DPMSModeOn)
-			DPMSForceLevel(m_display, DPMSModeOn);
-	}
-	#endif
-	
 	// unmap the hider/grab window.  this also ungrabs the mouse and
 	// keyboard if they're grabbed.
 	XUnmapWindow(m_display, m_window);
@@ -288,7 +249,7 @@ CXWindowsScreen::enter()
 		// turn off auto-repeat.  we do this so fake key press events don't
 		// cause the local server to generate their own auto-repeats of
 		// those keys.
-		//XAutoRepeatOff(m_display);
+		XAutoRepeatOff(m_display);
 	}
 
 	// now on screen
@@ -305,7 +266,7 @@ CXWindowsScreen::leave()
 		// the X server when the auto-repeat configuration is changed so
 		// we can't track the desired configuration.
 		if (m_autoRepeat) {
-			//XAutoRepeatOn(m_display);
+			XAutoRepeatOn(m_display);
 		}
 
 		// move hider window under the cursor center
@@ -325,9 +286,7 @@ CXWindowsScreen::leave()
 	XGetInputFocus(m_display, &m_lastFocus, &m_lastFocusRevert);
 
 	// take focus
-	if (m_isPrimary || !m_preserveFocus) {
-		XSetInputFocus(m_display, m_window, RevertToPointerRoot, CurrentTime);
-	}
+	XSetInputFocus(m_display, m_window, RevertToPointerRoot, CurrentTime);
 
 	// now warp the mouse.  we warp after showing the window so we're
 	// guaranteed to get the mouse leave event and to prevent the
@@ -417,7 +376,6 @@ void
 CXWindowsScreen::resetOptions()
 {
 	m_xtestIsXineramaUnaware = true;
-	m_preserveFocus = false;
 }
 
 void
@@ -427,10 +385,6 @@ CXWindowsScreen::setOptions(const COptionsList& options)
 		if (options[i] == kOptionXTestXineramaUnaware) {
 			m_xtestIsXineramaUnaware = (options[i + 1] != 0);
 			LOG((CLOG_DEBUG1 "XTest is Xinerama unaware %s", m_xtestIsXineramaUnaware ? "true" : "false"));
-		}
-		else if (options[i] == kOptionScreenPreserveFocus) {
-			m_preserveFocus = (options[i + 1] != 0);
-			LOG((CLOG_DEBUG1 "Preserve Focus = %s", m_preserveFocus ? "true" : "false"));
 		}
 	}
 }
@@ -863,12 +817,8 @@ CXWindowsScreen::fakeMouseWheel(SInt32, SInt32 yDelta) const
 		yDelta = -yDelta;
 	}
 
-	if (yDelta < m_mouseScrollDelta) {
-		LOG((CLOG_WARN "Wheel scroll delta (%d) smaller than threshold (%d)", yDelta, m_mouseScrollDelta));
-	}
-
 	// send as many clicks as necessary
-	for (; yDelta >= m_mouseScrollDelta; yDelta -= m_mouseScrollDelta) {
+	for (; yDelta >= 120; yDelta -= 120) {
 		XTestFakeButtonEvent(m_display, xButton, True, CurrentTime);
 		XTestFakeButtonEvent(m_display, xButton, False, CurrentTime);
 	}
@@ -1493,15 +1443,9 @@ CXWindowsScreen::onMouseMove(const XMotionEvent& xmotion)
 		// sent.  we discard the matching sent event and
 		// can be sure we've skipped the warp event.
 		XEvent xevent;
-		char cntr = 0;
 		do {
 			XMaskEvent(m_display, PointerMotionMask, &xevent);
-			if (cntr++ > 10) {
-				LOG((CLOG_WARN "too many discarded events! %d", cntr));
-				break;
-			}
 		} while (!xevent.xany.send_event);
-		cntr = 0;
 	}
 	else if (m_isOnScreen) {
 		// motion on primary screen

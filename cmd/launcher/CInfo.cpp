@@ -1,6 +1,5 @@
 /*
- * synergy-plus -- mouse and keyboard sharing utility
- * Copyright (C) 2009 The Synergy+ Project
+ * synergy -- mouse and keyboard sharing utility
  * Copyright (C) 2006 Chris Schoeneman
  * 
  * This package is free software; you can redistribute it and/or
@@ -11,9 +10,6 @@
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
 #include "ProtocolTypes.h"
@@ -47,7 +43,7 @@ CInfo::doModal()
 {
 	// do dialog
 	DialogBoxParam(s_instance, MAKEINTRESOURCE(IDD_INFO),
-								m_parent, (DLGPROC)dlgProc, (LPARAM)this);
+								m_parent, dlgProc, (LPARAM)this);
 }
 
 void
@@ -55,7 +51,7 @@ CInfo::init(HWND hwnd)
 {
 	// collect info
 	CString version    =
-		CStringUtil::format(getString(IDS_TITLE).c_str(), kApplication, kVersion);
+		CStringUtil::format(getString(IDS_TITLE).c_str(), VERSION);
 	CString hostname   = ARCH->getHostName();
 	CString address    = ARCH->addrToString(ARCH->nameToAddr(hostname));
 	CString userConfig = ARCH->getUserDirectory();

@@ -1,6 +1,5 @@
 /*
- * synergy-plus -- mouse and keyboard sharing utility
- * Copyright (C) 2009 The Synergy+ Project
+ * synergy -- mouse and keyboard sharing utility
  * Copyright (C) 2003 Chris Schoeneman
  * 
  * This package is free software; you can redistribute it and/or
@@ -11,9 +10,6 @@
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
 #ifndef IKEYSTATE_H
@@ -47,7 +43,6 @@ public:
 		static bool isDefault(const char* screens);
 		static bool contains(const char* screens, const CString& name);
 		static bool equal(const CKeyInfo*, const CKeyInfo*);
-		static CString join(const std::set<CString>& destinations);
 		static void split(const char* screens, std::set<CString>&);
 
 	public:
@@ -55,8 +50,7 @@ public:
 		KeyModifierMask	m_mask;
 		KeyButton		m_button;
 		SInt32			m_count;
-		char*			m_screens;
-		char			m_screensBuffer[1];
+		char			m_screens[1];
 	};
 
 	typedef std::set<KeyButton> KeyButtonSet;
