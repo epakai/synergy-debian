@@ -1,6 +1,5 @@
 /*
- * synergy-plus -- mouse and keyboard sharing utility
- * Copyright (C) 2009 The Synergy+ Project
+ * synergy -- mouse and keyboard sharing utility
  * Copyright (C) 2004 Chris Schoeneman
  * 
  * This package is free software; you can redistribute it and/or
@@ -11,9 +10,6 @@
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
 #include "CMSWindowsClipboardBitmapConverter.h"
@@ -123,8 +119,7 @@ CMSWindowsClipboardBitmapConverter::toIClipboard(HANDLE data) const
 		srcBits += bitmap->bmiHeader.biClrUsed * sizeof(RGBQUAD);
 	}
 	else {
-		//http://msdn.microsoft.com/en-us/library/ke55d167(VS.80).aspx
-		srcBits += (1i64 << bitmap->bmiHeader.biBitCount) * sizeof(RGBQUAD);
+		srcBits += (1 << bitmap->bmiHeader.biBitCount) * sizeof(RGBQUAD);
 	}
 
 	// copy source image to destination image

@@ -1,6 +1,5 @@
 /*
- * synergy-plus -- mouse and keyboard sharing utility
- * Copyright (C) 2009 The Synergy+ Project
+ * synergy -- mouse and keyboard sharing utility
  * Copyright (C) 2003 Chris Schoeneman
  * 
  * This package is free software; you can redistribute it and/or
@@ -11,9 +10,6 @@
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
 #include "CMSWindowsKeyState.h"
@@ -60,11 +56,11 @@ const KeyID				CMSWindowsKeyState::s_virtualKey[] =
 	/* 0x012 */ { kKeyAlt_L },		// VK_MENU
 	/* 0x013 */ { kKeyPause },		// VK_PAUSE
 	/* 0x014 */ { kKeyCapsLock },	// VK_CAPITAL
-	/* 0x015 */ { kKeyHangulKana },	// VK_HANGUL, VK_KANA
-	/* 0x016 */ { kKeyNone },		// undefined
-	/* 0x017 */ { kKeyNone },		// VK_JUNJA
-	/* 0x018 */ { kKeyNone },		// VK_FINAL
-	/* 0x019 */ { kKeyHanjaKanzi },	// VK_KANJI
+	/* 0x015 */ { kKeyNone },		// VK_KANA			
+	/* 0x016 */ { kKeyNone },		// VK_HANGUL		
+	/* 0x017 */ { kKeyNone },		// VK_JUNJA			
+	/* 0x018 */ { kKeyNone },		// VK_FINAL			
+	/* 0x019 */ { kKeyZenkaku },	// VK_KANJI			
 	/* 0x01a */ { kKeyNone },		// undefined
 	/* 0x01b */ { kKeyEscape },		// VK_ESCAPE
 	/* 0x01c */ { kKeyHenkan },		// VK_CONVERT		
@@ -281,9 +277,9 @@ const KeyID				CMSWindowsKeyState::s_virtualKey[] =
 	/* 0x0ef */ { kKeyNone },		// OEM specific
 	/* 0x0f0 */ { kKeyNone },		// OEM specific
 	/* 0x0f1 */ { kKeyNone },		// OEM specific
-	/* 0x0f2 */ { kKeyHiraganaKatakana },	// VK_OEM_COPY
-	/* 0x0f3 */ { kKeyZenkaku },	// VK_OEM_AUTO
-	/* 0x0f4 */ { kKeyZenkaku },	// VK_OEM_ENLW
+	/* 0x0f2 */ { kKeyNone },		// OEM specific
+	/* 0x0f3 */ { kKeyNone },		// OEM specific
+	/* 0x0f4 */ { kKeyNone },		// OEM specific
 	/* 0x0f5 */ { kKeyNone },		// OEM specific
 	/* 0x0f6 */ { kKeyNone },		// VK_ATTN			
 	/* 0x0f7 */ { kKeyNone },		// VK_CRSEL			
@@ -538,9 +534,9 @@ const KeyID				CMSWindowsKeyState::s_virtualKey[] =
 	/* 0x1ef */ { kKeyNone },		// OEM specific
 	/* 0x1f0 */ { kKeyNone },		// OEM specific
 	/* 0x1f1 */ { kKeyNone },		// OEM specific
-	/* 0x1f2 */ { kKeyNone },		// VK_OEM_COPY
-	/* 0x1f3 */ { kKeyNone },		// VK_OEM_AUTO
-	/* 0x1f4 */ { kKeyNone },		// VK_OEM_ENLW
+	/* 0x1f2 */ { kKeyNone },		// OEM specific
+	/* 0x1f3 */ { kKeyNone },		// OEM specific
+	/* 0x1f4 */ { kKeyNone },		// OEM specific
 	/* 0x1f5 */ { kKeyNone },		// OEM specific
 	/* 0x1f6 */ { kKeyNone },		// VK_ATTN			
 	/* 0x1f7 */ { kKeyNone },		// VK_CRSEL			
@@ -858,14 +854,6 @@ CMSWindowsKeyState::pollActiveGroup() const
 	// get keyboard layout for the thread
 	HKL hkl            = GetKeyboardLayout(targetThread);
 
-	if (!hkl) {
-		// GetKeyboardLayout failed. Maybe targetWindow is a console window.
-		// We're getting the keyboard layout of the desktop instead.
-		targetWindow = GetDesktopWindow();
-		targetThread = GetWindowThreadProcessId(targetWindow, NULL);
-		hkl          = GetKeyboardLayout(targetThread);
-	}
-
 	// get group
 	GroupMap::const_iterator i = m_groupMap.find(hkl);
 	if (i == m_groupMap.end()) {
@@ -880,10 +868,7 @@ void
 CMSWindowsKeyState::pollPressedKeys(KeyButtonSet& pressedKeys) const
 {
 	BYTE keyState[256];
-	if (!GetKeyboardState(keyState)) {
-		LOG((CLOG_ERR "GetKeyboardState returned false on pollPressedKeys"));
-		return;
-	}
+	GetKeyboardState(keyState);
 	for (KeyButton i = 1; i < 256; ++i) {
 		if ((keyState[i] & 0x80) != 0) {
 			pressedKeys.insert(i);
@@ -929,7 +914,12 @@ CMSWindowsKeyState::getKeyMap(CKeyMap& keyMap)
 			// deal with certain virtual keys specially
 			switch (vk) {
 			case VK_SHIFT:
-				vk = VK_LSHIFT;
+				if (MapVirtualKey(VK_RSHIFT, 0) == i) {
+					vk = VK_RSHIFT;
+				}
+				else {
+					vk = VK_LSHIFT;
+				}
 				break;
 
 			case VK_CONTROL:
@@ -1112,9 +1102,7 @@ CMSWindowsKeyState::getKeyMap(CKeyMap& keyMap)
 					KeyButton button = static_cast<KeyButton>(i & 0xffu);
 					for (size_t j = 0; j < s_numCombinations; ++j) {
 						for (size_t k = 0; k < s_numModifiers; ++k) {
-							//if ((j & (1 << k)) != 0) {
-							// http://msdn.microsoft.com/en-us/library/ke55d167.aspx
-							if ((j & (1i64 << k)) != 0) {
+							if ((j & (1 << k)) != 0) {
 								keys[modifiers[k].m_vk1] = modifiers[k].m_state;
 								keys[modifiers[k].m_vk2] = modifiers[k].m_state;
 							}
@@ -1137,9 +1125,7 @@ CMSWindowsKeyState::getKeyMap(CKeyMap& keyMap)
 						item.m_sensitive = 0;
 						for (size_t k = 0; k < s_numModifiers; ++k) {
 							for (size_t j = 0; j < s_numCombinations; ++j) {
-								//if (id[j] != id[j ^ (1u << k)]) {
-								// http://msdn.microsoft.com/en-us/library/ke55d167.aspx
-								if (id[j] != id[j ^ (1ui64 << k)]) {
+								if (id[j] != id[j ^ (1u << k)]) {
 									item.m_sensitive |= modifiers[k].m_mask;
 									break;
 								}
@@ -1153,7 +1139,7 @@ CMSWindowsKeyState::getKeyMap(CKeyMap& keyMap)
 							item.m_id       = id[j];
 							item.m_required = 0;
 							for (size_t k = 0; k < s_numModifiers; ++k) {
-								if ((j & (1i64 << k)) != 0) {
+								if ((j & (1 << k)) != 0) {
 									item.m_required |= modifiers[k].m_mask;
 								}
 							}
@@ -1204,13 +1190,6 @@ CMSWindowsKeyState::fakeKey(const Keystroke& keystroke)
 	case Keystroke::kButton: {
 		LOG((CLOG_DEBUG1 "  %03x (%08x) %s", keystroke.m_data.m_button.m_button, keystroke.m_data.m_button.m_client, keystroke.m_data.m_button.m_press ? "down" : "up"));
 		KeyButton button = keystroke.m_data.m_button.m_button;
-
-		// windows doesn't send key ups for key repeats
-		if (keystroke.m_data.m_button.m_repeat &&
-			!keystroke.m_data.m_button.m_press) {
-			LOG((CLOG_DEBUG1 "  discard key repeat release"));
-			break;
-		}
 
 		// get the virtual key for the button
 		UINT vk = keystroke.m_data.m_button.m_client;

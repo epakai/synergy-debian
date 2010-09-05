@@ -1,6 +1,5 @@
 /*
- * synergy-plus -- mouse and keyboard sharing utility
- * Copyright (C) 2009 The Synergy+ Project
+ * synergy -- mouse and keyboard sharing utility
  * Copyright (C) 2002 Chris Schoeneman
  * 
  * This package is free software; you can redistribute it and/or
@@ -11,16 +10,11 @@
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
 #include "LogOutputters.h"
 #include "CArch.h"
-#include "TMethodJob.h"
 
-#include <fstream>
 //
 // CStopLogOutputter
 //
@@ -59,6 +53,12 @@ CStopLogOutputter::write(ELevel, const char*)
 	return false;
 }
 
+const char*
+CStopLogOutputter::getNewline() const
+{
+	return "";
+}
+
 
 //
 // CConsoleLogOutputter
@@ -66,10 +66,12 @@ CStopLogOutputter::write(ELevel, const char*)
 
 CConsoleLogOutputter::CConsoleLogOutputter()
 {
+	// do nothing
 }
 
 CConsoleLogOutputter::~CConsoleLogOutputter()
 {
+	// do nothing
 }
 
 void
@@ -91,16 +93,16 @@ CConsoleLogOutputter::show(bool showIfEmpty)
 }
 
 bool
-CConsoleLogOutputter::write(ELevel level, const char* msg)
+CConsoleLogOutputter::write(ELevel, const char* msg)
 {
 	ARCH->writeConsole(msg);
-	return true; // wtf?
+	return true;
 }
 
-void
-CConsoleLogOutputter::flush()
+const char*
+CConsoleLogOutputter::getNewline() const
 {
-
+	return ARCH->getNewlineForConsole();
 }
 
 
@@ -166,6 +168,13 @@ CSystemLogOutputter::write(ELevel level, const char* msg)
 	ARCH->writeLog(archLogLevel, msg);
 	return true;
 }
+
+const char*
+CSystemLogOutputter::getNewline() const
+{
+	return "";
+}
+
 
 //
 // CSystemLogger
@@ -251,39 +260,8 @@ CBufferedLogOutputter::write(ELevel, const char* message)
 	return true;
 }
 
-
-//
-// CFileLogOutputter
-//
-
-CFileLogOutputter::CFileLogOutputter(const char* logFile)
+const char*
+CBufferedLogOutputter::getNewline() const
 {
-	assert(logFile != NULL);
-	m_fileName = logFile;
+	return "";
 }
-
-CFileLogOutputter::~CFileLogOutputter()
-{
-}
-
-bool
-CFileLogOutputter::write(ILogOutputter::ELevel level, const char *message)
-{
-	std::ofstream m_handle;
-	m_handle.open(m_fileName.c_str(), std::fstream::app);
-	if (m_handle.is_open() && m_handle.fail() != true) {
-		m_handle << message << std::endl;
-	}
-	m_handle.close();
-
-	return true;
-}
-
-void
-CFileLogOutputter::open(const char *title) {}
-
-void
-CFileLogOutputter::close() {}
-
-void
-CFileLogOutputter::show(bool showIfEmpty) {}

@@ -1,6 +1,5 @@
 /*
- * synergy-plus -- mouse and keyboard sharing utility
- * Copyright (C) 2009 The Synergy+ Project
+ * synergy -- mouse and keyboard sharing utility
  * Copyright (C) 2002 Chris Schoeneman
  * 
  * This package is free software; you can redistribute it and/or
@@ -11,9 +10,6 @@
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
 #include "CMSWindowsScreen.h"
@@ -81,9 +77,8 @@
 HINSTANCE				CMSWindowsScreen::s_instance = NULL;
 CMSWindowsScreen*		CMSWindowsScreen::s_screen   = NULL;
 
-CMSWindowsScreen::CMSWindowsScreen(bool isPrimary, bool noHooks) :
+CMSWindowsScreen::CMSWindowsScreen(bool isPrimary) :
 	m_isPrimary(isPrimary),
-	m_noHooks(noHooks),
 	m_is95Family(CArchMiscWindows::isWindows95Family()),
 	m_isOnScreen(m_isPrimary),
 	m_class(0),
@@ -123,8 +118,7 @@ CMSWindowsScreen::CMSWindowsScreen(bool isPrimary, bool noHooks) :
 			m_hookLibrary = openHookLibrary("synrgyhk");
 		}
 		m_screensaver = new CMSWindowsScreenSaver();
-		m_desks       = new CMSWindowsDesks(
-							m_isPrimary, m_noHooks,
+		m_desks       = new CMSWindowsDesks(m_isPrimary,
 							m_hookLibrary, m_screensaver,
 							new TMethodJob<CMSWindowsScreen>(this,
 								&CMSWindowsScreen::updateKeysCB));
@@ -269,16 +263,6 @@ CMSWindowsScreen::enter()
 
 		// all messages prior to now are invalid
 		nextMark();
-	} else {
-		// Entering a secondary screen. Ensure that no screensaver is active
-		// and that the screen is not in powersave mode.
-		CArchMiscWindows::wakeupDisplay();
-
-		if(m_screensaver != NULL && m_screensaverActive)
-		{
-			m_screensaver->deactivate();
-			m_screensaverActive = 0;
-		}
 	}
 
 	// now on screen
@@ -302,9 +286,7 @@ CMSWindowsScreen::leave()
 	m_desks->leave(m_keyLayout);
 
 	if (m_isPrimary) {
-
 		// warp to center
-		LOG((CLOG_DEBUG1 "warping cursor to center: %+d, %+d", m_xCenter, m_yCenter));
 		warpCursor(m_xCenter, m_yCenter);
 
 		// disable special key sequences on win95 family
@@ -378,7 +360,7 @@ CMSWindowsScreen::openScreensaver(bool notify)
 	if (m_screensaverNotify) {
 		m_desks->installScreensaverHooks(true);
 	}
-	else if (m_screensaver) {
+	else {
 		m_screensaver->disable();
 	}
 }
@@ -401,7 +383,6 @@ void
 CMSWindowsScreen::screensaver(bool activate)
 {
 	assert(m_screensaver != NULL);
-	if (m_screensaver==NULL) return;
 
 	if (activate) {
 		m_screensaver->activate();
@@ -488,16 +469,9 @@ CMSWindowsScreen::warpCursor(SInt32 x, SInt32 y)
 		// do nothing
 	}
 
-	// save position to compute delta of next motion
-	saveMousePosition(x, y);
-}
-
-void CMSWindowsScreen::saveMousePosition(SInt32 x, SInt32 y) {
-
+	// save position as last position
 	m_xCursor = x;
 	m_yCursor = y;
-
-	LOG((CLOG_DEBUG5 "saved mouse position for next delta: %+d,%+d", x,y));
 }
 
 UInt32
@@ -543,8 +517,7 @@ CMSWindowsScreen::registerHotKey(KeyID key, KeyModifierMask mask)
 		m_oldHotKeyIDs.pop_back();
 	}
 	else {
-		//id = m_hotKeys.size() + 1;
-		id = (UInt32)m_hotKeys.size() + 1;
+		id = m_hotKeys.size() + 1;
 	}
 
 	// if this hot key has modifiers only then we'll handle it specially
@@ -769,7 +742,6 @@ CMSWindowsScreen::createBlankCursor() const
 	// create a transparent cursor
 	int cw = GetSystemMetrics(SM_CXCURSOR);
 	int ch = GetSystemMetrics(SM_CYCURSOR);
-
 	UInt8* cursorAND = new UInt8[ch * ((cw + 31) >> 2)];
 	UInt8* cursorXOR = new UInt8[ch * ((cw + 31) >> 2)];
 	memset(cursorAND, 0xff, ch * ((cw + 31) >> 2));
@@ -853,10 +825,6 @@ void
 CMSWindowsScreen::sendClipboardEvent(CEvent::Type type, ClipboardID id)
 {
 	CClipboardInfo* info   = (CClipboardInfo*)malloc(sizeof(CClipboardInfo));
-	if(info == NULL) {
-		LOG((CLOG_ERR "malloc failed on %s:%s", __FILE__, __LINE__ ));
-		return;
-	}
 	info->m_id             = id;
 	info->m_sequenceNumber = m_sequenceNumber;
 	sendEvent(type, info);
@@ -923,8 +891,6 @@ bool
 CMSWindowsScreen::onPreDispatchPrimary(HWND,
 				UINT message, WPARAM wParam, LPARAM lParam)
 {
-	LOG((CLOG_DEBUG5 "handling pre-dispatch primary"));
-
 	// handle event
 	switch (message) {
 	case SYNERGY_MSG_MARK:
@@ -947,7 +913,8 @@ CMSWindowsScreen::onPreDispatchPrimary(HWND,
 	case SYNERGY_MSG_PRE_WARP:
 		{
 			// save position to compute delta of next motion
-			saveMousePosition(static_cast<SInt32>(wParam), static_cast<SInt32>(lParam));
+			m_xCursor = static_cast<SInt32>(wParam);
+			m_yCursor = static_cast<SInt32>(lParam);
 
 			// we warped the mouse.  discard events until we find the
 			// matching post warp event.  see warpCursorNoFlush() for
@@ -1289,14 +1256,6 @@ CMSWindowsScreen::onMouseButton(WPARAM wParam, LPARAM lParam)
 	return true;
 }
 
-// here's how mouse movements are sent across the network to a client:
-//   1. synergy checks the mouse position on server screen
-//   2. records the delta (current x,y minus last x,y)
-//   3. records the current x,y as "last" (so we can calc delta next time)
-//   4. on the server, puts the cursor back to the center of the screen
-//      - remember the cursor is hidden on the server at this point
-//      - this actually records the current x,y as "last" a second time (it seems)
-//   5. sends the delta movement to the client (could be +1,+1 or -1,+4 for example)
 bool
 CMSWindowsScreen::onMouseMove(SInt32 mx, SInt32 my)
 {
@@ -1305,10 +1264,6 @@ CMSWindowsScreen::onMouseMove(SInt32 mx, SInt32 my)
 	SInt32 x = mx - m_xCursor;
 	SInt32 y = my - m_yCursor;
 
-	LOG((CLOG_DEBUG3
-		"mouse move - motion delta: %+d=(%+d - %+d),%+d=(%+d - %+d)",
-		x, mx, m_xCursor, y, my, m_yCursor));
-
 	// ignore if the mouse didn't move or if message posted prior
 	// to last mark change.
 	if (ignore() || (x == 0 && y == 0)) {
@@ -1316,24 +1271,19 @@ CMSWindowsScreen::onMouseMove(SInt32 mx, SInt32 my)
 	}
 
 	// save position to compute delta of next motion
-	saveMousePosition(mx, my);
+	m_xCursor = mx;
+	m_yCursor = my;
 
 	if (m_isOnScreen) {
-		
 		// motion on primary screen
-		sendEvent(
-			getMotionOnPrimaryEvent(),
-			CMotionInfo::alloc(m_xCursor, m_yCursor));
+		sendEvent(getMotionOnPrimaryEvent(),
+							CMotionInfo::alloc(m_xCursor, m_yCursor));
 	}
-	else 
-	{
-		// the motion is on the secondary screen, so we warp mouse back to
-		// center on the server screen. if we don't do this, then the mouse 
-		// will always try to return to the original entry point on the 
-		// secondary screen.
-		LOG((CLOG_DEBUG5 "warping server cursor to center: %+d,%+d", m_xCenter, m_yCenter));
+	else {
+		// motion on secondary screen.  warp mouse back to
+		// center.
 		warpCursorNoFlush(m_xCenter, m_yCenter);
-		
+
 		// examine the motion.  if it's about the distance
 		// from the center of the screen to an edge then
 		// it's probably a bogus motion that we want to
@@ -1344,8 +1294,7 @@ CMSWindowsScreen::onMouseMove(SInt32 mx, SInt32 my)
 			 x + bogusZoneSize > m_x + m_w - m_xCenter ||
 			-y + bogusZoneSize > m_yCenter - m_y ||
 			 y + bogusZoneSize > m_y + m_h - m_yCenter) {
-			
-			LOG((CLOG_DEBUG "dropped bogus delta motion: %+d,%+d", x, y));
+			LOG((CLOG_DEBUG "dropped bogus motion %+d,%+d", x, y));
 		}
 		else {
 			// send motion
@@ -1421,8 +1370,6 @@ CMSWindowsScreen::onDisplayChange()
 		if (m_isPrimary) {
 			// warp mouse to center if off screen
 			if (!m_isOnScreen) {
-
-				LOG((CLOG_DEBUG1 "warping cursor to center: %+d, %+d", m_xCenter, m_yCenter));
 				warpCursor(m_xCenter, m_yCenter);
 			}
 
@@ -1472,24 +1419,6 @@ CMSWindowsScreen::warpCursorNoFlush(SInt32 x, SInt32 y)
 	// between the previous message and the following message.
 	SetCursorPos(x, y);
 
-	// check to see if the mouse pos was set correctly
-	POINT cursorPos;
-	GetCursorPos(&cursorPos);
-
-	if ((cursorPos.x != x) && (cursorPos.y != y)) {
-		LOG((CLOG_DEBUG "SetCursorPos did not work; using fakeMouseMove instead"));
-		
-		// when at Vista/7 login screen, SetCursorPos does not work (which could be
-		// an MS security feature). instead we can use fakeMouseMove, which calls
-		// mouse_event.
-		// IMPORTANT: as of implementing this function, it has an annoying side 
-		// effect; instead of the mouse returning to the correct exit point, it
-		// returns to the center of the screen. this could have something to do with
-		// the center screen warping technique used (see comments for onMouseMove
-		// definition).
-		fakeMouseMove(x, y);
-	}
-	
 	// yield the CPU.  there's a race condition when warping:
 	//   a hardware mouse event occurs
 	//   the mouse hook is not called because that process doesn't have the CPU
@@ -1571,11 +1500,10 @@ CMSWindowsScreen::fixClipboardViewer()
 	// i'm not sure how that could happen.  the m_nextClipboardWindow = NULL
 	// was not in the code that infinite loops and may fix the bug but i
 	// doubt it.
-/*
+	return;
 	ChangeClipboardChain(m_window, m_nextClipboardWindow);
 	m_nextClipboardWindow = NULL;
 	m_nextClipboardWindow = SetClipboardViewer(m_window);
-*/
 }
 
 void

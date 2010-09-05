@@ -1,6 +1,5 @@
 /*
- * synergy-plus -- mouse and keyboard sharing utility
- * Copyright (C) 2009 The Synergy+ Project
+ * synergy -- mouse and keyboard sharing utility
  * Copyright (C) 2002 Chris Schoeneman
  * 
  * This package is free software; you can redistribute it and/or
@@ -11,9 +10,6 @@
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
 #include "CPrimaryClient.h"
@@ -26,7 +22,7 @@
 //
 
 CPrimaryClient::CPrimaryClient(const CString& name, CScreen* screen) :
-	CBaseClientProxy(name),
+	m_name(name),
 	m_screen(screen),
 	m_fakeInputCount(0)
 {
@@ -258,4 +254,10 @@ void
 CPrimaryClient::setOptions(const COptionsList& options)
 {
 	m_screen->setOptions(options);
+}
+
+CString
+CPrimaryClient::getName() const
+{
+	return m_name;
 }

@@ -1,6 +1,5 @@
 /*
- * synergy-plus -- mouse and keyboard sharing utility
- * Copyright (C) 2009 The Synergy+ Project
+ * synergy -- mouse and keyboard sharing utility
  * Copyright (C) 2006 Chris Schoeneman
  * 
  * This package is free software; you can redistribute it and/or
@@ -11,9 +10,6 @@
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
 #include "CArchMiscWindows.h"
@@ -21,7 +17,6 @@
 #include "CConfig.h"
 #include "CHotkeyOptions.h"
 #include "CStringUtil.h"
-#include "CLog.h"
 #include "LaunchUtil.h"
 #include "resource.h"
 
@@ -58,7 +53,7 @@ CHotkeyOptions::doModal()
 	// do dialog
 	m_inputFilter = m_config->getInputFilter();
 	DialogBoxParam(s_instance, MAKEINTRESOURCE(IDD_HOTKEY_OPTIONS),
-								m_parent, (DLGPROC)dlgProc, (LPARAM)this);
+								m_parent, dlgProc, (LPARAM)this);
 }
 
 void
@@ -563,18 +558,13 @@ CHotkeyOptions::CConditionDialog::doModal(HWND parent,
 	else {
 		s_lastGoodCondition = NULL;
 	}
-	int n = (int)DialogBox(s_instance, MAKEINTRESOURCE(IDD_HOTKEY_CONDITION),
-								parent, (DLGPROC) dlgProc);
+	int n = DialogBox(s_instance, MAKEINTRESOURCE(IDD_HOTKEY_CONDITION),
+								parent, dlgProc);
 
 	condition           = s_condition;
 	delete s_lastGoodCondition;
 	s_condition         = NULL;
 	s_lastGoodCondition = NULL;
-
-	// user effectively cancelled if the condition is NULL
-	if (condition == NULL) {
-		n = 0;
-	}
 
 	return (n == 1);
 }
@@ -584,8 +574,8 @@ CHotkeyOptions::CConditionDialog::doInit(HWND hwnd)
 {
 	// subclass edit control
 	HWND child = getItem(hwnd, IDC_HOTKEY_CONDITION_HOTKEY);
-	s_editWndProc = (WNDPROC)GetWindowLongPtr(child, GWLP_WNDPROC);
-	SetWindowLongPtr(child, GWLP_WNDPROC, (LONG_PTR) editProc);
+	s_editWndProc = (WNDPROC)GetWindowLong(child, GWL_WNDPROC);
+	SetWindowLong(child, GWL_WNDPROC, (LONG)editProc);
 
 	// fill control
 	fillHotkey(hwnd);
@@ -676,7 +666,7 @@ CHotkeyOptions::CConditionDialog::onKey(HWND hwnd, WPARAM wParam, LPARAM lParam)
 		// fall through
 
 	default:
-		key = CMSWindowsKeyState::getKeyID((UINT)wParam,
+		key = CMSWindowsKeyState::getKeyID(wParam,
 						static_cast<KeyButton>((lParam & 0x1ff0000u) >> 16));
 		switch (key) {
 		case kKeyNone:
@@ -718,10 +708,7 @@ CHotkeyOptions::CConditionDialog::getChar(WPARAM wParam, LPARAM lParam)
 	BYTE keyState[256];
 	UINT virtualKey = (UINT)wParam;
 	UINT scanCode   = (UINT)((lParam & 0x0ff0000u) >> 16);
-	if (!GetKeyboardState(keyState)) {
-		LOG((CLOG_WARN "GetKeyboardState failed on CHotkeyOptions::CConditionDialog::getChar"));
-		return kKeyNone;
-	}
+	GetKeyboardState(keyState);
 
 	// reset modifier state
 	keyState[VK_SHIFT]    = 0;
@@ -738,7 +725,7 @@ CHotkeyOptions::CConditionDialog::getChar(WPARAM wParam, LPARAM lParam)
 
 	// translate virtual key to character
 	int n;
-	KeyID id = kKeyNone;
+	KeyID id;
 	if (CArchMiscWindows::isWindows95Family()) {
 		// XXX -- how do we get characters not in Latin-1?
 		WORD ascii;
@@ -755,10 +742,6 @@ CHotkeyOptions::CConditionDialog::getChar(WPARAM wParam, LPARAM lParam)
 		ToUnicode_t s_ToUnicode = NULL;
 		if (s_ToUnicode == NULL) {
 			HMODULE userModule = GetModuleHandle("user32.dll");
-			if(userModule == NULL) {
-				LOG((CLOG_ERR "GetModuleHandle(\"user32.dll\") returned NULL"));
-				return kKeyNone;
-			}
 			s_ToUnicode =
 				(ToUnicode_t)GetProcAddress(userModule, "ToUnicode");
 		}
@@ -937,8 +920,6 @@ CInputFilter::CAction*
 				CHotkeyOptions::CActionDialog::s_action         = NULL;
 CInputFilter::CAction*
 				CHotkeyOptions::CActionDialog::s_lastGoodAction = NULL;
-std::set<CString>
-				CHotkeyOptions::CActionDialog::s_screens;
 WNDPROC			CHotkeyOptions::CActionDialog::s_editWndProc    = NULL;
 
 bool
@@ -955,8 +936,8 @@ CHotkeyOptions::CActionDialog::doModal(HWND parent, CConfig* config,
 		s_lastGoodAction = NULL;
 	}
 
-	int n = (int)DialogBox(s_instance, MAKEINTRESOURCE(IDD_HOTKEY_ACTION),
-								parent, (DLGPROC) dlgProc);
+	int n = DialogBox(s_instance, MAKEINTRESOURCE(IDD_HOTKEY_ACTION),
+								parent, dlgProc);
 
 	onActivate       = s_onActivate;
 	action           = s_action;
@@ -972,8 +953,8 @@ CHotkeyOptions::CActionDialog::doInit(HWND hwnd)
 {
 	// subclass edit control
 	HWND child = getItem(hwnd, IDC_HOTKEY_ACTION_HOTKEY);
-	s_editWndProc = (WNDPROC)GetWindowLongPtr(child, GWLP_WNDPROC);
-	SetWindowLongPtr(child, GWLP_WNDPROC, (LONG_PTR)editProc);
+	s_editWndProc = (WNDPROC)GetWindowLong(child, GWL_WNDPROC);
+	SetWindowLong(child, GWL_WNDPROC, (LONG)editProc);
 	setWindowText(getItem(hwnd, IDC_HOTKEY_ACTION_HOTKEY), "");
 	fillHotkey(hwnd);
 
@@ -1009,21 +990,11 @@ CHotkeyOptions::CActionDialog::doInit(HWND hwnd)
 	// fill lock modes
 	child = getItem(hwnd, IDC_HOTKEY_ACTION_LOCK_LIST);
 	SendMessage(child, CB_ADDSTRING, 0,
-							(LPARAM)getString(IDS_MODE_OFF).c_str());
+							(LPARAM)getString(IDS_LOCK_MODE_OFF).c_str());
 	SendMessage(child, CB_ADDSTRING, 0,
-							(LPARAM)getString(IDS_MODE_ON).c_str());
+							(LPARAM)getString(IDS_LOCK_MODE_ON).c_str());
 	SendMessage(child, CB_ADDSTRING, 0,
-							(LPARAM)getString(IDS_MODE_TOGGLE).c_str());
-	SendMessage(child, CB_SETCURSEL, 0, 0);
-
-	// fill keyboard broadcast modes
-	child = getItem(hwnd, IDC_HOTKEY_ACTION_KEYBOARD_BROADCAST_LIST);
-	SendMessage(child, CB_ADDSTRING, 0,
-							(LPARAM)getString(IDS_MODE_OFF).c_str());
-	SendMessage(child, CB_ADDSTRING, 0,
-							(LPARAM)getString(IDS_MODE_ON).c_str());
-	SendMessage(child, CB_ADDSTRING, 0,
-							(LPARAM)getString(IDS_MODE_TOGGLE).c_str());
+							(LPARAM)getString(IDS_LOCK_MODE_TOGGLE).c_str());
 	SendMessage(child, CB_SETCURSEL, 0, 0);
 
 	// select when
@@ -1034,9 +1005,6 @@ CHotkeyOptions::CActionDialog::doInit(HWND hwnd)
 		child = getItem(hwnd, IDC_HOTKEY_ACTION_ON_DEACTIVATE);
 	}
 	setItemChecked(child, true);
-
-	// no screens by default
-	s_screens.clear();
 
 	// select mode
 	child = NULL;
@@ -1050,8 +1018,6 @@ CHotkeyOptions::CActionDialog::doInit(HWND hwnd)
 		dynamic_cast<CInputFilter::CSwitchToScreenAction*>(s_action);
 	CInputFilter::CSwitchInDirectionAction* switchInAction =
 		dynamic_cast<CInputFilter::CSwitchInDirectionAction*>(s_action);
-	CInputFilter::CKeyboardBroadcastAction* keyboardBroadcastAction=
-		dynamic_cast<CInputFilter::CKeyboardBroadcastAction*>(s_action);
 	if (keyAction != NULL) {
 		if (dynamic_cast<CKeystrokeDownUpAction*>(s_action) != NULL) {
 			child = getItem(hwnd, IDC_HOTKEY_ACTION_DOWNUP);
@@ -1081,7 +1047,7 @@ CHotkeyOptions::CActionDialog::doInit(HWND hwnd)
 	}
 	else if (switchToAction != NULL) {
 		child = getItem(hwnd, IDC_HOTKEY_ACTION_SWITCH_TO_LIST);
-		DWORD i = (DWORD)SendMessage(child, CB_FINDSTRINGEXACT, (WPARAM)-1,
+		DWORD i = SendMessage(child, CB_FINDSTRINGEXACT, (WPARAM)-1,
 								(LPARAM)switchToAction->getScreen().c_str());
 		if (i == CB_ERR) {
 			i = 0;
@@ -1094,14 +1060,6 @@ CHotkeyOptions::CActionDialog::doInit(HWND hwnd)
 		SendMessage(child, CB_SETCURSEL,
 							switchInAction->getDirection() - kLeft, 0);
 		child = getItem(hwnd, IDC_HOTKEY_ACTION_SWITCH_IN);
-	}
-	else if (keyboardBroadcastAction != NULL) {
-		// Save the screens we're broadcasting to
-		s_screens = keyboardBroadcastAction->getScreens();
-
-		child = getItem(hwnd, IDC_HOTKEY_ACTION_KEYBOARD_BROADCAST_LIST);
-		SendMessage(child, CB_SETCURSEL, keyboardBroadcastAction->getMode(), 0);
-		child = getItem(hwnd, IDC_HOTKEY_ACTION_KEYBOARD_BROADCAST);
 	}
 	if (child != NULL) {
 		setItemChecked(child, true);
@@ -1148,18 +1106,12 @@ CHotkeyOptions::CActionDialog::updateControls(HWND hwnd)
 	else if (isItemChecked(getItem(hwnd, IDC_HOTKEY_ACTION_LOCK))) {
 		mode = 4;
 	}
-	else if (isItemChecked(getItem(hwnd,
-									IDC_HOTKEY_ACTION_KEYBOARD_BROADCAST))) {
-		mode = 5;
-	}
 
 	// enable/disable all mode specific controls
 	enableItem(hwnd, IDC_HOTKEY_ACTION_HOTKEY, mode == 1);
 	enableItem(hwnd, IDC_HOTKEY_ACTION_SWITCH_TO_LIST, mode == 2);
 	enableItem(hwnd, IDC_HOTKEY_ACTION_SWITCH_IN_LIST, mode == 3);
 	enableItem(hwnd, IDC_HOTKEY_ACTION_LOCK_LIST, mode == 4);
-	enableItem(hwnd, IDC_HOTKEY_ACTION_KEYBOARD_BROADCAST_LIST, mode == 5);
-	enableItem(hwnd, IDC_HOTKEY_ACTION_KEYBOARD_BROADCAST_SCREENS, mode == 5);
 
 	// can only set screens in key actions
 	CInputFilter::CKeystrokeAction* keyAction =
@@ -1253,7 +1205,7 @@ CHotkeyOptions::CActionDialog::onKey(HWND hwnd, WPARAM wParam, LPARAM lParam)
 		// fall through
 
 	default:
-		key = CMSWindowsKeyState::getKeyID((UINT)wParam,
+		key = CMSWindowsKeyState::getKeyID(wParam,
 						static_cast<KeyButton>((lParam & 0x1ff0000u) >> 16));
 		switch (key) {
 		case kKeyNone:
@@ -1349,28 +1301,14 @@ CHotkeyOptions::CActionDialog::onSwitchInAction(HWND hwnd)
 	}
 }
 
-void
-CHotkeyOptions::CActionDialog::onKeyboardBroadcastAction(HWND hwnd)
-{
-	HWND child = getItem(hwnd, IDC_HOTKEY_ACTION_KEYBOARD_BROADCAST_LIST);
-	LRESULT index = SendMessage(child, CB_GETCURSEL, 0, 0);
-	if (index != CB_ERR) {
-		delete s_action;
-		s_action = new CInputFilter::CKeyboardBroadcastAction(
-			(CInputFilter::CKeyboardBroadcastAction::Mode)index, s_screens);
-	}
-}
-
 KeyID
 CHotkeyOptions::CActionDialog::getChar(WPARAM wParam, LPARAM lParam)
 {
 	BYTE keyState[256];
 	UINT virtualKey = (UINT)wParam;
 	UINT scanCode   = (UINT)((lParam & 0x0ff0000u) >> 16);
-	if (!GetKeyboardState(keyState)) {
-		LOG((CLOG_WARN "GetKeyboardState failed on CHotkeyOptions::CActionDialog::getChar"));
-		return kKeyNone;
-	}
+	GetKeyboardState(keyState);
+
 	// reset modifier state
 	keyState[VK_SHIFT]    = 0;
 	keyState[VK_LSHIFT]   = 0;
@@ -1403,10 +1341,6 @@ CHotkeyOptions::CActionDialog::getChar(WPARAM wParam, LPARAM lParam)
 		ToUnicode_t s_ToUnicode = NULL;
 		if (s_ToUnicode == NULL) {
 			HMODULE userModule = GetModuleHandle("user32.dll");
-			if(userModule==NULL) {
-				LOG((CLOG_ERR "GetModuleHandle(\"user32.dll\") returned NULL"));
-				return kKeyNone;
-			}
 			s_ToUnicode =
 				(ToUnicode_t)GetProcAddress(userModule, "ToUnicode");
 		}
@@ -1570,11 +1504,6 @@ CHotkeyOptions::CActionDialog::dlgProc(HWND hwnd,
 			updateControls(hwnd);
 			return TRUE;
 
-		case IDC_HOTKEY_ACTION_KEYBOARD_BROADCAST:
-			onKeyboardBroadcastAction(hwnd);
-			updateControls(hwnd);
-			return TRUE;
-
 		case IDC_HOTKEY_ACTION_LOCK_LIST:
 			switch (HIWORD(wParam)) {
 			case LBN_SELCHANGE:
@@ -1599,37 +1528,11 @@ CHotkeyOptions::CActionDialog::dlgProc(HWND hwnd,
 			}
 			break;
 
-		case IDC_HOTKEY_ACTION_KEYBOARD_BROADCAST_LIST:
-			switch (HIWORD(wParam)) {
-			case LBN_SELCHANGE:
-				onKeyboardBroadcastAction(hwnd);
-				return TRUE;
-			}
-			break;
-
 		case IDC_HOTKEY_ACTION_SCREENS:
 			CScreensDialog::doModal(hwnd, s_config,
 				dynamic_cast<CInputFilter::CKeystrokeAction*>(s_action));
 			fillHotkey(hwnd);
 			return TRUE;
-
-		case IDC_HOTKEY_ACTION_KEYBOARD_BROADCAST_SCREENS: {
-			// convert screens to form that CScreenDialog::doModal() wants
-			IPlatformScreen::CKeyInfo* tmpInfo =
-				IPlatformScreen::CKeyInfo::alloc(0, 0, 0, 1, s_screens);
-			CInputFilter::CKeystrokeAction tmpAction(tmpInfo, true);
-
-			// get the screens
-			CScreensDialog::doModal(hwnd, s_config, &tmpAction);
-
-			// convert screens back
-			IPlatformScreen::CKeyInfo::split(
-								tmpAction.getInfo()->m_screens, s_screens);
-
-			// update
-			onKeyboardBroadcastAction(hwnd);
-			return TRUE;
-		}
 		}
 		break;
 
@@ -1752,7 +1655,7 @@ CHotkeyOptions::CScreensDialog::doModal(HWND parent, CConfig* config,
 	s_config = config;
 	s_action = action;
 	DialogBox(s_instance, MAKEINTRESOURCE(IDD_HOTKEY_SCREENS),
-								parent, (DLGPROC) dlgProc);
+								parent, dlgProc);
 	s_config = NULL;
 	s_action = NULL;
 }

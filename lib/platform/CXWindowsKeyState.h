@@ -1,6 +1,5 @@
 /*
- * synergy-plus -- mouse and keyboard sharing utility
- * Copyright (C) 2009 The Synergy+ Project
+ * synergy -- mouse and keyboard sharing utility
  * Copyright (C) 2003 Chris Schoeneman
  * 
  * This package is free software; you can redistribute it and/or
@@ -11,9 +10,6 @@
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
 #ifndef CXWINDOWSKEYSTATE_H
@@ -63,12 +59,6 @@ public:
 	active group now and use it for future calls to \c pollActiveGroup().
 	*/
 	void				setActiveGroup(SInt32 group);
-
-	//! Set the auto-repeat state
-	/*!
-	Sets the auto-repeat state.
-	*/
-	void				setAutoRepeat(const XKeyboardState&);
 
 	//@}
 	//! @name accessors
@@ -151,9 +141,6 @@ private:
 
 	// map KeyID to all keycodes that can synthesize that KeyID
 	KeyToKeyCodeMap		m_keyCodeFromKey;
-
-	// autorepeat state
-	XKeyboardState		m_keyboardState;
 };
 
 #endif
