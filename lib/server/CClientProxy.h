@@ -1,6 +1,5 @@
 /*
- * synergy-plus -- mouse and keyboard sharing utility
- * Copyright (C) 2009 The Synergy+ Project
+ * synergy -- mouse and keyboard sharing utility
  * Copyright (C) 2002 Chris Schoeneman
  * 
  * This package is free software; you can redistribute it and/or
@@ -11,86 +10,62 @@
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
 #ifndef CCLIENTPROXY_H
 #define CCLIENTPROXY_H
 
-#include "CBaseClientProxy.h"
-#include "CEvent.h"
+#include "IClient.h"
+#include "CMutex.h"
 #include "CString.h"
 
-class IStream;
+class IInputStream;
+class IOutputStream;
+class IServer;
 
 //! Generic proxy for client
-class CClientProxy : public CBaseClientProxy {
+class CClientProxy : public IClient {
 public:
 	/*!
 	\c name is the name of the client.
 	*/
-	CClientProxy(const CString& name, IStream* adoptedStream);
+	CClientProxy(IServer* server, const CString& name,
+							IInputStream* adoptedInput,
+							IOutputStream* adoptedOutput);
 	~CClientProxy();
 
-	//! @name manipulators
-	//@{
-
-	//! Disconnect
-	/*!
-	Ask the client to disconnect, using \p msg as the reason.
-	*/
-	void				close(const char* msg);
-
-	//@}
 	//! @name accessors
 	//@{
 
-	//! Get stream
+	//! Get server
 	/*!
-	Returns the stream passed to the c'tor.
+	Returns the server passed to the c'tor.
 	*/
-	IStream*			getStream() const;
+	IServer*			getServer() const;
 
-	//! Get ready event type
+	//! Get input stream
 	/*!
-	Returns the ready event type.  This is sent when the client has
-	completed the initial handshake.  Until it is sent, the client is
-	not fully connected.
+	Returns the input stream passed to the c'tor.
 	*/
-	static CEvent::Type	getReadyEvent();
+	IInputStream*		getInputStream() const;
 
-	//! Get disconnect event type
+	//! Get output stream
 	/*!
-	Returns the disconnect event type.  This is sent when the client
-	disconnects or is disconnected.  The target is getEventTarget().
+	Returns the output stream passed to the c'tor.
 	*/
-	static CEvent::Type	getDisconnectedEvent();
-
-	//! Get clipboard changed event type
-	/*!
-	Returns the clipboard changed event type.  This is sent whenever the
-	contents of the clipboard has changed.  The data is a pointer to a
-	IScreen::CClipboardInfo.
-	*/
-	static CEvent::Type	getClipboardChangedEvent();
+	IOutputStream*		getOutputStream() const;
 
 	//@}
 
-	// IScreen
-	virtual void*		getEventTarget() const;
-	virtual bool		getClipboard(ClipboardID id, IClipboard*) const = 0;
-	virtual void		getShape(SInt32& x, SInt32& y,
-							SInt32& width, SInt32& height) const = 0;
-	virtual void		getCursorPos(SInt32& x, SInt32& y) const = 0;
-
 	// IClient overrides
+	virtual void		open() = 0;
+	virtual void		mainLoop() = 0;
+	virtual void		close() = 0;
 	virtual void		enter(SInt32 xAbs, SInt32 yAbs,
 							UInt32 seqNum, KeyModifierMask mask,
 							bool forScreensaver) = 0;
 	virtual bool		leave() = 0;
-	virtual void		setClipboard(ClipboardID, const IClipboard*) = 0;
+	virtual void		setClipboard(ClipboardID, const CString&) = 0;
 	virtual void		grabClipboard(ClipboardID) = 0;
 	virtual void		setClipboardDirty(ClipboardID, bool) = 0;
 	virtual void		keyDown(KeyID, KeyModifierMask, KeyButton) = 0;
@@ -100,18 +75,31 @@ public:
 	virtual void		mouseDown(ButtonID) = 0;
 	virtual void		mouseUp(ButtonID) = 0;
 	virtual void		mouseMove(SInt32 xAbs, SInt32 yAbs) = 0;
-	virtual void		mouseRelativeMove(SInt32 xRel, SInt32 yRel) = 0;
-	virtual void		mouseWheel(SInt32 xDelta, SInt32 yDelta) = 0;
+	virtual void		mouseWheel(SInt32 delta) = 0;
 	virtual void		screensaver(bool activate) = 0;
 	virtual void		resetOptions() = 0;
 	virtual void		setOptions(const COptionsList& options) = 0;
+	virtual CString		getName() const;
+	virtual SInt32		getJumpZoneSize() const = 0;
+	virtual void		getShape(SInt32& x, SInt32& y,
+							SInt32& width, SInt32& height) const = 0;
+	virtual void		getCursorPos(SInt32& x, SInt32& y) const = 0;
+	virtual void		getCursorCenter(SInt32& x, SInt32& y) const = 0;
+
+protected:
+	//! Get mutex
+	/*!
+	Returns the mutex for this object.  Subclasses should use this
+	mutex to protect their data.
+	*/
+	const CMutex*		getMutex() const;
 
 private:
-	IStream*			m_stream;
-
-	static CEvent::Type	s_readyEvent;
-	static CEvent::Type	s_disconnectedEvent;
-	static CEvent::Type	s_clipboardChangedEvent;
+	CMutex				m_mutex;
+	IServer*			m_server;
+	CString				m_name;
+	IInputStream*		m_input;
+	IOutputStream*		m_output;
 };
 
 #endif

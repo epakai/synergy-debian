@@ -1,6 +1,5 @@
 /*
- * synergy-plus -- mouse and keyboard sharing utility
- * Copyright (C) 2009 The Synergy+ Project
+ * synergy -- mouse and keyboard sharing utility
  * Copyright (C) 2003 Chris Schoeneman
  * 
  * This package is free software; you can redistribute it and/or
@@ -11,9 +10,6 @@
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
 #ifndef CADVANCEDOPTIONS_H
@@ -51,9 +47,6 @@ public:
 	//! Get the port
 	int					getPort() const;
 
-	//! Get the interface
-	CString				getInterface() const;
-
 	//! Convert options to command line string
 	CString				getCommandLine(bool isClient,
 							const CString& serverName) const;
@@ -78,7 +71,6 @@ private:
 	bool				m_isClient;
 	CString				m_screenName;
 	int					m_port;
-	CString				m_interface;
 };
 
 #endif

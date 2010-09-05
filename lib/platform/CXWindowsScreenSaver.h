@@ -1,6 +1,5 @@
 /*
- * synergy-plus -- mouse and keyboard sharing utility
- * Copyright (C) 2009 The Synergy+ Project
+ * synergy -- mouse and keyboard sharing utility
  * Copyright (C) 2002 Chris Schoeneman
  * 
  * This package is free software; you can redistribute it and/or
@@ -11,9 +10,6 @@
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
 #ifndef CXWINDOWSSCREENSAVER_H
@@ -21,19 +17,22 @@
 
 #include "IScreenSaver.h"
 #include "stdmap.h"
-#if X_DISPLAY_MISSING
+#if defined(X_DISPLAY_MISSING)
 #	error X11 is required to build synergy
 #else
 #	include <X11/Xlib.h>
 #endif
 
-class CEvent;
-class CEventQueueTimer;
+class IJob;
+class CXWindowsScreen;
 
 //! X11 screen saver implementation
 class CXWindowsScreenSaver : public IScreenSaver {
 public:
-	CXWindowsScreenSaver(Display*, Window, void* eventTarget);
+	// note -- the caller must ensure that Display* passed to c'tor isn't
+	// being used in another call to Xlib when calling any method on this
+	// object (including during the c'tor and d'tor).
+	CXWindowsScreenSaver(CXWindowsScreen*, Display*);
 	virtual ~CXWindowsScreenSaver();
 
 	//! @name manipulators
@@ -41,17 +40,22 @@ public:
 
 	//! Event filtering
 	/*!
-	Should be called for each system event before event translation and
-	dispatch.  Returns true to skip translation and dispatch.
+	Called for each event before event translation and dispatch.  Return
+	true to skip translation and dispatch.  Subclasses should call the
+	superclass's version first and return true if it returns true.
 	*/
-	bool				handleXEvent(const XEvent*);
+	bool				onPreDispatch(const XEvent*);
 
-	//! Destroy without the display
+	//! Set notify target
 	/*!
-	Tells this object to delete itself without using the X11 display.
-	It may leak some resources as a result.
+	Tells this object to send a ClientMessage to the given window
+	when the screen saver activates or deactivates.  Only one window
+	can be notified at a time.  The message type is the "SCREENSAVER"
+	atom, the format is 32, and the data.l[0] member is non-zero
+	if activated, zero if deactivated.  Pass None to disable
+	notification.
 	*/
-	void				destroy();
+	void				setNotify(Window);
 
 	//@}
 
@@ -63,6 +67,9 @@ public:
 	virtual bool		isActive() const;
 
 private:
+	// send a notification
+	void				sendNotify(bool activated);
+
 	// find and set the running xscreensaver's window.  returns true iff
 	// found.
 	bool				findXScreenSaver();
@@ -91,34 +98,25 @@ private:
 	void				addWatchXScreenSaver(Window window);
 
 	// install/uninstall the job used to suppress the screensaver
-	void				updateDisableTimer();
+	void				updateDisableJob();
 
 	// called periodically to prevent the screen saver from starting
-	void				handleDisableTimer(const CEvent&, void*);
-
-	// force DPMS to activate or deactivate
-	void				activateDPMS(bool activate);
-
-	// enable/disable DPMS screen saver
-	void				enableDPMS(bool);
-
-	// check if DPMS is enabled
-	bool				isDPMSEnabled() const;
-
-	// check if DPMS is activate
-	bool				isDPMSActivated() const;
+	void				disableCallback(void*);
 
 private:
 	typedef std::map<Window, long> CWatchList;
 
+	// the event loop object
+	CXWindowsScreen*	m_screen;
+
 	// the X display
 	Display*			m_display;
 
-	// window to receive xscreensaver repsonses
-	Window				m_xscreensaverSink;
+	// old event mask on root window
+	long				m_rootEventMask;
 
-	// the target for the events we generate
-	void*				m_eventTarget;
+	// window to notify on screen saver activation/deactivation
+	Window				m_notify;
 
 	// xscreensaver's window
 	Window				m_xscreensaver;
@@ -126,8 +124,8 @@ private:
 	// xscreensaver activation state
 	bool				m_xscreensaverActive;
 
-	// old event mask on root window
-	long				m_rootEventMask;
+	// dummy window to receive xscreensaver repsonses
+	Window				m_xscreensaverSink;
 
 	// potential xscreensaver windows being watched
 	CWatchList			m_watchWindows;
@@ -137,16 +135,13 @@ private:
 	Atom				m_atomScreenSaverVersion;
 	Atom				m_atomScreenSaverActivate;
 	Atom				m_atomScreenSaverDeactivate;
+	Atom				m_atomSynergyScreenSaver;
 
 	// built-in screen saver settings
 	int					m_timeout;
 	int					m_interval;
 	int					m_preferBlanking;
 	int					m_allowExposures;
-
-	// DPMS screen saver settings
-	bool				m_dpms;
-	bool				m_dpmsEnabled;
 
 	// true iff the client wants the screen saver suppressed
 	bool				m_disabled;
@@ -156,13 +151,11 @@ private:
 	// to activate the screen saver even if disabled.
 	bool				m_suppressDisable;
 
-	// the disable timer (NULL if not installed)
-	CEventQueueTimer*	m_disableTimer;
+	// true iff the disabled job timer is installed
+	bool				m_disableJobInstalled;
 
-	// fake mouse motion position for suppressing the screen saver.
-	// xscreensaver since 2.21 requires the mouse to move more than 10
-	// pixels to be considered significant.
-	SInt32				m_disablePos;
+	// the job used to invoke disableCallback
+	IJob*				m_disableJob;
 };
 
 #endif

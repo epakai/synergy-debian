@@ -1,6 +1,5 @@
 /*
- * synergy-plus -- mouse and keyboard sharing utility
- * Copyright (C) 2009 The Synergy+ Project
+ * synergy -- mouse and keyboard sharing utility
  * Copyright (C) 2002 Chris Schoeneman
  * 
  * This package is free software; you can redistribute it and/or
@@ -11,9 +10,6 @@
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
 #include "XSocket.h"
@@ -57,14 +53,12 @@ XSocketAddress::getWhat() const throw()
 		"XSocketAddressUnknown",
 		"XSocketAddressNotFound",
 		"XSocketAddressNoAddress",
-		"XSocketAddressUnsupported",
 		"XSocketAddressBadPort"
 	};
 	static const char* s_errorMsg[] = {
 		"unknown error for: %{1}:%{2}",
 		"address not found for: %{1}",
 		"no address for: %{1}",
-		"unsupported address for: %{1}",
 		"invalid port"				// m_port may not be set to the bad port
 	};
 	return format(s_errorID[m_error], s_errorMsg[m_error],

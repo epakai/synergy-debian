@@ -1,6 +1,5 @@
 /*
- * synergy-plus -- mouse and keyboard sharing utility
- * Copyright (C) 2009 The Synergy+ Project
+ * synergy -- mouse and keyboard sharing utility
  * Copyright (C) 2002 Chris Schoeneman
  * 
  * This package is free software; you can redistribute it and/or
@@ -11,9 +10,6 @@
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
 #ifndef CARCHDAEMONWINDOWS_H
@@ -46,7 +42,7 @@ public:
 	(i.e. after initialization) and \c daemonRunning(false) when it leaves
 	the main loop.  The \c runFunc is called in a new thread and when the
 	daemon must exit the main loop due to some external control the
-	getDaemonQuitMessage() is posted to the thread.  This function returns
+	thread is cancelled on behalf of the client.  This function returns
 	what \c runFunc returns.  \c runFunc should call \c daemonFailed() if
 	the daemon fails.
 	*/
@@ -67,27 +63,16 @@ public:
 	*/
 	static void			daemonFailed(int result);
 
-	//! Get daemon quit message
-	/*!
-	The windows NT daemon tells daemon thread to exit by posting this
-	message to it.  The thread must, of course, have a message queue
-	for this to work.
-	*/
-	static UINT			getDaemonQuitMessage();
-
 	// IArchDaemon overrides
 	virtual void		installDaemon(const char* name,
 							const char* description,
 							const char* pathname,
 							const char* commandLine,
-							const char* dependencies,
 							bool allUsers);
 	virtual void		uninstallDaemon(const char* name, bool allUsers);
 	virtual int			daemonize(const char* name, DaemonFunc func);
 	virtual bool		canInstallDaemon(const char* name, bool allUsers);
 	virtual bool		isDaemonInstalled(const char* name, bool allUsers);
-
-	std::string commandLine() const { return m_commandLine; }
 
 private:
 	static HKEY			openNTServicesKey();
@@ -96,13 +81,13 @@ private:
 
 	int					doRunDaemon(RunFunc runFunc);
 	void				doDaemonRunning(bool running);
-	UINT				doGetDaemonQuitMessage();
 
 	static void			setStatus(DWORD state);
 	static void			setStatus(DWORD state, DWORD step, DWORD waitHint);
 	static void			setStatusError(DWORD error);
 
-	static bool			isRunState(DWORD state);
+	void*				runDaemonThread(RunFunc);
+	static void*		runDaemonThreadEntry(void*);
 
 	void				serviceMain(DWORD, LPTSTR*);
 	static void WINAPI	serviceMainEntry(DWORD, LPTSTR*);
@@ -128,15 +113,11 @@ private:
 	bool				m_serviceHandlerWaiting;
 	bool				m_serviceRunning;
 
-	DWORD				m_daemonThreadID;
+	CArchThread			m_daemonThread;
 	DaemonFunc			m_daemonFunc;
 	int					m_daemonResult;
 
 	SERVICE_STATUS_HANDLE m_statusHandle;
-
-	UINT				m_quitMessage;
-
-	std::string			m_commandLine;
 };
 
 #endif

@@ -1,6 +1,5 @@
 /*
- * synergy-plus -- mouse and keyboard sharing utility
- * Copyright (C) 2009 The Synergy+ Project
+ * synergy -- mouse and keyboard sharing utility
  * Copyright (C) 2002 Chris Schoeneman
  * 
  * This package is free software; you can redistribute it and/or
@@ -11,9 +10,6 @@
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
 #ifndef VERSION_H
@@ -23,27 +19,27 @@
 
 // set version macro if not set yet
 #if !defined(VERSION)
-#error Version was not set (should be passed to compiler).
+#	define VERSION "1.0.14"
 #endif
 
 // important strings
-extern const char* kApplication;
-extern const char* kCopyright;
-extern const char* kContact;
-extern const char* kWebsite;
+static const char* kApplication     = "synergy";
+static const char* kCopyright       = "Copyright (C) 2002 Chris Schoeneman";
+static const char* kContact         = "Chris Schoeneman, crs23@bigfoot.com";
+static const char* kWebsite         = "http://synergy2.sourceforge.net/";
 
 // build version.  follows linux kernel style:  an even minor number implies
 // a release version, odd implies development version.
-extern const char* kVersion;
+static const char* kVersion			= VERSION;
 
 // application version
-extern const char* kAppVersion;
+static const char* kAppVersion      = "synergy " VERSION;
 
 // exit codes
-static const int kExitSuccess   = 0;  // successful completion
-static const int kExitFailed    = 1;  // general failure
-static const int kExitTerminated  = 2;  // killed by signal
-static const int kExitArgs      = 3;  // bad arguments
-static const int kExitConfig    = 4;  // cannot read configuration
+static const int kExitSuccess		= 0;	// successful completion
+static const int kExitFailed		= 1;	// general failure
+static const int kExitTerminated	= 2;	// killed by signal
+static const int kExitArgs			= 3;	// bad arguments
+static const int kExitConfig		= 4;	// cannot read configuration
 
 #endif

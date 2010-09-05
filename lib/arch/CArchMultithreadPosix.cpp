@@ -1,19 +1,15 @@
 /*
- * synergy-plus -- mouse and keyboard sharing utility
- * Copyright (C) 2009 The Synergy+ Project
+ * synergy -- mouse and keyboard sharing utility
  * Copyright (C) 2002 Chris Schoeneman
  * 
- * This package is free software; you can redistribute it and/or
+ * This package is free software you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
  * found in the file COPYING that should have accompanied this file.
  * 
  * This package is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * but WITHOUT ANY WARRANTY without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
 #include "CArchMultithreadPosix.h"
@@ -45,17 +41,6 @@
 #	define HAVE_POSIX_SIGWAIT 1
 #endif
 
-static
-void
-setSignalSet(sigset_t* sigset)
-{
-	sigemptyset(sigset);
-	sigaddset(sigset, SIGHUP);
-	sigaddset(sigset, SIGINT);
-	sigaddset(sigset, SIGTERM);
-	sigaddset(sigset, SIGUSR2);
-}
-
 //
 // CArchThreadImpl
 //
@@ -74,7 +59,6 @@ public:
 	bool				m_cancelling;
 	bool				m_exited;
 	void*				m_result;
-	void*				m_networkData;
 };
 
 CArchThreadImpl::CArchThreadImpl() :
@@ -85,8 +69,7 @@ CArchThreadImpl::CArchThreadImpl() :
 	m_cancel(false),
 	m_cancelling(false),
 	m_exited(false),
-	m_result(NULL),
-	m_networkData(NULL)
+	m_result(NULL)
 {
 	// do nothing
 }
@@ -105,12 +88,6 @@ CArchMultithreadPosix::CArchMultithreadPosix() :
 	assert(s_instance == NULL);
 
 	s_instance = this;
-
-	// no signal handlers
-	for (size_t i = 0; i < kNUM_SIGNALS; ++i) {
-		m_signalFunc[i]     = NULL;
-		m_signalUserData[i] = NULL;
-	}
 
 	// create mutex for thread list
 	m_threadMutex = newMutex();
@@ -155,36 +132,11 @@ CArchMultithreadPosix::~CArchMultithreadPosix()
 	s_instance = NULL;
 }
 
-void
-CArchMultithreadPosix::setNetworkDataForCurrentThread(void* data)
-{
-	lockMutex(m_threadMutex);
-	CArchThreadImpl* thread = find(pthread_self());
-	thread->m_networkData = data;
-	unlockMutex(m_threadMutex);
-}
-
-void*
-CArchMultithreadPosix::getNetworkDataForThread(CArchThread thread)
-{
-	lockMutex(m_threadMutex);
-	void* data = thread->m_networkData;
-	unlockMutex(m_threadMutex);
-	return data;
-}
-
-CArchMultithreadPosix*
-CArchMultithreadPosix::getInstance()
-{
-	return s_instance;
-}
-
 CArchCond
 CArchMultithreadPosix::newCondVar()
 {
 	CArchCondImpl* cond = new CArchCondImpl;
 	int status = pthread_cond_init(&cond->m_cond, NULL);
-	(void)status;
 	assert(status == 0);
 	return cond;
 }
@@ -193,7 +145,6 @@ void
 CArchMultithreadPosix::closeCondVar(CArchCond cond)
 {
 	int status = pthread_cond_destroy(&cond->m_cond);
-	(void)status;
 	assert(status == 0);
 	delete cond;
 }
@@ -202,7 +153,6 @@ void
 CArchMultithreadPosix::signalCondVar(CArchCond cond)
 {
 	int status = pthread_cond_signal(&cond->m_cond);
-	(void)status;
 	assert(status == 0);
 }
 
@@ -210,7 +160,6 @@ void
 CArchMultithreadPosix::broadcastCondVar(CArchCond cond)
 {
 	int status = pthread_cond_broadcast(&cond->m_cond);
-	(void)status;
 	assert(status == 0);
 }
 
@@ -218,43 +167,73 @@ bool
 CArchMultithreadPosix::waitCondVar(CArchCond cond,
 							CArchMutex mutex, double timeout)
 {
-	// we can't wait on a condition variable and also wake it up for
-	// cancellation since we don't use posix cancellation.  so we
-	// must wake up periodically to check for cancellation.  we
-	// can't simply go back to waiting after the check since the
-	// condition may have changed and we'll have lost the signal.
-	// so we have to return to the caller.  since the caller will
-	// always check for spurious wakeups the only drawback here is
-	// performance:  we're waking up a lot more than desired.
-	static const double maxCancellationLatency = 0.1;
-	if (timeout < 0.0 || timeout > maxCancellationLatency) {
-		timeout = maxCancellationLatency;
-	}
-
-	// see if we should cancel this thread
-	testCancelThread();
-
 	// get final time
 	struct timeval now;
 	gettimeofday(&now, NULL);
 	struct timespec finalTime;
-	finalTime.tv_sec   = now.tv_sec;
-	finalTime.tv_nsec  = now.tv_usec * 1000;
-	long timeout_sec   = (long)timeout;
-	long timeout_nsec  = (long)(1.0e+9 * (timeout - timeout_sec));
-	finalTime.tv_sec  += timeout_sec;
-	finalTime.tv_nsec += timeout_nsec;
-	if (finalTime.tv_nsec >= 1000000000) {
-		finalTime.tv_nsec -= 1000000000;
-		finalTime.tv_sec  += 1;
+	finalTime.tv_sec  = now.tv_sec;
+	finalTime.tv_nsec = now.tv_usec * 1000;
+	if (timeout >= 0.0) {
+		const long timeout_sec  = (long)timeout;
+		const long timeout_nsec = (long)(1.0e+9 * (timeout - timeout_sec));
+		finalTime.tv_sec  += timeout_sec;
+		finalTime.tv_nsec += timeout_nsec;
+		if (finalTime.tv_nsec >= 1000000000) {
+			finalTime.tv_nsec -= 1000000000;
+			finalTime.tv_sec  += 1;
+		}
 	}
 
-	// wait
-	int status = pthread_cond_timedwait(&cond->m_cond,
-							&mutex->m_mutex, &finalTime);
+	// repeat until we reach the final time
+	int status;
+	for (;;) {
+		// get current time
+		gettimeofday(&now, NULL);
+		struct timespec endTime;
+		endTime.tv_sec  = now.tv_sec;
+		endTime.tv_nsec = now.tv_usec * 1000;
 
-	// check for cancel again
-	testCancelThread();
+		// done if past final timeout
+		if (timeout >= 0.0) {
+			if (endTime.tv_sec > finalTime.tv_sec ||
+				(endTime.tv_sec  == finalTime.tv_sec &&
+				 endTime.tv_nsec >= finalTime.tv_nsec)) {
+				status = ETIMEDOUT;
+				break;
+			}
+		}
+
+		// compute the next timeout
+		endTime.tv_nsec += 50000000;
+		if (endTime.tv_nsec >= 1000000000) {
+			endTime.tv_nsec -= 1000000000;
+			endTime.tv_sec  += 1;
+		}
+
+		// don't wait past final timeout
+		if (timeout >= 0.0) {
+			if (endTime.tv_sec > finalTime.tv_sec ||
+				(endTime.tv_sec  == finalTime.tv_sec &&
+				 endTime.tv_nsec >= finalTime.tv_nsec)) {
+				endTime = finalTime;
+			}
+		}
+
+		// see if we should cancel this thread
+		testCancelThread();
+
+		// wait
+		status = pthread_cond_timedwait(&cond->m_cond,
+							&mutex->m_mutex, &endTime);
+
+		// check for cancel again
+		testCancelThread();
+
+		// check wait status
+		if (status != ETIMEDOUT && status != EINTR) {
+			break;
+		}
+	}
 
 	switch (status) {
 	case 0:
@@ -273,12 +252,14 @@ CArchMultithreadPosix::waitCondVar(CArchCond cond,
 CArchMutex
 CArchMultithreadPosix::newMutex()
 {
-	pthread_mutexattr_t attr;
-	int status = pthread_mutexattr_init(&attr);
-	assert(status == 0);
 	CArchMutexImpl* mutex = new CArchMutexImpl;
-	status = pthread_mutex_init(&mutex->m_mutex, &attr);
+	int status = pthread_mutex_init(&mutex->m_mutex, NULL);
 	assert(status == 0);
+/*
+	status = pthread_mutexattr_settype(&mutex->m_mutex,
+							PTHREAD_MUTEX_RECURSIVE);
+	assert(status == 0);
+*/
 	return mutex;
 }
 
@@ -286,7 +267,6 @@ void
 CArchMultithreadPosix::closeMutex(CArchMutex mutex)
 {
 	int status = pthread_mutex_destroy(&mutex->m_mutex);
-	(void)status;
 	assert(status == 0);
 	delete mutex;
 }
@@ -361,6 +341,13 @@ CArchMultithreadPosix::newThread(ThreadFunc func, void* data)
 	thread->m_func          = func;
 	thread->m_userData      = data;
 
+	// mask some signals in all threads except the main thread
+	sigset_t sigset, oldsigset;
+	sigemptyset(&sigset);
+	sigaddset(&sigset, SIGINT);
+	sigaddset(&sigset, SIGTERM);
+	pthread_sigmask(SIG_BLOCK, &sigset, &oldsigset);
+
 	// create the thread.  pthread_create() on RedHat 7.2 smp fails
 	// if passed a NULL attr so use a default attr.
 	pthread_attr_t attr;
@@ -370,6 +357,9 @@ CArchMultithreadPosix::newThread(ThreadFunc func, void* data)
 							&CArchMultithreadPosix::threadFunc, thread);
 		pthread_attr_destroy(&attr);
 	}
+
+	// restore signals
+	pthread_sigmask(SIG_SETMASK, &oldsigset, NULL);
 
 	// check if thread was started
 	if (status != 0) {
@@ -527,6 +517,13 @@ CArchMultithreadPosix::wait(CArchThread target, double timeout)
 	}
 }
 
+IArchMultithread::EWaitResult
+CArchMultithreadPosix::waitForEvent(CArchThread, double /*timeout*/)
+{
+	// not implemented
+	return kTimeout;
+}
+
 bool
 CArchMultithreadPosix::isSameThread(CArchThread thread1, CArchThread thread2)
 {
@@ -558,37 +555,15 @@ CArchMultithreadPosix::getIDOfThread(CArchThread thread)
 }
 
 void
-CArchMultithreadPosix::setSignalHandler(
-				ESignal signal, SignalFunc func, void* userData)
-{
-	lockMutex(m_threadMutex);
-	m_signalFunc[signal]     = func;
-	m_signalUserData[signal] = userData;
-	unlockMutex(m_threadMutex);
-}
-
-void
-CArchMultithreadPosix::raiseSignal(ESignal signal) 
-{
-	lockMutex(m_threadMutex);
-	if (m_signalFunc[signal] != NULL) {
-		m_signalFunc[signal](signal, m_signalUserData[signal]);
-		pthread_kill(m_mainThread->m_thread, SIGWAKEUP);
-	}
-	else if (signal == kINTERRUPT || signal == kTERMINATE) {
-		ARCH->cancelThread(m_mainThread);
-	}
-	unlockMutex(m_threadMutex);
-}
-
-void
 CArchMultithreadPosix::startSignalHandler()
 {
 	// set signal mask.  the main thread blocks these signals and
 	// the signal handler thread will listen for them.
-	sigset_t sigset, oldsigset;
-	setSignalSet(&sigset);
-	pthread_sigmask(SIG_BLOCK, &sigset, &oldsigset);
+	sigset_t sigset;
+	sigemptyset(&sigset);
+	sigaddset(&sigset, SIGINT);
+	sigaddset(&sigset, SIGTERM);
+	pthread_sigmask(SIG_BLOCK, &sigset, NULL);
 
 	// fire up the INT and TERM signal handler thread.  we could
 	// instead arrange to catch and handle these signals but
@@ -599,13 +574,16 @@ CArchMultithreadPosix::startSignalHandler()
 	if (status == 0) {
 		status = pthread_create(&m_signalThread, &attr,
 							&CArchMultithreadPosix::threadSignalHandler,
-							NULL);
+							m_mainThread);
 		pthread_attr_destroy(&attr);
 	}
 	if (status != 0) {
 		// can't create thread to wait for signal so don't block
 		// the signals.
-		pthread_sigmask(SIG_UNBLOCK, &oldsigset, NULL);
+		sigemptyset(&sigset);
+		sigaddset(&sigset, SIGINT);
+		sigaddset(&sigset, SIGTERM);
+		pthread_sigmask(SIG_UNBLOCK, &sigset, NULL);
 	}
 }
 
@@ -753,14 +731,18 @@ CArchMultithreadPosix::threadCancel(int)
 }
 
 void*
-CArchMultithreadPosix::threadSignalHandler(void*)
+CArchMultithreadPosix::threadSignalHandler(void* vrep)
 {
+	CArchThreadImpl* mainThread = reinterpret_cast<CArchThreadImpl*>(vrep);
+
 	// detach
 	pthread_detach(pthread_self());
 
 	// add signal to mask
 	sigset_t sigset;
-	setSignalSet(&sigset);
+	sigemptyset(&sigset);
+	sigaddset(&sigset, SIGINT);
+	sigaddset(&sigset, SIGTERM);
 
 	// also wait on SIGABRT.  on linux (others?) this thread (process)
 	// will persist after all the other threads evaporate due to an
@@ -776,35 +758,14 @@ CArchMultithreadPosix::threadSignalHandler(void*)
 	for (;;) {
 		// wait
 #if HAVE_POSIX_SIGWAIT
-		int signal = 0;
+		int signal;
 		sigwait(&sigset, &signal);
 #else
 		sigwait(&sigset);
 #endif
 
-		// if we get here then the signal was raised
-		switch (signal) {
-		case SIGINT:
-			ARCH->raiseSignal(kINTERRUPT);
-			break;
-
-		case SIGTERM:
-			ARCH->raiseSignal(kTERMINATE);
-			break;
-
-		case SIGHUP:
-			ARCH->raiseSignal(kHANGUP);
-			break;
-
-		case SIGUSR2:
-			ARCH->raiseSignal(kUSER);
-			break;
-
-		default:
-			// ignore
-			break;
-		}
+		// if we get here then the signal was raised.  cancel the main
+		// thread so it can shut down cleanly.
+		ARCH->cancelThread(mainThread);
 	}
-
-	return NULL;
 }

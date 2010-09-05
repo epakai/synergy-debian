@@ -1,6 +1,5 @@
 /*
- * synergy-plus -- mouse and keyboard sharing utility
- * Copyright (C) 2009 The Synergy+ Project
+ * synergy -- mouse and keyboard sharing utility
  * Copyright (C) 2002 Chris Schoeneman
  * 
  * This package is free software; you can redistribute it and/or
@@ -11,9 +10,6 @@
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
 #if HAVE_VSNPRINTF
@@ -32,7 +28,7 @@ ARCH_STRING::vsnprintf(char* str, int size, const char* fmt, va_list ap)
 	return n;
 }
 
-#elif SYSAPI_UNIX // !HAVE_VSNPRINTF
+#elif UNIX_LIKE // !HAVE_VSNPRINTF
 
 #include <stdio.h>
 
@@ -58,8 +54,9 @@ ARCH_STRING::vsnprintf(char* str, int size, const char* fmt, va_list ap)
 	}
 }
 
-#else // !HAVE_VSNPRINTF && !SYSAPI_UNIX
+#else // !HAVE_VSNPRINTF && !UNIX_LIKE
 
+// FIXME
 #error vsnprintf not implemented
 
 #endif // !HAVE_VSNPRINTF

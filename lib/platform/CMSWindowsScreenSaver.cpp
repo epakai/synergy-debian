@@ -1,6 +1,5 @@
 /*
- * synergy-plus -- mouse and keyboard sharing utility
- * Copyright (C) 2009 The Synergy+ Project
+ * synergy -- mouse and keyboard sharing utility
  * Copyright (C) 2002 Chris Schoeneman
  * 
  * This package is free software; you can redistribute it and/or
@@ -11,18 +10,13 @@
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
 #include "CMSWindowsScreenSaver.h"
-#include "CMSWindowsScreen.h"
 #include "CThread.h"
 #include "CLog.h"
 #include "TMethodJob.h"
 #include "CArch.h"
-#include "CArchMiscWindows.h"
 #include <malloc.h>
 #include <tchar.h>
 
@@ -30,25 +24,14 @@
 #define SPI_GETSCREENSAVERRUNNING 114
 #endif
 
-static const TCHAR* g_isSecureNT = "ScreenSaverIsSecure";
-static const TCHAR* g_isSecure9x = "ScreenSaveUsePassword";
-static const TCHAR* const g_pathScreenSaverIsSecure[] = {
-	"Control Panel",
-	"Desktop",
-	NULL
-};
-
 //
 // CMSWindowsScreenSaver
 //
 
 CMSWindowsScreenSaver::CMSWindowsScreenSaver() :
-	m_wasSecure(false),
-	m_wasSecureAnInt(false),
 	m_process(NULL),
-	m_watch(NULL),
 	m_threadID(0),
-	m_active(false)
+	m_watch(NULL)
 {
 	// detect OS
 	m_is95Family = false;
@@ -81,11 +64,6 @@ CMSWindowsScreenSaver::~CMSWindowsScreenSaver()
 bool
 CMSWindowsScreenSaver::checkStarted(UINT msg, WPARAM wParam, LPARAM lParam)
 {
-	// if already started then say it didn't just start
-	if (m_active) {
-		return false;
-	}
-
 	// screen saver may have started.  look for it and get
 	// the process.  if we can't find it then assume it
 	// didn't really start.  we wait a moment before
@@ -111,7 +89,7 @@ CMSWindowsScreenSaver::checkStarted(UINT msg, WPARAM wParam, LPARAM lParam)
 		HANDLE process = OpenProcess(SYNCHRONIZE, FALSE, processID);
 		if (process == NULL) {
 			// didn't start
-			LOG((CLOG_DEBUG2 "can't open screen saver process"));
+			LOG((CLOG_DEBUG "can't open screen saver process"));
 			return false;
 		}
 
@@ -127,7 +105,7 @@ CMSWindowsScreenSaver::checkStarted(UINT msg, WPARAM wParam, LPARAM lParam)
 		// we first check that the screen saver is indeed active
 		// before watching for it to stop.
 		if (!isActive()) {
-			LOG((CLOG_DEBUG2 "can't open screen saver desktop"));
+			LOG((CLOG_DEBUG "can't open screen saver desktop"));
 			return false;
 		}
 
@@ -141,14 +119,6 @@ void
 CMSWindowsScreenSaver::enable()
 {
 	SystemParametersInfo(SPI_SETSCREENSAVEACTIVE, m_wasEnabled, 0, 0);
-
-	// restore password protection
-	if (m_wasSecure) {
-		setSecure(true, m_wasSecureAnInt);
-	}
-
-	// restore display power down
-	CArchMiscWindows::removeBusyState(CArchMiscWindows::kDISPLAY);
 }
 
 void
@@ -156,15 +126,6 @@ CMSWindowsScreenSaver::disable()
 {
 	SystemParametersInfo(SPI_GETSCREENSAVEACTIVE, 0, &m_wasEnabled, 0);
 	SystemParametersInfo(SPI_SETSCREENSAVEACTIVE, FALSE, 0, 0);
-
-	// disable password protected screensaver
-	m_wasSecure = isSecure(&m_wasSecureAnInt);
-	if (m_wasSecure) {
-		setSecure(false, m_wasSecureAnInt);
-	}
-
-	// disable display power down
-	CArchMiscWindows::addBusyState(CArchMiscWindows::kDISPLAY);
 }
 
 void
@@ -172,7 +133,6 @@ CMSWindowsScreenSaver::activate()
 {
 	// don't activate if already active
 	if (!isActive()) {
-		// activate
 		HWND hwnd = GetForegroundWindow();
 		if (hwnd != NULL) {
 			PostMessage(hwnd, WM_SYSCOMMAND, SC_SCREENSAVE, 0);
@@ -181,9 +141,6 @@ CMSWindowsScreenSaver::activate()
 			// no foreground window.  pretend we got the event instead.
 			DefWindowProc(NULL, WM_SYSCOMMAND, SC_SCREENSAVE, 0);
 		}
-
-		// restore power save when screen saver activates
-		CArchMiscWindows::removeBusyState(CArchMiscWindows::kDISPLAY);
 	}
 }
 
@@ -222,9 +179,6 @@ CMSWindowsScreenSaver::deactivate()
 								!m_wasEnabled, 0, SPIF_SENDWININICHANGE);
 	SystemParametersInfo(SPI_SETSCREENSAVEACTIVE,
 								 m_wasEnabled, 0, SPIF_SENDWININICHANGE);
-
-	// disable display power down
-	CArchMiscWindows::removeBusyState(CArchMiscWindows::kDISPLAY);
 }
 
 bool
@@ -298,11 +252,8 @@ BOOL CALLBACK
 CMSWindowsScreenSaver::killScreenSaverFunc(HWND hwnd, LPARAM arg)
 {
 	if (IsWindowVisible(hwnd)) {
-		HINSTANCE instance = (HINSTANCE)GetWindowLongPtr(hwnd, GWLP_HINSTANCE);
-		if (instance != CMSWindowsScreen::getInstance()) {
-			PostMessage(hwnd, WM_CLOSE, 0, 0);
-			*reinterpret_cast<bool*>(arg) = true;
-		}
+		PostMessage(hwnd, WM_CLOSE, 0, 0);
+		*reinterpret_cast<bool*>(arg) = true;
 	}
 	return TRUE;
 }
@@ -332,8 +283,7 @@ CMSWindowsScreenSaver::watchDesktop()
 
 	// watch desktop in another thread
 	LOG((CLOG_DEBUG "watching screen saver desktop"));
-	m_active = true;
-	m_watch  = new CThread(new TMethodJob<CMSWindowsScreenSaver>(this,
+	m_watch = new CThread(new TMethodJob<CMSWindowsScreenSaver>(this,
 								&CMSWindowsScreenSaver::watchDesktopThread));
 }
 
@@ -347,7 +297,6 @@ CMSWindowsScreenSaver::watchProcess(HANDLE process)
 	if (process != NULL) {
 		LOG((CLOG_DEBUG "watching screen saver process"));
 		m_process = process;
-		m_active  = true;
 		m_watch   = new CThread(new TMethodJob<CMSWindowsScreenSaver>(this,
 								&CMSWindowsScreenSaver::watchProcessThread));
 	}
@@ -361,8 +310,7 @@ CMSWindowsScreenSaver::unwatchProcess()
 		m_watch->cancel();
 		m_watch->wait();
 		delete m_watch;
-		m_watch  = NULL;
-		m_active = false;
+		m_watch = NULL;
 	}
 	if (m_process != NULL) {
 		CloseHandle(m_process);
@@ -380,45 +328,33 @@ CMSWindowsScreenSaver::watchDesktopThread(void*)
 		// wait a bit
 		ARCH->sleep(0.2);
 
-		if (m_isNT) {
-			// get current desktop
-			HDESK desk = OpenInputDesktop(0, FALSE, GENERIC_READ);
-			if (desk == NULL) {
-				// can't open desktop so keep waiting
-				continue;
-			}
-
-			// get current desktop name length
-			DWORD size;
-			GetUserObjectInformation(desk, UOI_NAME, NULL, 0, &size);
-
-			// allocate more space for the name, if necessary
-			if (size > reserved) {
-				reserved = size;
-				name     = (TCHAR*)alloca(reserved + sizeof(TCHAR));
-			}
-
-			// get current desktop name
-			GetUserObjectInformation(desk, UOI_NAME, name, size, &size);
-			CloseDesktop(desk);
-
-			// compare name to screen saver desktop name
-			if (_tcsicmp(name, TEXT("Screen-saver")) == 0) {
-				// still the screen saver desktop so keep waiting
-				continue;
-			}
+		// get current desktop
+		HDESK desk = OpenInputDesktop(0, FALSE, GENERIC_READ);
+		if (desk == NULL) {
+			// can't open desktop so keep waiting
+			continue;
 		}
-		else {
-			// 2000/XP have a sane way to detect a runnin screensaver.
-			BOOL running;
-			SystemParametersInfo(SPI_GETSCREENSAVERRUNNING, 0, &running, 0);
-			if (running) {
-				continue;
-			}
+
+		// get current desktop name length
+		DWORD size;
+		GetUserObjectInformation(desk, UOI_NAME, NULL, 0, &size);
+
+		// allocate more space for the name, if necessary
+		if (size > reserved) {
+			reserved = size;
+			name     = (TCHAR*)alloca(reserved + sizeof(TCHAR));
+		}
+
+		// get current desktop name
+		GetUserObjectInformation(desk, UOI_NAME, name, size, &size);
+
+		// compare name to screen saver desktop name
+		if (_tcsicmp(name, TEXT("Screen-saver")) == 0) {
+			// still the screen saver desktop so keep waiting
+			continue;
 		}
 
 		// send screen saver deactivation message
-		m_active = false;
 		PostThreadMessage(m_threadID, m_msg, m_wParam, m_lParam);
 		return;
 	}
@@ -434,69 +370,8 @@ CMSWindowsScreenSaver::watchProcessThread(void*)
 			LOG((CLOG_DEBUG "screen saver died"));
 
 			// send screen saver deactivation message
-			m_active = false;
 			PostThreadMessage(m_threadID, m_msg, m_wParam, m_lParam);
 			return;
 		}
 	}
-}
-
-void
-CMSWindowsScreenSaver::setSecure(bool secure, bool saveSecureAsInt)
-{
-	HKEY hkey =
-		CArchMiscWindows::addKey(HKEY_CURRENT_USER, g_pathScreenSaverIsSecure);
-	if (hkey == NULL) {
-		return;
-	}
-
-	const TCHAR* isSecure = m_is95Family ? g_isSecure9x : g_isSecureNT;
-	if (saveSecureAsInt) {
-		CArchMiscWindows::setValue(hkey, isSecure, secure ? 1 : 0);
-	}
-	else {
-		CArchMiscWindows::setValue(hkey, isSecure, secure ? "1" : "0");
-	}
-
-	CArchMiscWindows::closeKey(hkey);
-}
-
-bool
-CMSWindowsScreenSaver::isSecure(bool* wasSecureFlagAnInt) const
-{
-	// get the password protection setting key
-	HKEY hkey =
-		CArchMiscWindows::openKey(HKEY_CURRENT_USER, g_pathScreenSaverIsSecure);
-	if (hkey == NULL) {
-		return false;
-	}
-
-	// get the value.  the value may be an int or a string, depending
-	// on the version of windows.
-	bool result;
-	const TCHAR* isSecure = m_is95Family ? g_isSecure9x : g_isSecureNT;
-	switch (CArchMiscWindows::typeOfValue(hkey, isSecure)) {
-	default:
-		result = false;
-		break;
-
-	case CArchMiscWindows::kUINT: {
-		DWORD value =
-			CArchMiscWindows::readValueInt(hkey, isSecure);
-		*wasSecureFlagAnInt = true;
-		result = (value != 0);
-		break;
-	}
-
-	case CArchMiscWindows::kSTRING: {
-		std::string value =
-			CArchMiscWindows::readValueString(hkey, isSecure);
-		*wasSecureFlagAnInt = false;
-		result = (value != "0");
-		break;
-	}
-	}
-
-	CArchMiscWindows::closeKey(hkey);
-	return result;
 }

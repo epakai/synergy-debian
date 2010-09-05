@@ -7,10 +7,7 @@
 //
 // Generated from the TEXTINCLUDE 2 resource.
 //
-#include <winresrc.h>
-#if !defined(IDC_STATIC)
-#define IDC_STATIC (-1)
-#endif
+#include "afxres.h"
 
 /////////////////////////////////////////////////////////////////////////////
 #undef APSTUDIO_READONLY_SYMBOLS
@@ -37,7 +34,7 @@ END
 
 2 TEXTINCLUDE DISCARDABLE 
 BEGIN
-    "#include <winresrc.h>\r\n"
+    "#include ""afxres.h""\r\n"
     "\0"
 END
 
@@ -87,25 +84,7 @@ BEGIN
     POPUP "Synergy"
     BEGIN
         MENUITEM "Show Status",                 IDC_TASKBAR_STATUS
-        MENUITEM "Show Log",                    IDC_TASKBAR_SHOW_LOG
         MENUITEM "Copy Log To Clipboard",       IDC_TASKBAR_LOG
-        POPUP "Set Log Level"
-        BEGIN
-            MENUITEM "Error",                       IDC_TASKBAR_LOG_LEVEL_ERROR
-
-            MENUITEM "Warning",                     IDC_TASKBAR_LOG_LEVEL_WARNING
-
-            MENUITEM "Note",                        IDC_TASKBAR_LOG_LEVEL_NOTE
-
-            MENUITEM "Info",                        IDC_TASKBAR_LOG_LEVEL_INFO
-
-            MENUITEM "Debug",                       IDC_TASKBAR_LOG_LEVEL_DEBUG
-
-            MENUITEM "Debug1",                      IDC_TASKBAR_LOG_LEVEL_DEBUG1
-
-            MENUITEM "Debug2",                      IDC_TASKBAR_LOG_LEVEL_DEBUG2
-
-        END
         MENUITEM SEPARATOR
         MENUITEM "Quit",                        IDC_TASKBAR_QUIT
     END
@@ -120,8 +99,6 @@ END
 STRINGTABLE DISCARDABLE 
 BEGIN
     IDS_FAILED              "Synergy is about to quit with errors or warnings.  Please check the log then click OK."
-    IDS_INIT_FAILED         "Synergy failed to initialize: %{1}"
-    IDS_UNCAUGHT_EXCEPTION  "Uncaught exception: %{1}"
 END
 
 #endif    // English (U.S.) resources

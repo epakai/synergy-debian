@@ -1,6 +1,5 @@
 /*
- * synergy-plus -- mouse and keyboard sharing utility
- * Copyright (C) 2009 The Synergy+ Project
+ * synergy -- mouse and keyboard sharing utility
  * Copyright (C) 2002 Chris Schoeneman
  * 
  * This package is free software; you can redistribute it and/or
@@ -11,9 +10,6 @@
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
 #ifndef IARCHDAEMON_H
@@ -42,16 +38,13 @@ public:
 	\c commandLine should \b not include the name of program as the
 	first argument.  If \c allUsers is true then the daemon will be
 	installed to start at boot time, otherwise it will be installed to
-	start when the current user logs in.  If \p dependencies is not NULL
-	then it's a concatenation of NUL terminated other daemon names
-	followed by a NUL;  the daemon will be configured to startup after
-	the listed daemons.  Throws an \c XArchDaemon exception on failure.
+	start when the current user logs in.  Throws an \c XArchDaemon
+	exception on failure.
 	*/
 	virtual void		installDaemon(const char* name,
 							const char* description,
 							const char* pathname,
 							const char* commandLine,
-							const char* dependencies,
 							bool allUsers) = 0;
 
 	//! Uninstall daemon

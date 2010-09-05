@@ -1,6 +1,5 @@
 /*
- * synergy-plus -- mouse and keyboard sharing utility
- * Copyright (C) 2009 The Synergy+ Project
+ * synergy -- mouse and keyboard sharing utility
  * Copyright (C) 2002 Chris Schoeneman
  * 
  * This package is free software; you can redistribute it and/or
@@ -11,9 +10,6 @@
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
 #include "CArchDaemonUnix.h"
@@ -23,7 +19,9 @@
 #include <sys/stat.h>
 #include <fcntl.h>
 #include <errno.h>
-#include <cstdlib>
+
+// we derive from CArchDaemonNone
+#include "CArchDaemonNone.cpp"
 
 //
 // CArchDaemonUnix
@@ -42,8 +40,6 @@ CArchDaemonUnix::~CArchDaemonUnix()
 int
 CArchDaemonUnix::daemonize(const char* name, DaemonFunc func)
 {
-	int dummy;
-	
 	// fork so shell thinks we're done and so we're not a process
 	// group leader
 	switch (fork()) {
@@ -64,7 +60,7 @@ CArchDaemonUnix::daemonize(const char* name, DaemonFunc func)
 	setsid();
 
 	// chdir to root so we don't keep mounted filesystems points busy
-	dummy = chdir("/");
+	chdir("/");
 
 	// mask off permissions for any but owner
 	umask(077);
@@ -78,7 +74,7 @@ CArchDaemonUnix::daemonize(const char* name, DaemonFunc func)
 	// of standard I/O safely goes in the bit bucket.
 	open("/dev/null", O_RDONLY);
 	open("/dev/null", O_RDWR);
-	dummy = dup(1);
+	dup(1);
 
 	// invoke function
 	return func(1, &name);

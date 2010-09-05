@@ -1,19 +1,15 @@
 /*
- * synergy-plus -- mouse and keyboard sharing utility
- * Copyright (C) 2009 The Synergy+ Project
+ * synergy -- mouse and keyboard sharing utility
  * Copyright (C) 2002 Chris Schoeneman
  * 
- * This package is free software; you can redistribute it and/or
+ * This package is free software you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
  * found in the file COPYING that should have accompanied this file.
  * 
  * This package is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * but WITHOUT ANY WARRANTY without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
 #ifndef CARCHMULTITHREADWINDOWS_H
@@ -47,22 +43,13 @@ public:
 	CArchMultithreadWindows();
 	virtual ~CArchMultithreadWindows();
 
-	//! @name manipulators
-	//@{
-
-	void				setNetworkDataForCurrentThread(void*);
-
-	//@}
-	//! @name accessors
-	//@{
+	//
+	// accessors
+	//
 
 	HANDLE				getCancelEventForCurrentThread();
 
-	void*				getNetworkDataForThread(CArchThread);
-
 	static CArchMultithreadWindows*	getInstance();
-
-	//@}
 
 	// IArchMultithread overrides
 	virtual CArchCond	newCondVar();
@@ -82,12 +69,11 @@ public:
 	virtual void		setPriorityOfThread(CArchThread, int n);
 	virtual void		testCancelThread();
 	virtual bool		wait(CArchThread, double timeout);
+	virtual EWaitResult	waitForEvent(CArchThread, double timeout);
 	virtual bool		isSameThread(CArchThread, CArchThread);
 	virtual bool		isExitedThread(CArchThread);
 	virtual void*		getResultOfThread(CArchThread);
 	virtual ThreadID	getIDOfThread(CArchThread);
-	virtual void		setSignalHandler(ESignal, SignalFunc, void*);
-	virtual void		raiseSignal(ESignal);
 
 private:
 	CArchThreadImpl*	find(DWORD id);
@@ -110,10 +96,6 @@ private:
 	CArchMutex			m_threadMutex;
 
 	CThreadList			m_threadList;
-	CArchThread			m_mainThread;
-
-	SignalFunc			m_signalFunc[kNUM_SIGNALS];
-	void*				m_signalUserData[kNUM_SIGNALS];
 };
 
 #endif

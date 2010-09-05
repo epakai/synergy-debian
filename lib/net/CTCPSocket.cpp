@@ -1,6 +1,5 @@
 /*
- * synergy-plus -- mouse and keyboard sharing utility
- * Copyright (C) 2009 The Synergy+ Project
+ * synergy -- mouse and keyboard sharing utility
  * Copyright (C) 2002 Chris Schoeneman
  * 
  * This package is free software; you can redistribute it and/or
@@ -11,33 +10,26 @@
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
 #include "CTCPSocket.h"
+#include "CBufferedInputStream.h"
+#include "CBufferedOutputStream.h"
 #include "CNetworkAddress.h"
-#include "CSocketMultiplexer.h"
-#include "TSocketMultiplexerMethodJob.h"
+#include "XIO.h"
 #include "XSocket.h"
 #include "CLock.h"
-#include "CLog.h"
-#include "IEventQueue.h"
-#include "IEventJob.h"
+#include "CMutex.h"
+#include "CThread.h"
+#include "TMethodJob.h"
 #include "CArch.h"
 #include "XArch.h"
-#include <cstring>
-#include <cstdlib>
-#include <memory>
 
 //
 // CTCPSocket
 //
 
-CTCPSocket::CTCPSocket() :
-	m_mutex(),
-	m_flushed(&m_mutex, true)
+CTCPSocket::CTCPSocket()
 {
 	try {
 		m_socket = ARCH->newSocket(IArchNetwork::kINET, IArchNetwork::kSTREAM);
@@ -45,21 +37,22 @@ CTCPSocket::CTCPSocket() :
 	catch (XArchNetwork& e) {
 		throw XSocketCreate(e.what());
 	}
-
 	init();
 }
 
 CTCPSocket::CTCPSocket(CArchSocket socket) :
-	m_mutex(),
-	m_socket(socket),
-	m_flushed(&m_mutex, true)
+	m_socket(socket)
 {
 	assert(m_socket != NULL);
 
-	// socket starts in connected state
 	init();
-	onConnected();
-	setJob(newJob());
+
+	// socket starts in connected state
+	m_connected = kReadWrite;
+
+	// start handling socket
+	m_thread = new CThread(new TMethodJob<CTCPSocket>(
+								this, &CTCPSocket::ioThread));
 }
 
 CTCPSocket::~CTCPSocket()
@@ -70,6 +63,11 @@ CTCPSocket::~CTCPSocket()
 	catch (...) {
 		// ignore
 	}
+
+	// clean up
+	delete m_input;
+	delete m_output;
+	delete m_mutex;
 }
 
 void
@@ -89,210 +87,146 @@ CTCPSocket::bind(const CNetworkAddress& addr)
 void
 CTCPSocket::close()
 {
-	// remove ourself from the multiplexer
-	setJob(NULL);
-
-	CLock lock(&m_mutex);
-
-	// clear buffers and enter disconnected state
-	if (m_connected) {
-		sendEvent(getDisconnectedEvent());
+	// see if buffers should be flushed
+	bool doFlush = false;
+	{
+		CLock lock(m_mutex);
+		doFlush = (m_thread != NULL && (m_connected & kWrite) != 0);
 	}
-	onDisconnected();
 
-	// close the socket
+	// flush buffers
+	if (doFlush) {
+		m_output->flush();
+	}
+
+	// cause ioThread to exit
 	if (m_socket != NULL) {
-		CArchSocket socket = m_socket;
-		m_socket = NULL;
-		try {
-			ARCH->closeSocket(socket);
-		}
-		catch (XArchNetwork& e) {
-			// ignore, there's not much we can do
-			LOG((CLOG_WARN "error closing socket: %s", e.what().c_str()));
-		}
-	}
-}
-
-void*
-CTCPSocket::getEventTarget() const
-{
-	return const_cast<void*>(reinterpret_cast<const void*>(this));
-}
-
-UInt32
-CTCPSocket::read(void* buffer, UInt32 n)
-{
-	// copy data directly from our input buffer
-	CLock lock(&m_mutex);
-	UInt32 size = m_inputBuffer.getSize();
-	if (n > size) {
-		n = size;
-	}
-	if (buffer != NULL && n != 0) {
-		memcpy(buffer, m_inputBuffer.peek(n), n);
-	}
-	m_inputBuffer.pop(n);
-
-	// if no more data and we cannot read or write then send disconnected
-	if (n > 0 && m_inputBuffer.getSize() == 0 && !m_readable && !m_writable) {
-		sendEvent(getDisconnectedEvent());
-		m_connected = false;
-	}
-
-	return n;
-}
-
-void
-CTCPSocket::write(const void* buffer, UInt32 n)
-{
-	bool wasEmpty;
-	{
-		CLock lock(&m_mutex);
-
-		// must not have shutdown output
-		if (!m_writable) {
-			sendEvent(getOutputErrorEvent());
-			return;
-		}
-
-		// ignore empty writes
-		if (n == 0) {
-			return;
-		}
-
-		// copy data to the output buffer
-		wasEmpty = (m_outputBuffer.getSize() == 0);
-		m_outputBuffer.write(buffer, n);
-
-		// there's data to write
-		m_flushed = false;
-	}
-
-	// make sure we're waiting to write
-	if (wasEmpty) {
-		setJob(newJob());
-	}
-}
-
-void
-CTCPSocket::flush()
-{
-	CLock lock(&m_mutex);
-	while (m_flushed == false) {
-		m_flushed.wait();
-	}
-}
-
-void
-CTCPSocket::shutdownInput()
-{
-	bool useNewJob = false;
-	{
-		CLock lock(&m_mutex);
-
-		// shutdown socket for reading
+		CLock lock(m_mutex);
 		try {
 			ARCH->closeSocketForRead(m_socket);
 		}
 		catch (XArchNetwork&) {
 			// ignore
 		}
-
-		// shutdown buffer for reading
-		if (m_readable) {
-			sendEvent(getInputShutdownEvent());
-			onInputShutdown();
-			useNewJob = true;
-		}
-	}
-	if (useNewJob) {
-		setJob(newJob());
-	}
-}
-
-void
-CTCPSocket::shutdownOutput()
-{
-	bool useNewJob = false;
-	{
-		CLock lock(&m_mutex);
-
-		// shutdown socket for writing
 		try {
 			ARCH->closeSocketForWrite(m_socket);
 		}
 		catch (XArchNetwork&) {
 			// ignore
 		}
+		m_connected = kClosed;
+	}
 
-		// shutdown buffer for writing
-		if (m_writable) {
-			sendEvent(getOutputShutdownEvent());
-			onOutputShutdown();
-			useNewJob = true;
+	// wait for thread
+	if (m_thread != NULL) {
+		m_thread->wait();
+		delete m_thread;
+		m_thread = NULL;
+	}
+
+	// close socket
+	if (m_socket != NULL) {
+		try {
+			ARCH->closeSocket(m_socket);
+			m_socket = NULL;
+		}
+		catch (XArchNetwork& e) {
+			throw XSocketIOClose(e.what());
 		}
 	}
-	if (useNewJob) {
-		setJob(newJob());
-	}
-}
-
-bool
-CTCPSocket::isReady() const
-{
-	CLock lock(&m_mutex);
-	return (m_inputBuffer.getSize() > 0);
-}
-
-UInt32
-CTCPSocket::getSize() const
-{
-	CLock lock(&m_mutex);
-	return m_inputBuffer.getSize();
 }
 
 void
 CTCPSocket::connect(const CNetworkAddress& addr)
 {
-	{
-		CLock lock(&m_mutex);
-
-		// fail on attempts to reconnect
-		if (m_socket == NULL || m_connected) {
-			sendConnectionFailedEvent("busy");
-			return;
-		}
-
+	do {
+		// connect asynchronously so we can check for cancellation.
+		// we can't wrap setting and resetting the blocking flag in
+		// the c'tor/d'tor of a class (to make resetting automatic)
+		// because setBlockingOnSocket() can throw and it might be
+		// called while unwinding the stack due to a throw.
 		try {
-			if (ARCH->connectSocket(m_socket, addr.getAddress())) {
-				sendEvent(getConnectedEvent());
-				onConnected();
-			}
-			else {
-				// connection is in progress
-				m_writable = true;
-			}
+			ARCH->setBlockingOnSocket(m_socket, false);
+			ARCH->connectSocket(m_socket, addr.getAddress());
+			ARCH->setBlockingOnSocket(m_socket, true);
+
+			// connected
+			break;
+		}
+		catch (XArchNetworkConnecting&) {
+			// connection is in progress
+			ARCH->setBlockingOnSocket(m_socket, true);
 		}
 		catch (XArchNetwork& e) {
+			ARCH->setBlockingOnSocket(m_socket, true);
 			throw XSocketConnect(e.what());
 		}
-	}
-	setJob(newJob());
+
+		// wait for connection or failure
+		IArchNetwork::CPollEntry pfds[1];
+		pfds[0].m_socket = m_socket;
+		pfds[0].m_events = IArchNetwork::kPOLLOUT;
+		for (;;) {
+			ARCH->testCancelThread();
+			try {
+				const int status = ARCH->pollSocket(pfds, 1, 0.01);
+				if (status > 0) {
+					if ((pfds[0].m_revents & (IArchNetwork::kPOLLERR |
+											  IArchNetwork::kPOLLNVAL)) != 0) {
+						// connection failed
+						ARCH->throwErrorOnSocket(m_socket);
+					}
+					if ((pfds[0].m_revents & IArchNetwork::kPOLLOUT) != 0) {
+						// connection may have failed or succeeded
+						ARCH->throwErrorOnSocket(m_socket);
+
+						// connected!
+						break;
+					}
+				}
+			}
+			catch (XArchNetwork& e) {
+				throw XSocketConnect(e.what());
+			}
+		}
+	} while (false);
+
+	// start servicing the socket
+	m_connected = kReadWrite;
+	m_thread    = new CThread(new TMethodJob<CTCPSocket>(
+								this, &CTCPSocket::ioThread));
+}
+
+IInputStream*
+CTCPSocket::getInputStream()
+{
+	return m_input;
+}
+
+IOutputStream*
+CTCPSocket::getOutputStream()
+{
+	return m_output;
 }
 
 void
 CTCPSocket::init()
 {
-	// default state
-	m_connected = false;
-	m_readable  = false;
-	m_writable  = false;
+	m_mutex     = new CMutex;
+	m_thread    = NULL;
+	m_connected = kClosed;
+	m_input     = new CBufferedInputStream(m_mutex,
+								new TMethodJob<CTCPSocket>(
+									this, &CTCPSocket::closeInput));
+	m_output    = new CBufferedOutputStream(m_mutex,
+								new TMethodJob<CTCPSocket>(
+									this, &CTCPSocket::closeOutput));
 
+	// turn off Nagle algorithm.  we send lots of very short messages
+	// that should be sent without (much) delay.  for example, the
+	// mouse motion messages are much less useful if they're delayed.
+// FIXME -- the client should do this
 	try {
-		// turn off Nagle algorithm.  we send lots of very short messages
-		// that should be sent without (much) delay.  for example, the
-		// mouse motion messages are much less useful if they're delayed.
 		ARCH->setNoDelayOnSocket(m_socket, true);
 	}
 	catch (XArchNetwork& e) {
@@ -308,239 +242,138 @@ CTCPSocket::init()
 }
 
 void
-CTCPSocket::setJob(ISocketMultiplexerJob* job)
+CTCPSocket::ioThread(void*)
 {
-	// multiplexer will delete the old job
-	if (job == NULL) {
-		CSocketMultiplexer::getInstance()->removeSocket(this);
+	try {
+		ioService();
+		ioCleanup();
 	}
-	else {
-		CSocketMultiplexer::getInstance()->addSocket(this, job);
+	catch (...) {
+		ioCleanup();
+		throw;
 	}
 }
 
-ISocketMultiplexerJob*
-CTCPSocket::newJob()
+void
+CTCPSocket::ioCleanup()
 {
-	// note -- must have m_mutex locked on entry
-
-	if (m_socket == NULL) {
-		return NULL;
+	try {
+		m_input->close();
 	}
-	else if (!m_connected) {
-		assert(!m_readable);
-		if (!(m_readable || m_writable)) {
-			return NULL;
+	catch (...) {
+		// ignore
+	}
+	try {
+		m_output->close();
+	}
+	catch (...) {
+		// ignore
+	}
+}
+
+void
+CTCPSocket::ioService()
+{
+	assert(m_socket != NULL);
+
+	// now service the connection
+	IArchNetwork::CPollEntry pfds[1];
+	pfds[0].m_socket = m_socket;
+	for (;;) {
+		{
+			// choose events to poll for
+			CLock lock(m_mutex);
+			pfds[0].m_events = 0;
+			if (m_connected == 0) {
+				return;
+			}
+			if ((m_connected & kRead) != 0) {
+				// still open for reading
+				pfds[0].m_events |= IArchNetwork::kPOLLIN;
+			}
+			if ((m_connected & kWrite) != 0 && m_output->getSize() > 0) {
+				// data queued for writing
+				pfds[0].m_events |= IArchNetwork::kPOLLOUT;
+			}
 		}
-		return new TSocketMultiplexerMethodJob<CTCPSocket>(
-								this, &CTCPSocket::serviceConnecting,
-								m_socket, m_readable, m_writable);
-	}
-	else {
-		if (!(m_readable || (m_writable && (m_outputBuffer.getSize() > 0)))) {
-			return NULL;
-		}
-		return new TSocketMultiplexerMethodJob<CTCPSocket>(
-								this, &CTCPSocket::serviceConnected,
-								m_socket, m_readable,
-								m_writable && (m_outputBuffer.getSize() > 0));
-	}
-}
 
-void
-CTCPSocket::sendConnectionFailedEvent(const char* msg)
-{
-	CConnectionFailedInfo* info = new CConnectionFailedInfo(msg);
-	EVENTQUEUE->addEvent(CEvent(getConnectionFailedEvent(),
-							getEventTarget(), info, CEvent::kDontFreeData));
-}
-
-void
-CTCPSocket::sendEvent(CEvent::Type type)
-{
-	EVENTQUEUE->addEvent(CEvent(type, getEventTarget(), NULL));
-}
-
-void
-CTCPSocket::onConnected()
-{
-	m_connected = true;
-	m_readable  = true;
-	m_writable  = true;
-}
-
-void
-CTCPSocket::onInputShutdown()
-{
-	m_inputBuffer.pop(m_inputBuffer.getSize());
-	m_readable = false;
-}
-
-void
-CTCPSocket::onOutputShutdown()
-{
-	m_outputBuffer.pop(m_outputBuffer.getSize());
-	m_writable = false;
-
-	// we're now flushed
-	m_flushed = true;
-	m_flushed.broadcast();
-}
-
-void
-CTCPSocket::onDisconnected()
-{
-	// disconnected
-	onInputShutdown();
-	onOutputShutdown();
-	m_connected = false;
-}
-
-ISocketMultiplexerJob*
-CTCPSocket::serviceConnecting(ISocketMultiplexerJob* job,
-				bool, bool write, bool error)
-{
-	CLock lock(&m_mutex);
-
-	// should only check for errors if error is true but checking a new
-	// socket (and a socket that's connecting should be new) for errors
-	// should be safe and Mac OS X appears to have a bug where a
-	// non-blocking stream socket that fails to connect immediately is
-	// reported by select as being writable (i.e. connected) even when
-	// the connection has failed.  this is easily demonstrated on OS X
-	// 10.3.4 by starting a synergy client and telling to connect to
-	// another system that's not running a synergy server.  it will
-	// claim to have connected then quickly disconnect (i guess because
-	// read returns 0 bytes).  unfortunately, synergy attempts to
-	// reconnect immediately, the process repeats and we end up
-	// spinning the CPU.  luckily, OS X does set SO_ERROR on the
-	// socket correctly when the connection has failed so checking for
-	// errors works.  (curiously, sometimes OS X doesn't report
-	// connection refused.  when that happens it at least doesn't
-	// report the socket as being writable so synergy is able to time
-	// out the attempt.)
-	if (error || true) {
 		try {
-			// connection may have failed or succeeded
-			ARCH->throwErrorOnSocket(m_socket);
-		}
-		catch (XArchNetwork& e) {
-			sendConnectionFailedEvent(e.what().c_str());
-			onDisconnected();
-			return newJob();
-		}
-	}
+			// check for status
+			const int status = ARCH->pollSocket(pfds, 1, 0.01);
 
-	if (write) {
-		sendEvent(getConnectedEvent());
-		onConnected();
-		return newJob();
-	}
+			// transfer data and handle errors
+			if (status == 1) {
+				if ((pfds[0].m_revents & (IArchNetwork::kPOLLERR |
+										  IArchNetwork::kPOLLNVAL)) != 0) {
+					// stream is no good anymore so bail
+					CLock lock(m_mutex);
+					m_input->hangup();
+					return;
+				}
 
-	return job;
-}
+				// read some data
+				if (pfds[0].m_revents & IArchNetwork::kPOLLIN) {
+					UInt8 buffer[4096];
+					size_t n = ARCH->readSocket(m_socket,
+												buffer, sizeof(buffer));
+					CLock lock(m_mutex);
+					if (n > 0) {
+						m_input->write(buffer, n);
+					}
+					else {
+						// stream hungup
+						m_input->hangup();
+						m_connected &= ~kRead;
+					}
+				}
 
-ISocketMultiplexerJob*
-CTCPSocket::serviceConnected(ISocketMultiplexerJob* job,
-				bool read, bool write, bool error)
-{
-	CLock lock(&m_mutex);
+				// write some data
+				if (pfds[0].m_revents & IArchNetwork::kPOLLOUT) {
+					CLock lock(m_mutex);
 
-	if (error) {
-		sendEvent(getDisconnectedEvent());
-		onDisconnected();
-		return newJob();
-	}
+					// get amount of data to write
+					UInt32 n = m_output->getSize();
 
-	bool needNewJob = false;
+					// write data
+					const void* buffer = m_output->peek(n);
+					size_t n2 = ARCH->writeSocket(m_socket, buffer, n);
 
-	if (write) {
-		try {
-			// write data
-			UInt32 n = m_outputBuffer.getSize();
-			const void* buffer = m_outputBuffer.peek(n);
-			n = (UInt32)ARCH->writeSocket(m_socket, buffer, n);
-
-			// discard written data
-			if (n > 0) {
-				m_outputBuffer.pop(n);
-				if (m_outputBuffer.getSize() == 0) {
-					sendEvent(getOutputFlushedEvent());
-					m_flushed = true;
-					m_flushed.broadcast();
-					needNewJob = true;
+					// discard written data
+					if (n2 > 0) {
+						m_output->pop(n2);
+					}
 				}
 			}
 		}
-		catch (XArchNetworkShutdown&) {
-			// remote read end of stream hungup.  our output side
-			// has therefore shutdown.
-			onOutputShutdown();
-			sendEvent(getOutputShutdownEvent());
-			if (!m_readable && m_inputBuffer.getSize() == 0) {
-				sendEvent(getDisconnectedEvent());
-				m_connected = false;
-			}
-			needNewJob = true;
-		}
-		catch (XArchNetworkDisconnected&) {
-			// stream hungup
-			onDisconnected();
-			sendEvent(getDisconnectedEvent());
-			needNewJob = true;
-		}
-		catch (XArchNetwork& e) {
-			// other write error
-			LOG((CLOG_WARN "error writing socket: %s", e.what().c_str()));
-			onDisconnected();
-			sendEvent(getOutputErrorEvent());
-			sendEvent(getDisconnectedEvent());
-			needNewJob = true;
+		catch (XArchNetwork&) {
+			// socket has failed
+			return;
 		}
 	}
+}
 
-	if (read && m_readable) {
-		try {
-			UInt8 buffer[4096];
-			size_t n = ARCH->readSocket(m_socket, buffer, sizeof(buffer));
-			if (n > 0) {
-				bool wasEmpty = (m_inputBuffer.getSize() == 0);
-
-				// slurp up as much as possible
-				do {
-					m_inputBuffer.write(buffer, (UInt32)n);
-					n = ARCH->readSocket(m_socket, buffer, sizeof(buffer));
-				} while (n > 0);
-
-				// send input ready if input buffer was empty
-				if (wasEmpty) {
-					sendEvent(getInputReadyEvent());
-				}
-			}
-			else {
-				// remote write end of stream hungup.  our input side
-				// has therefore shutdown but don't flush our buffer
-				// since there's still data to be read.
-				sendEvent(getInputShutdownEvent());
-				if (!m_writable && m_inputBuffer.getSize() == 0) {
-					sendEvent(getDisconnectedEvent());
-					m_connected = false;
-				}
-				m_readable = false;
-				needNewJob = true;
-			}
-		}
-		catch (XArchNetworkDisconnected&) {
-			// stream hungup
-			sendEvent(getDisconnectedEvent());
-			onDisconnected();
-			needNewJob = true;
-		}
-		catch (XArchNetwork& e) {
-			// ignore other read error
-			LOG((CLOG_WARN "error reading socket: %s", e.what().c_str()));
-		}
+void
+CTCPSocket::closeInput(void*)
+{
+	// note -- m_mutex should already be locked
+	try {
+		ARCH->closeSocketForRead(m_socket);
+		m_connected &= ~kRead;
 	}
+	catch (XArchNetwork&) {
+		// ignore
+	}
+}
 
-	return needNewJob ? newJob() : job;
+void
+CTCPSocket::closeOutput(void*)
+{
+	// note -- m_mutex should already be locked
+	try {
+		ARCH->closeSocketForWrite(m_socket);
+		m_connected &= ~kWrite;
+	}
+	catch (XArchNetwork&) {
+		// ignore
+	}
 }

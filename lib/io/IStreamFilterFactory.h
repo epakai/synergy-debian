@@ -1,6 +1,5 @@
 /*
- * synergy-plus -- mouse and keyboard sharing utility
- * Copyright (C) 2009 The Synergy+ Project
+ * synergy -- mouse and keyboard sharing utility
  * Copyright (C) 2002 Chris Schoeneman
  * 
  * This package is free software; you can redistribute it and/or
@@ -11,9 +10,6 @@
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
 #ifndef ISTREAMFILTERFACTORY_H
@@ -21,7 +17,10 @@
 
 #include "IInterface.h"
 
-class IStream;
+class CInputStreamFilter;
+class COutputStreamFilter;
+class IInputStream;
+class IOutputStream;
 
 //! Stream filter factory interface
 /*!
@@ -29,12 +28,21 @@ This interface provides factory methods to create stream filters.
 */
 class IStreamFilterFactory : public IInterface {
 public:
-	//! Create filter
+	//! Create input filter
 	/*!
-	Create and return a stream filter on \p stream.  The caller must
-	delete the returned object.
+	Create and return an input stream filter.  The caller must delete the
+	returned object.
 	*/
-	virtual IStream*	create(IStream* stream, bool adoptStream) = 0;
+	virtual CInputStreamFilter*
+						createInput(IInputStream*, bool adoptStream) = 0;
+
+	//! Create output filter
+	/*!
+	Create and return an output stream filter.  The caller must delete the
+	returned object.
+	*/
+	virtual COutputStreamFilter*
+						createOutput(IOutputStream*, bool adoptStream) = 0;
 };
 
 #endif

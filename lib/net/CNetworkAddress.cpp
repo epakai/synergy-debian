@@ -1,6 +1,5 @@
 /*
- * synergy-plus -- mouse and keyboard sharing utility
- * Copyright (C) 2009 The Synergy+ Project
+ * synergy -- mouse and keyboard sharing utility
  * Copyright (C) 2002 Chris Schoeneman
  * 
  * This package is free software; you can redistribute it and/or
@@ -11,9 +10,6 @@
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
 #include "CNetworkAddress.h"
@@ -26,56 +22,54 @@
 // CNetworkAddress
 //
 
-// name re-resolution adapted from a patch by Brent Priddy.
-
 CNetworkAddress::CNetworkAddress() :
-	m_address(NULL),
-	m_hostname(),
-	m_port(0)
+	m_address(NULL)
 {
 	// note -- make no calls to CNetwork socket interface here;
 	// we're often called prior to CNetwork::init().
 }
 
-CNetworkAddress::CNetworkAddress(int port) :
-	m_address(NULL),
-	m_hostname(),
-	m_port(port)
+CNetworkAddress::CNetworkAddress(int port)
 {
-	checkPort();
+	if (port == 0) {
+		throw XSocketAddress(XSocketAddress::kBadPort, "", port);
+	}
+
 	m_address = ARCH->newAnyAddr(IArchNetwork::kINET);
-	ARCH->setAddrPort(m_address, m_port);
+	ARCH->setAddrPort(m_address, port);
 }
 
 CNetworkAddress::CNetworkAddress(const CNetworkAddress& addr) :
-	m_address(addr.m_address != NULL ? ARCH->copyAddr(addr.m_address) : NULL),
-	m_hostname(addr.m_hostname),
-	m_port(addr.m_port)
+	m_address(ARCH->copyAddr(addr.m_address)),
+	m_hostname(addr.m_hostname)
 {
 	// do nothing
 }
 
-CNetworkAddress::CNetworkAddress(const CString& hostname, int port) :
-	m_address(NULL),
-	m_hostname(hostname),
-	m_port(port)
+CNetworkAddress::CNetworkAddress(const CString& hostname_, int port) :
+	m_hostname(hostname_)
 {
+	if (port == 0) {
+		throw XSocketAddress(XSocketAddress::kBadPort, m_hostname, port);
+	}
+
 	// check for port suffix
-	CString::size_type i = m_hostname.rfind(':');
-	if (i != CString::npos && i + 1 < m_hostname.size()) {
+	CString hostname(m_hostname);
+	CString::size_type i = hostname.rfind(':');
+	if (i != CString::npos && i + 1 < hostname.size()) {
 		// found a colon.  see if it looks like an IPv6 address.
 		bool colonNotation = false;
 		bool dotNotation   = false;
 		bool doubleColon   = false;
 		for (CString::size_type j = 0; j < i; ++j) {
-			if (m_hostname[j] == ':') {
+			if (hostname[j] == ':') {
 				colonNotation = true;
 				dotNotation   = false;
-				if (m_hostname[j + 1] == ':') {
+				if (hostname[j + 1] == ':') {
 					doubleColon = true;
 				}
 			}
-			else if (m_hostname[j] == '.' && colonNotation) {
+			else if (hostname[j] == '.' && colonNotation) {
 				dotNotation = true;
 			}
 		}
@@ -86,25 +80,43 @@ CNetworkAddress::CNetworkAddress(const CString& hostname, int port) :
 		// the user can replace the double colon with zeros to
 		// disambiguate.
 		if ((!doubleColon || dotNotation) || !colonNotation) {
-			// parse port from hostname
 			char* end;
-			const char* chostname = m_hostname.c_str();
-			long suffixPort = strtol(chostname + i + 1, &end, 10);
-			if (end == chostname + i + 1 || *end != '\0') {
+			long suffixPort = strtol(hostname.c_str() + i + 1, &end, 10);
+			if (end == hostname.c_str() + i + 1 || *end != '\0' ||
+				suffixPort <= 0 || suffixPort > 65535) {
+				// bogus port
 				throw XSocketAddress(XSocketAddress::kBadPort,
-											m_hostname, m_port);
+											m_hostname, port);
 			}
-
-			// trim port from hostname
-			m_hostname.erase(i);
-
-			// save port
-			m_port = static_cast<int>(suffixPort);
+			else {
+				// good port
+				port = static_cast<int>(suffixPort);
+				hostname.erase(i);
+			}
 		}
 	}
 
-	// check port number
-	checkPort();
+	// if hostname is empty then use wildcard address
+	if (hostname.empty()) {
+		m_address = ARCH->newAnyAddr(IArchNetwork::kINET);
+		ARCH->setAddrPort(m_address, port);
+	}
+	else {
+		// look up name
+		try {
+			m_address = ARCH->nameToAddr(hostname);
+			ARCH->setAddrPort(m_address, port);
+		}
+		catch (XArchNetworkNameUnknown&) {
+			throw XSocketAddress(XSocketAddress::kNotFound, hostname, port);
+		}
+		catch (XArchNetworkNameNoAddress&) {
+			throw XSocketAddress(XSocketAddress::kNoAddress, hostname, port);
+		}
+		catch (XArchNetworkName&) {
+			throw XSocketAddress(XSocketAddress::kUnknown, hostname, port);
+		}
+	}
 }
 
 CNetworkAddress::~CNetworkAddress()
@@ -124,58 +136,9 @@ CNetworkAddress::operator=(const CNetworkAddress& addr)
 	if (m_address != NULL) {
 		ARCH->closeAddr(m_address);
 	}
-	m_address  = newAddr;
 	m_hostname = addr.m_hostname;
-	m_port     = addr.m_port;
+	m_address  = newAddr;
 	return *this;
-}
-
-void
-CNetworkAddress::resolve()
-{
-	// discard previous address
-	if (m_address != NULL) {
-		ARCH->closeAddr(m_address);
-		m_address = NULL;
-	}
-
-	try {
-		// if hostname is empty then use wildcard address otherwise look
-		// up the name.
-		if (m_hostname.empty()) {
-			m_address = ARCH->newAnyAddr(IArchNetwork::kINET);
-		}
-		else {
-			m_address = ARCH->nameToAddr(m_hostname);
-		}
-	}
-	catch (XArchNetworkNameUnknown&) {
-		throw XSocketAddress(XSocketAddress::kNotFound, m_hostname, m_port);
-	}
-	catch (XArchNetworkNameNoAddress&) {
-		throw XSocketAddress(XSocketAddress::kNoAddress, m_hostname, m_port);
-	}
-	catch (XArchNetworkNameUnsupported&) {
-		throw XSocketAddress(XSocketAddress::kUnsupported, m_hostname, m_port);
-	}
-	catch (XArchNetworkName&) {
-		throw XSocketAddress(XSocketAddress::kUnknown, m_hostname, m_port);
-	}
-
-	// set port in address
-	ARCH->setAddrPort(m_address, m_port);
-}
-
-bool
-CNetworkAddress::operator==(const CNetworkAddress& addr) const
-{
-	return ARCH->isEqualAddr(m_address, addr.m_address);
-}
-
-bool
-CNetworkAddress::operator!=(const CNetworkAddress& addr) const
-{
-	return !operator==(addr);
 }
 
 bool
@@ -193,20 +156,11 @@ CNetworkAddress::getAddress() const
 int
 CNetworkAddress::getPort() const
 {
-	return m_port;
+	return (m_address == NULL) ? 0 : ARCH->getAddrPort(m_address);
 }
 
 CString
 CNetworkAddress::getHostname() const
 {
 	return m_hostname;
-}
-
-void
-CNetworkAddress::checkPort()
-{
-	// check port number
-	if (m_port <= 0 || m_port > 65535) {
-		throw XSocketAddress(XSocketAddress::kBadPort, m_hostname, m_port);
-	}
 }

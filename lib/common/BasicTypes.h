@@ -1,6 +1,5 @@
 /*
- * synergy-plus -- mouse and keyboard sharing utility
- * Copyright (C) 2009 The Synergy+ Project
+ * synergy -- mouse and keyboard sharing utility
  * Copyright (C) 2002 Chris Schoeneman
  * 
  * This package is free software; you can redistribute it and/or
@@ -11,9 +10,6 @@
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
 #ifndef BASICTYPES_H
@@ -40,15 +36,14 @@
 #endif
 
 #if !defined(TYPE_OF_SIZE_4)
-	// Carbon defines SInt32 and UInt32 in terms of long
-#	if SIZEOF_INT == 4 && !defined(__APPLE__)
+#	if SIZEOF_INT == 4
 #		define TYPE_OF_SIZE_4 int
 #	else
 #		define TYPE_OF_SIZE_4 long
 #	endif
 #endif
 
-	//
+//
 // verify existence of required types
 //
 
@@ -71,15 +66,14 @@
 // larger than indicated.
 //
 
-// Added this because it doesn't compile on OS X 10.6 because they are already defined in Carbon
-#if !defined(__MACTYPES__)
 typedef signed TYPE_OF_SIZE_1	SInt8;
 typedef signed TYPE_OF_SIZE_2	SInt16;
 typedef signed TYPE_OF_SIZE_4	SInt32;
+
 typedef unsigned TYPE_OF_SIZE_1	UInt8;
 typedef unsigned TYPE_OF_SIZE_2	UInt16;
 typedef unsigned TYPE_OF_SIZE_4	UInt32;
-#endif
+
 //
 // clean up
 //
@@ -89,3 +83,5 @@ typedef unsigned TYPE_OF_SIZE_4	UInt32;
 #undef TYPE_OF_SIZE_4
 
 #endif
+
+

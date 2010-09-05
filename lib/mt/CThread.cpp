@@ -1,6 +1,5 @@
 /*
- * synergy-plus -- mouse and keyboard sharing utility
- * Copyright (C) 2009 The Synergy+ Project
+ * synergy -- mouse and keyboard sharing utility
  * Copyright (C) 2002 Chris Schoeneman
  * 
  * This package is free software; you can redistribute it and/or
@@ -11,9 +10,6 @@
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
 #include "CThread.h"
@@ -83,12 +79,6 @@ CThread::setPriority(int n)
 	ARCH->setPriorityOfThread(m_thread, n);
 }
 
-void
-CThread::unblockPollSocket()
-{
-	ARCH->unblockPollSocket(m_thread);
-}
-
 CThread
 CThread::getCurrentThread()
 {
@@ -105,6 +95,18 @@ bool
 CThread::wait(double timeout) const
 {
 	return ARCH->wait(m_thread, timeout);
+}
+
+CThread::EWaitResult
+CThread::waitForEvent(double timeout) const
+{
+	// IArchMultithread EWaitResults map directly to our EWaitResults
+	static const EWaitResult s_map[] = {
+		kEvent,
+		kExit,
+		kTimeout
+	};
+	return s_map[ARCH->waitForEvent(m_thread, timeout)];
 }
 
 void*
@@ -168,13 +170,8 @@ CThread::threadFunc(void* vjob)
 		result = e.m_result;
 		LOG((CLOG_DEBUG1 "caught exit on thread 0x%08x, result %p", id, result));
 	}
-	catch (XBase& e) {
-		LOG((CLOG_ERR "exception on thread 0x%08x: %s", id, e.what()));
-		delete job;
-		throw;
-	}
 	catch (...) {
-		LOG((CLOG_ERR "exception on thread 0x%08x: <unknown>", id));
+		LOG((CLOG_DEBUG1 "exception on thread 0x%08x", id));
 		delete job;
 		throw;
 	}

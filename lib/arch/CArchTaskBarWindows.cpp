@@ -1,6 +1,5 @@
 /*
- * synergy-plus -- mouse and keyboard sharing utility
- * Copyright (C) 2009 The Synergy+ Project
+ * synergy -- mouse and keyboard sharing utility
  * Copyright (C) 2003 Chris Schoeneman
  * 
  * This package is free software; you can redistribute it and/or
@@ -11,19 +10,14 @@
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
 #include "CArchTaskBarWindows.h"
-#include "CArchMiscWindows.h"
 #include "IArchTaskBarReceiver.h"
 #include "CArch.h"
 #include "XArch.h"
 #include <string.h>
 #include <shellapi.h>
-#include "CArchAppUtilWindows.h"
 
 static const UINT		kAddReceiver     = WM_USER + 10;
 static const UINT		kRemoveReceiver  = WM_USER + 11;
@@ -36,12 +30,16 @@ static const UINT		kFirstReceiverID = WM_USER + 14;
 //
 
 CArchTaskBarWindows*	CArchTaskBarWindows::s_instance    = NULL;
+HINSTANCE				CArchTaskBarWindows::s_appInstance = NULL;
 
-CArchTaskBarWindows::CArchTaskBarWindows() :
+CArchTaskBarWindows::CArchTaskBarWindows(void* appInstance) :
 	m_nextID(kFirstReceiverID)
 {
 	// save the singleton instance
 	s_instance    = this;
+
+	// save app instance
+	s_appInstance = reinterpret_cast<HINSTANCE>(appInstance);
 
 	// we need a mutex
 	m_mutex       = ARCH->newMutex();
@@ -74,7 +72,7 @@ CArchTaskBarWindows::CArchTaskBarWindows() :
 CArchTaskBarWindows::~CArchTaskBarWindows()
 {
 	if (m_thread != NULL) {
-		PostMessage(m_hwnd, WM_QUIT, 0, 0);
+		ARCH->cancelThread(m_thread);
 		ARCH->wait(m_thread, -1.0);
 		ARCH->closeThread(m_thread);
 	}
@@ -86,13 +84,23 @@ CArchTaskBarWindows::~CArchTaskBarWindows()
 void
 CArchTaskBarWindows::addDialog(HWND hwnd)
 {
-	CArchMiscWindows::addDialog(hwnd);
+	// add dialog to added dialogs list
+	ARCH->lockMutex(s_instance->m_mutex);
+	s_instance->m_addedDialogs.insert(std::make_pair(hwnd, true));
+	ARCH->unlockMutex(s_instance->m_mutex);
 }
 
 void
 CArchTaskBarWindows::removeDialog(HWND hwnd)
 {
-	CArchMiscWindows::removeDialog(hwnd);
+	// mark dialog as removed
+	ARCH->lockMutex(s_instance->m_mutex);
+	CDialogs::iterator index = s_instance->m_dialogs.find(hwnd);
+	if (index != s_instance->m_dialogs.end()) {
+		index->second = false;
+	}
+	s_instance->m_addedDialogs.erase(hwnd);
+	ARCH->unlockMutex(s_instance->m_mutex);
 }
 
 void
@@ -361,7 +369,7 @@ CArchTaskBarWindows::wndProc(HWND hwnd,
 	switch (msg) {
 	case kNotifyReceiver: {
 		// lookup receiver
-		CIDToReceiverMap::const_iterator index = m_idTable.find((UINT)wParam);
+		CIDToReceiverMap::const_iterator index = m_idTable.find(wParam);
 		if (index != m_idTable.end()) {
 			IArchTaskBarReceiver* receiver = index->second->first;
 			handleIconMessage(receiver, lParam);
@@ -371,15 +379,15 @@ CArchTaskBarWindows::wndProc(HWND hwnd,
 	}
 
 	case kAddReceiver:
-		addIcon((UINT)wParam);
+		addIcon(wParam);
 		break;
 
 	case kRemoveReceiver:
-		removeIcon((UINT)wParam);
+		removeIcon(wParam);
 		break;
 
 	case kUpdateReceiver:
-		updateIcon((UINT)wParam);
+		updateIcon(wParam);
 		break;
 
 	default:
@@ -438,7 +446,7 @@ CArchTaskBarWindows::threadMainLoop()
 	classInfo.lpfnWndProc   = &CArchTaskBarWindows::staticWndProc;
 	classInfo.cbClsExtra    = 0;
 	classInfo.cbWndExtra    = sizeof(CArchTaskBarWindows*);
-	classInfo.hInstance     = instanceWin32();
+	classInfo.hInstance     = s_appInstance;
 	classInfo.hIcon         = NULL;
 	classInfo.hCursor       = NULL;
 	classInfo.hbrBackground = NULL;
@@ -455,7 +463,7 @@ CArchTaskBarWindows::threadMainLoop()
 							0, 0, 1, 1,
 							NULL,
 							NULL,
-							instanceWin32(),
+							s_appInstance,
 							reinterpret_cast<void*>(this));
 
 	// signal ready
@@ -466,23 +474,40 @@ CArchTaskBarWindows::threadMainLoop()
 
 	// handle failure
 	if (m_hwnd == NULL) {
-		UnregisterClass(reinterpret_cast<LPCTSTR>(windowClass), instanceWin32());
+		UnregisterClass((LPCTSTR)windowClass, s_appInstance);
 		return;
 	}
 
-	// main loop
-	MSG msg;
-	while (GetMessage(&msg, NULL, 0, 0)) {
-		if (!processDialogs(&msg)) {
-			TranslateMessage(&msg);
-			DispatchMessage(&msg);
+	try {
+		// main loop
+		MSG msg;
+		for (;;) {
+			// wait for message
+			if (ARCH->waitForEvent(NULL, -1.0) != IArchMultithread::kEvent) {
+				continue;
+			}
+
+			// peek for message and remove it.  we don't GetMessage()
+			// because we should never block here, only in waitForEvent().
+			if (!PeekMessage(&msg, NULL, 0, 0, PM_REMOVE)) {
+				continue;
+			}
+
+			// check message against dialogs
+			if (!processDialogs(&msg)) {
+				// process message
+				TranslateMessage(&msg);
+				DispatchMessage(&msg);
+			}
 		}
 	}
-
-	// clean up
-	removeAllIcons();
-	DestroyWindow(m_hwnd);
-	UnregisterClass(reinterpret_cast<LPCTSTR>(windowClass), instanceWin32());
+	catch (XThread&) {
+		// clean up
+		removeAllIcons();
+		DestroyWindow(m_hwnd);
+		UnregisterClass((LPCTSTR)windowClass, s_appInstance);
+		throw;
+	}
 }
 
 void*
@@ -490,9 +515,4 @@ CArchTaskBarWindows::threadEntry(void* self)
 {
 	reinterpret_cast<CArchTaskBarWindows*>(self)->threadMainLoop();
 	return NULL;
-}
-
-HINSTANCE CArchTaskBarWindows::instanceWin32()
-{
-	return CArchMiscWindows::instanceWin32();
 }

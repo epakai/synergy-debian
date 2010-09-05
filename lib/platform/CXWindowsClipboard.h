@@ -1,6 +1,5 @@
 /*
- * synergy-plus -- mouse and keyboard sharing utility
- * Copyright (C) 2009 The Synergy+ Project
+ * synergy -- mouse and keyboard sharing utility
  * Copyright (C) 2002 Chris Schoeneman
  * 
  * This package is free software; you can redistribute it and/or
@@ -11,9 +10,6 @@
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
 #ifndef CXWINDOWSCLIPBOARD_H
@@ -24,7 +20,7 @@
 #include "stdmap.h"
 #include "stdlist.h"
 #include "stdvector.h"
-#if X_DISPLAY_MISSING
+#if defined(X_DISPLAY_MISSING)
 #	error X11 is required to build synergy
 #else
 #	include <X11/Xlib.h>
@@ -159,10 +155,6 @@ private:
 		bool			m_failed;
 		bool			m_done;
 
-		// atoms needed for the protocol
-		Atom			m_atomNone;		// NONE, not None
-		Atom			m_atomIncr;
-
 		// true iff we've received the selection notify
 		bool			m_reading;
 
@@ -190,7 +182,7 @@ private:
 		SInt32			m_pad2[4];
 		SInt32			m_numItems;
 		SInt32			m_pad3[3];
-		SInt32			m_selectionOwner;	// a Window
+		Window			m_selectionOwner;
 		SInt32			m_pad4[2];
 	};
 
@@ -212,9 +204,9 @@ private:
 		SInt32			m_pad1[6];
 		SInt32			m_length;
 		SInt32			m_data;
-		SInt32			m_type;			// an Atom
+		Atom			m_type;
 		SInt32			m_pad2[1];
-		SInt32			m_deleted;
+		int				m_deleted;
 		SInt32			m_pad3[4];
 	};
 
@@ -269,7 +261,7 @@ private:
 	bool				insertMultipleReply(Window, ::Time, Atom);
 	void				insertReply(CReply*);
 	void				pushReplies();
-	void				pushReplies(CReplyMap::iterator&,
+	void				pushReplies(CReplyMap::iterator,
 							CReplyList&, CReplyList::iterator);
 	bool				sendReply(CReply*);
 	void				clearReplies();

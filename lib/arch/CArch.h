@@ -1,6 +1,5 @@
 /*
- * synergy-plus -- mouse and keyboard sharing utility
- * Copyright (C) 2009 The Synergy+ Project
+ * synergy -- mouse and keyboard sharing utility
  * Copyright (C) 2002 Chris Schoeneman
  * 
  * This package is free software; you can redistribute it and/or
@@ -11,9 +10,6 @@
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
 #ifndef CARCH_H
@@ -27,10 +23,8 @@
 #include "IArchNetwork.h"
 #include "IArchSleep.h"
 #include "IArchString.h"
-#include "IArchSystem.h"
 #include "IArchTaskBar.h"
 #include "IArchTime.h"
-#include "IArchAppUtil.h"
 
 /*!
 \def ARCH
@@ -38,7 +32,9 @@ This macro evaluates to the singleton CArch object.
 */
 #define ARCH	(CArch::getInstance())
 
-//! Delegating implementation of architecture dependent interfaces
+#define ARCH_ARGS void
+
+//! Delegating mplementation of architecture dependent interfaces
 /*!
 This class is a centralized interface to all architecture dependent
 interface implementations (except miscellaneous functions).  It
@@ -56,11 +52,10 @@ class CArch : public IArchConsole,
 				public IArchNetwork,
 				public IArchSleep,
 				public IArchString,
-				public IArchSystem,
 				public IArchTaskBar,
 				public IArchTime {
 public:
-	CArch();
+	CArch(ARCH_ARGS* args = NULL);
 	~CArch();
 
 	//
@@ -77,15 +72,14 @@ public:
 	// IArchConsole overrides
 	virtual void		openConsole(const char*);
 	virtual void		closeConsole();
-	virtual void		showConsole(bool showIfEmpty);
 	virtual void		writeConsole(const char*);
+	virtual const char*	getNewlineForConsole();
 
 	// IArchDaemon overrides
 	virtual void		installDaemon(const char* name,
 							const char* description,
 							const char* pathname,
 							const char* commandLine,
-							const char* dependencies,
 							bool allUsers);
 	virtual void		uninstallDaemon(const char* name, bool allUsers);
 	virtual int			daemonize(const char* name, DaemonFunc func);
@@ -102,7 +96,6 @@ public:
 	// IArchLog overrides
 	virtual void		openLog(const char*);
 	virtual void		closeLog();
-	virtual void		showLog(bool showIfEmpty);
 	virtual void		writeLog(ELevel, const char*);
 
 	// IArchMultithread overrides
@@ -123,12 +116,11 @@ public:
 	virtual void		setPriorityOfThread(CArchThread, int n);
 	virtual void		testCancelThread();
 	virtual bool		wait(CArchThread, double timeout);
+	virtual EWaitResult	waitForEvent(CArchThread, double timeout);
 	virtual bool		isSameThread(CArchThread, CArchThread);
 	virtual bool		isExitedThread(CArchThread);
 	virtual void*		getResultOfThread(CArchThread);
 	virtual ThreadID	getIDOfThread(CArchThread);
-	virtual void		setSignalHandler(ESignal, SignalFunc, void*);
-	virtual void		raiseSignal(ESignal);
 
 	// IArchNetwork overrides
 	virtual CArchSocket	newSocket(EAddressFamily, ESocketType);
@@ -139,15 +131,14 @@ public:
 	virtual void		bindSocket(CArchSocket s, CArchNetAddress addr);
 	virtual void		listenOnSocket(CArchSocket s);
 	virtual CArchSocket	acceptSocket(CArchSocket s, CArchNetAddress* addr);
-	virtual bool		connectSocket(CArchSocket s, CArchNetAddress name);
+	virtual void		connectSocket(CArchSocket s, CArchNetAddress name);
 	virtual int			pollSocket(CPollEntry[], int num, double timeout);
-	virtual void		unblockPollSocket(CArchThread thread);
 	virtual size_t		readSocket(CArchSocket s, void* buf, size_t len);
 	virtual size_t		writeSocket(CArchSocket s,
 							const void* buf, size_t len);
 	virtual void		throwErrorOnSocket(CArchSocket);
+	virtual bool		setBlockingOnSocket(CArchSocket, bool blocking);
 	virtual bool		setNoDelayOnSocket(CArchSocket, bool noDelay);
-	virtual bool		setReuseAddrOnSocket(CArchSocket, bool reuse);
 	virtual std::string		getHostName();
 	virtual CArchNetAddress	newAnyAddr(EAddressFamily);
 	virtual CArchNetAddress	copyAddr(CArchNetAddress);
@@ -159,7 +150,6 @@ public:
 	virtual void			setAddrPort(CArchNetAddress, int port);
 	virtual int				getAddrPort(CArchNetAddress);
 	virtual bool			isAnyAddr(CArchNetAddress);
-	virtual bool			isEqualAddr(CArchNetAddress, CArchNetAddress);
 
 	// IArchSleep overrides
 	virtual void		sleep(double timeout);
@@ -167,16 +157,14 @@ public:
 	// IArchString overrides
 	virtual int			vsnprintf(char* str,
 							int size, const char* fmt, va_list ap);
-	virtual int			convStringMBToWC(wchar_t*,
-							const char*, UInt32 n, bool* errors);
-	virtual int			convStringWCToMB(char*,
-							const wchar_t*, UInt32 n, bool* errors);
+	virtual CArchMBState	newMBState();
+	virtual void		closeMBState(CArchMBState);
+	virtual void		initMBState(CArchMBState);
+	virtual bool		isInitMBState(CArchMBState);
+	virtual int			convMBToWC(wchar_t*, const char*, int, CArchMBState);
+	virtual int			convWCToMB(char*, wchar_t, CArchMBState);
 	virtual EWideCharEncoding
 						getWideCharEncoding();
-
-	// IArchSystem overrides
-	virtual std::string	getOSName() const;
-	virtual std::string getPlatformName() const;
 
 	// IArchTaskBar
 	virtual void		addReceiver(IArchTaskBarReceiver*);
@@ -185,17 +173,6 @@ public:
 
 	// IArchTime overrides
 	virtual double		time();
-	
-	// IArchAppUtil overrides
-	virtual bool parseArg(const int& argc, const char* const* argv, int& i);
-	virtual void adoptApp(CApp* app);
-	virtual CApp& app() const;
-	virtual int run(int argc, char** argv);
-	virtual void beforeAppExit();
-
-	// expose util so we don't need to re-implement all the functions
-	IArchAppUtil& util() const { return *m_appUtil; }
-	IArchDaemon& daemon() const { return *m_daemon; }
 
 private:
 	static CArch*		s_instance;
@@ -208,26 +185,8 @@ private:
 	IArchNetwork*		m_net;
 	IArchSleep*			m_sleep;
 	IArchString*		m_string;
-	IArchSystem*		m_system;
 	IArchTaskBar*		m_taskbar;
 	IArchTime*			m_time;
-	IArchAppUtil*		m_appUtil;
-};
-
-//! Convenience object to lock/unlock an arch mutex
-class CArchMutexLock {
-public:
-	CArchMutexLock(CArchMutex mutex) : m_mutex(mutex)
-	{
-		ARCH->lockMutex(m_mutex);
-	}
-	~CArchMutexLock()
-	{
-		ARCH->unlockMutex(m_mutex);
-	}
-
-private:
-	CArchMutex			m_mutex;
 };
 
 #endif

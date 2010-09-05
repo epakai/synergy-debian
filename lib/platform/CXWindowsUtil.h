@@ -1,6 +1,5 @@
 /*
- * synergy-plus -- mouse and keyboard sharing utility
- * Copyright (C) 2009 The Synergy+ Project
+ * synergy -- mouse and keyboard sharing utility
  * Copyright (C) 2002 Chris Schoeneman
  * 
  * This package is free software; you can redistribute it and/or
@@ -11,9 +10,6 @@
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
 #ifndef CXWINDOWSUTIL_H
@@ -22,8 +18,7 @@
 #include "CString.h"
 #include "BasicTypes.h"
 #include "stdmap.h"
-#include "stdvector.h"
-#if X_DISPLAY_MISSING
+#if defined(X_DISPLAY_MISSING)
 #	error X11 is required to build synergy
 #else
 #	include <X11/Xlib.h>
@@ -32,8 +27,6 @@
 //! X11 utility functions
 class CXWindowsUtil {
 public:
-	typedef std::vector<KeySym> KeySyms;
-
 	//! Get property
 	/*!
 	Gets property \c property on \c window.  \b Appends the data to
@@ -63,62 +56,19 @@ public:
 	*/
 	static Time			getCurrentTime(Display*, Window);
 
-	//! Convert KeySym to KeyID
+	//! Convert KeySym to UCS-4
 	/*!
-	Converts a KeySym to the equivalent KeyID.  Returns kKeyNone if the
-	KeySym cannot be mapped.
+	Converts a KeySym to the equivalent UCS-4 character.  Returns
+	0x0000ffff if the KeySym cannot be mapped.
 	*/
-	static UInt32		mapKeySymToKeyID(KeySym);
+	static UInt32		mapKeySymToUCS4(KeySym);
 
-	//! Convert KeySym to corresponding KeyModifierMask
+	//! Convert UCS-4 to KeySym
 	/*!
-	Converts a KeySym to the corresponding KeyModifierMask, or 0 if the
-	KeySym is not a modifier.
+	Converts a UCS-4 character to the equivalent KeySym.  Returns
+	NoSymbol (0) if the character cannot be mapped.
 	*/
-	static UInt32		getModifierBitForKeySym(KeySym keysym);
-
-	//! Convert Atom to its string
-	/*!
-	Converts \p atom to its string representation.
-	*/
-	static CString		atomToString(Display*, Atom atom);
-
-	//! Convert several Atoms to a string
-	/*!
-	Converts each atom in \p atoms to its string representation and
-	concatenates the results.
-	*/
-	static CString		atomsToString(Display* display,
-							const Atom* atom, UInt32 num);
-
-	//! Prepare a property of atoms for use
-	/*!
-	64-bit systems may need to modify a property's data if it's a
-	list of Atoms before using it.
-	*/
-	static void			convertAtomProperty(CString& data);
-
-	//! Append an Atom to property data
-	/*!
-	Converts \p atom to a 32-bit on-the-wire format and appends it to
-	\p data.
-	*/
-	static void			appendAtomData(CString& data, Atom atom);
-
-	//! Replace an Atom in property data
-	/*!
-	Converts \p atom to a 32-bit on-the-wire format and replaces the atom
-	at index \p index in \p data.
-	*/
-	static void			replaceAtomData(CString& data,
-							UInt32 index, Atom atom);
-
-	//! Append an Time to property data
-	/*!
-	Converts \p time to a 32-bit on-the-wire format and appends it to
-	\p data.
-	*/
-	static void			appendTimeData(CString& data, Time time);
+	static KeySym		mapUCS4ToKeySym(UInt32);
 
 	//! X11 error handler
 	/*!
@@ -182,8 +132,10 @@ private:
 
 private:
 	typedef std::map<KeySym, UInt32> CKeySymMap;
+	typedef std::map<UInt32, KeySym> CUCS4Map;
 
 	static CKeySymMap	s_keySymToUCS4;
+	static CUCS4Map		s_UCS4ToKeySym;
 };
 
 #endif

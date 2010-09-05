@@ -1,6 +1,5 @@
 /*
- * synergy-plus -- mouse and keyboard sharing utility
- * Copyright (C) 2009 The Synergy+ Project
+ * synergy -- mouse and keyboard sharing utility
  * Copyright (C) 2002 Chris Schoeneman
  * 
  * This package is free software; you can redistribute it and/or
@@ -11,90 +10,129 @@
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
 #ifndef CXWINDOWSSCREEN_H
 #define CXWINDOWSSCREEN_H
 
-#include "CPlatformScreen.h"
-#include "stdset.h"
+#include "IScreen.h"
+#include "CMutex.h"
+#include "CStopwatch.h"
 #include "stdvector.h"
-#if X_DISPLAY_MISSING
+#if defined(X_DISPLAY_MISSING)
 #	error X11 is required to build synergy
 #else
 #	include <X11/Xlib.h>
 #endif
+#include <algorithm>
+#include <functional>
 
+class IJob;
+class IScreenEventHandler;
+class IScreenReceiver;
 class CXWindowsClipboard;
-class CXWindowsKeyState;
 class CXWindowsScreenSaver;
 
-//! Implementation of IPlatformScreen for X11
-class CXWindowsScreen : public CPlatformScreen {
+/*!
+\class CEvent
+\brief User event data
+An architecture dependent type holding user event data.
+*/
+// X11 event
+class CEvent {
 public:
-	CXWindowsScreen(const char* displayName, bool isPrimary, int mouseScrollDelta=0);
+	XEvent				m_event;
+	SInt32				m_result;
+};
+
+//! Implementation of IScreen for X11
+class CXWindowsScreen : public IScreen {
+public:
+	CXWindowsScreen(IScreenReceiver*, IScreenEventHandler*);
 	virtual ~CXWindowsScreen();
 
 	//! @name manipulators
 	//@{
 
+	//! Add timer
+	/*!
+	Add a job to invoke every timeout seconds.  The job is
+	called with the display locked.  If a job timeout expires twice
+	or more before the job can be called then the job is called
+	just once.  The caller retains ownership of the job.
+	*/
+	void				addTimer(IJob*, double timeout);
+
+	//! Remove timer
+	/*!
+	Remove a job.  The caller retains ownership of the job.
+	*/
+	void				removeTimer(IJob*);
+
+	//! Install a one-shot timer
+	/*!
+	Installs a one-shot timer for \c timeout seconds and returns the
+	id of the timer (which will be passed to the receiver's
+	\c onTimerExpired()).
+	*/
+	UInt32				addOneShotTimer(double timeout);
+
+	//! Set window
+	/*!
+	Set the window (created by the subclass).  This performs some
+	initialization and saves the window in case it's needed later.
+	*/
+	void				setWindow(Window);
+
+	//@}
+	//! @name accessors
+	//@{
+
+	//! Get window
+	/*!
+	Returns the root window of the screen.
+	*/
+	Window				getRoot() const;
+
+	//! Get transparent cursor
+	/*!
+	Returns a cursor that is transparent everywhere.
+	*/
+	Cursor				getBlankCursor() const;
+
 	//@}
 
 	// IScreen overrides
-	virtual void*		getEventTarget() const;
-	virtual bool		getClipboard(ClipboardID id, IClipboard*) const;
-	virtual void		getShape(SInt32& x, SInt32& y,
-							SInt32& width, SInt32& height) const;
-	virtual void		getCursorPos(SInt32& x, SInt32& y) const;
-
-	// IPrimaryScreen overrides
-	virtual void		reconfigure(UInt32 activeSides);
-	virtual void		warpCursor(SInt32 x, SInt32 y);
-	virtual UInt32		registerHotKey(KeyID key, KeyModifierMask mask);
-	virtual void		unregisterHotKey(UInt32 id);
-	virtual void		fakeInputBegin();
-	virtual void		fakeInputEnd();
-	virtual SInt32		getJumpZoneSize() const;
-	virtual bool		isAnyMouseButtonDown() const;
-	virtual void		getCursorCenter(SInt32& x, SInt32& y) const;
-
-	// ISecondaryScreen overrides
-	virtual void		fakeMouseButton(ButtonID id, bool press) const;
-	virtual void		fakeMouseMove(SInt32 x, SInt32 y) const;
-	virtual void		fakeMouseRelativeMove(SInt32 dx, SInt32 dy) const;
-	virtual void		fakeMouseWheel(SInt32 xDelta, SInt32 yDelta) const;
-
-	// IPlatformScreen overrides
-	virtual void		enable();
-	virtual void		disable();
-	virtual void		enter();
-	virtual bool		leave();
-	virtual bool		setClipboard(ClipboardID, const IClipboard*);
-	virtual void		checkClipboards();
-	virtual void		openScreensaver(bool notify);
-	virtual void		closeScreensaver();
-	virtual void		screensaver(bool activate);
-	virtual void		resetOptions();
-	virtual void		setOptions(const COptionsList& options);
-	virtual void		setSequenceNumber(UInt32);
-	virtual bool		isPrimary() const;
-
-protected:
-	// IPlatformScreen overrides
-	virtual void		handleSystemEvent(const CEvent&, void*);
-	virtual void		updateButtons();
-	virtual IKeyState*	getKeyState() const;
+	void				open();
+	void				mainLoop();
+	void				exitMainLoop();
+	void				close();
+	bool				setClipboard(ClipboardID, const IClipboard*);
+	void				checkClipboards();
+	void				openScreensaver(bool notify);
+	void				closeScreensaver();
+	void				screensaver(bool activate);
+	void				syncDesktop();
+	bool				getClipboard(ClipboardID, IClipboard*) const;
+	void				getShape(SInt32&, SInt32&, SInt32&, SInt32&) const;
+	void				getCursorPos(SInt32&, SInt32&) const;
+	void				getCursorCenter(SInt32&, SInt32&) const;
 
 private:
-	// event sending
-	void				sendEvent(CEvent::Type, void* = NULL);
-	void				sendClipboardEvent(CEvent::Type, ClipboardID);
+	// update screen size cache
+	void				updateScreenShape();
+
+	// process events before dispatching to receiver
+	bool				onPreDispatch(CEvent* event);
 
 	// create the transparent cursor
-	Cursor				createBlankCursor() const;
+	void				createBlankCursor();
+
+	// remove a timer without locking
+	void				removeTimerNoLock(IJob*);
+
+	// process timers
+	bool				processTimers();
 
 	// determine the clipboard from the X selection.  returns
 	// kClipboardEnd if no such clipboard.
@@ -108,131 +146,166 @@ private:
 	void				destroyClipboardRequest(Window window);
 
 	// X I/O error handler
-	void				onError();
 	static int			ioErrorHandler(Display*);
 
 private:
-	class CKeyEventFilter {
+	// a priority queue will direct access to the elements
+	template <class T, class Container = std::vector<T>,
+				class Compare = std::greater<typename Container::value_type> >
+	class CPriorityQueue {
 	public:
-		int				m_event;
-		Window			m_window;
-		Time			m_time;
-		KeyCode			m_keycode;
-	};
+		typedef typename Container::value_type value_type;
+		typedef typename Container::size_type size_type;
+		typedef typename Container::iterator iterator;
+		typedef Container container_type;
 
-	Display*			openDisplay(const char* displayName);
-	void				saveShape();
-	Window				openWindow() const;
-	void				openIM();
+		CPriorityQueue() { }
+		CPriorityQueue(Container& swappedIn);
+		~CPriorityQueue() { }
 
-	bool				grabMouseAndKeyboard();
-	void				onKeyPress(XKeyEvent&);
-	void				onKeyRelease(XKeyEvent&, bool isRepeat);
-	bool				onHotKey(XKeyEvent&, bool isRepeat);
-	void				onMousePress(const XButtonEvent&);
-	void				onMouseRelease(const XButtonEvent&);
-	void				onMouseMove(const XMotionEvent&);
+		// manipulators
 
-	void				selectEvents(Window) const;
-	void				doSelectEvents(Window) const;
+		void			push(const value_type& v)
+		{
+			c.push_back(v);
+			std::push_heap(c.begin(), c.end(), comp);
+		}
 
-	KeyID				mapKeyFromX(XKeyEvent*) const;
-	ButtonID			mapButtonFromX(const XButtonEvent*) const;
-	unsigned int		mapButtonToX(ButtonID id) const;
+		void			pop()
+		{
+			std::pop_heap(c.begin(), c.end(), comp);
+			c.pop_back();
+		}
 
-	void				warpCursorNoFlush(SInt32 x, SInt32 y);
+		iterator		begin()
+		{
+			return c.begin();
+		}
 
-	void				refreshKeyboard(XEvent*);
+		iterator		end()
+		{
+			return c.end();
+		}
 
-	static Bool			findKeyEvent(Display*, XEvent* xevent, XPointer arg);
+		void			swap(CPriorityQueue<T, Container, Compare>& q)
+		{
+			c.swap(q.c);
+		}
 
-private:
-	struct CHotKeyItem {
-	public:
-		CHotKeyItem(int, unsigned int);
+		void			swap(Container& c2)
+		{
+			c.swap(c2);
+			std::make_heap(c.begin(), c.end(), comp);
+		}
 
-		bool			operator<(const CHotKeyItem&) const;
+		// accessors
+
+		bool			empty() const
+		{
+			return c.empty();
+		}
+
+		size_type		size() const
+		{
+			return c.size();
+		}
+
+		const value_type&
+						top() const
+		{
+			return c.front();
+		}
 
 	private:
-		int				m_keycode;
-		unsigned int	m_mask;
+		Container		c;
+		Compare			comp;
 	};
-	typedef std::set<bool> CFilteredKeycodes;
-	typedef std::vector<std::pair<int, unsigned int> > HotKeyList;
-	typedef std::map<UInt32, HotKeyList> HotKeyMap;
-	typedef std::vector<UInt32> HotKeyIDList;
-	typedef std::map<CHotKeyItem, UInt32> HotKeyToIDMap;
 
-	// true if screen is being used as a primary screen, false otherwise
-	bool				m_isPrimary;
-	int 				m_mouseScrollDelta;
+	// a timer priority queue element
+	class CTimer {
+	public:
+		CTimer(IJob* job, double startTime, double resetTime);
+		~CTimer();
+
+		// manipulators
+
+		void			run();
+
+		void			reset();
+
+		CTimer&			operator-=(double);
+
+		// accessors
+
+		IJob*			getJob() const
+		{
+			return m_job;
+		}
+
+		operator double() const;
+
+		bool			operator<(const CTimer&) const;
+
+	private:
+		IJob*			m_job;
+		double			m_timeout;
+		double			m_time;
+		double			m_startTime;
+	};
+
+private:
+	friend class CDisplayLock;
+
+	typedef CPriorityQueue<CTimer> CTimerPriorityQueue;
+
+	// X is not thread safe
+	CMutex				m_mutex;
 
 	Display*			m_display;
 	Window				m_root;
+	bool				m_stop;
+
+	IScreenReceiver*		m_receiver;
+	IScreenEventHandler*	m_eventHandler;
 	Window				m_window;
 
-	// true if mouse has entered the screen
-	bool				m_isOnScreen;
-
-	// screen shape stuff
 	SInt32				m_x, m_y;
 	SInt32				m_w, m_h;
 	SInt32				m_xCenter, m_yCenter;
 
-	// last mouse position
-	SInt32				m_xCursor, m_yCursor;
-
-	// keyboard stuff
-	CXWindowsKeyState*	m_keyState;
-
-	// hot key stuff
-	HotKeyMap			m_hotKeys;
-	HotKeyIDList		m_oldHotKeyIDs;
-	HotKeyToIDMap		m_hotKeyToIDMap;
-
-	// input focus stuff
-	Window				m_lastFocus;
-	int					m_lastFocusRevert;
-
-	// input method stuff
-	XIM					m_im;
-	XIC					m_ic;
-	KeyCode				m_lastKeycode;
-	CFilteredKeycodes	m_filtered;
-
 	// clipboards
 	CXWindowsClipboard*	m_clipboard[kClipboardEnd];
-	UInt32				m_sequenceNumber;
+
+	// the transparent cursor
+	Cursor				m_cursor;
 
 	// screen saver stuff
 	CXWindowsScreenSaver*	m_screensaver;
 	bool				m_screensaverNotify;
+	Atom				m_atomScreensaver;
 
-	// logical to physical button mapping.  m_buttons[i] gives the
-	// physical button for logical button i+1.
-	std::vector<unsigned char>	m_buttons;
-
-	// true if global auto-repeat was enabled before we turned it off
-	bool				m_autoRepeat;
-
-	// stuff to workaround xtest being xinerama unaware.  attempting
-	// to fake a mouse motion under xinerama may behave strangely,
-	// especially if screen 0 is not at 0,0 or if faking a motion on
-	// a screen other than screen 0.
-	bool				m_xtestIsXineramaUnaware;
-	bool				m_xinerama;
-
-	// stuff to work around lost focus issues on certain systems
-	// (ie: a MythTV front-end).
-	bool				m_preserveFocus;
-
-	// XKB extension stuff
-	bool				m_xkb;
-	int					m_xkbEventBase;
+	// timers, the stopwatch used to time, and a mutex for the timers
+	CTimerPriorityQueue	m_timers;
+	CStopwatch			m_time;
+	CMutex				m_timersMutex;
+	CTimer*				m_oneShotTimer;
 
 	// pointer to (singleton) screen.  this is only needed by
 	// ioErrorHandler().
 	static CXWindowsScreen*	s_screen;
+};
+
+//! Convenience object to lock/unlock a CXWindowsScreen
+class CDisplayLock {
+public:
+	CDisplayLock(const CXWindowsScreen*);
+	~CDisplayLock();
+
+	operator Display*() const;
+
+private:
+	const CMutex*		m_mutex;
+	Display*			m_display;
 };
 
 #endif

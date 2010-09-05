@@ -1,6 +1,5 @@
 /*
- * synergy-plus -- mouse and keyboard sharing utility
- * Copyright (C) 2009 The Synergy+ Project
+ * synergy -- mouse and keyboard sharing utility
  * Copyright (C) 2002 Chris Schoeneman
  * 
  * This package is free software; you can redistribute it and/or
@@ -11,9 +10,6 @@
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
 #ifndef XARCH_H
@@ -68,8 +64,7 @@ class XArch {
 public:
 	XArch(XArchEval* adoptedEvaluator) : m_eval(adoptedEvaluator) { }
 	XArch(const std::string& msg) : m_eval(NULL), m_what(msg) { }
-	XArch(const XArch& e) : m_eval(e.m_eval != NULL ? e.m_eval->clone() : NULL),
-							m_what(e.m_what) { }
+	XArch(const XArch& e) : m_eval(e.m_eval->clone()), m_what(e.m_what) { }
 	~XArch() { delete m_eval; }
 
 	std::string			what() const throw();
@@ -94,8 +89,8 @@ library to indicate various errors.
 */
 XARCH_SUBCLASS(XArchNetwork, XArch);
 
-//! Operation was interrupted
-XARCH_SUBCLASS(XArchNetworkInterrupted, XArchNetwork);
+//! Network insufficient permission
+XARCH_SUBCLASS(XArchNetworkWouldBlock, XArchNetwork);
 
 //! Network insufficient permission
 XARCH_SUBCLASS(XArchNetworkAccess, XArchNetwork);
@@ -121,14 +116,14 @@ XARCH_SUBCLASS(XArchNetworkNoRoute, XArchNetwork);
 //! Socket not connected
 XARCH_SUBCLASS(XArchNetworkNotConnected, XArchNetwork);
 
-//! Remote read end of socket has closed
-XARCH_SUBCLASS(XArchNetworkShutdown, XArchNetwork);
-
 //! Remote end of socket has disconnected
 XARCH_SUBCLASS(XArchNetworkDisconnected, XArchNetwork);
 
 //! Remote end of socket refused connection
 XARCH_SUBCLASS(XArchNetworkConnectionRefused, XArchNetwork);
+
+//! Connection is in progress
+XARCH_SUBCLASS(XArchNetworkConnecting, XArchNetwork);
 
 //! Remote end of socket is not responding
 XARCH_SUBCLASS(XArchNetworkTimedOut, XArchNetwork);
@@ -139,7 +134,7 @@ XARCH_SUBCLASS(XArchNetworkName, XArchNetwork);
 //! The named host is unknown
 XARCH_SUBCLASS(XArchNetworkNameUnknown, XArchNetworkName);
 
-//! The named host is known but has no address
+//! The named host is known but has to address
 XARCH_SUBCLASS(XArchNetworkNameNoAddress, XArchNetworkName);
 
 //! Non-recoverable name server error
@@ -147,9 +142,6 @@ XARCH_SUBCLASS(XArchNetworkNameFailure, XArchNetworkName);
 
 //! Temporary name server error
 XARCH_SUBCLASS(XArchNetworkNameUnavailable, XArchNetworkName);
-
-//! The named host is known but no supported address
-XARCH_SUBCLASS(XArchNetworkNameUnsupported, XArchNetworkName);
 
 //! Generic daemon exception
 /*!

@@ -1,6 +1,5 @@
 /*
- * synergy-plus -- mouse and keyboard sharing utility
- * Copyright (C) 2009 The Synergy+ Project
+ * synergy -- mouse and keyboard sharing utility
  * Copyright (C) 2002 Chris Schoeneman
  * 
  * This package is free software; you can redistribute it and/or
@@ -11,9 +10,6 @@
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
 #ifndef PROTOCOLTYPES_H
@@ -24,11 +20,8 @@
 // protocol version number
 // 1.0:  initial protocol
 // 1.1:  adds KeyCode to key press, release, and repeat
-// 1.2:  adds mouse relative motion
-// 1.3:  adds keep alive and deprecates heartbeats,
-//       adds horizontal mouse scrolling
 static const SInt16		kProtocolMajorVersion = 1;
-static const SInt16		kProtocolMinorVersion = 3;
+static const SInt16		kProtocolMinorVersion = 1;
 
 // default contact port number
 static const UInt16		kDefaultPort = 24800;
@@ -36,16 +29,11 @@ static const UInt16		kDefaultPort = 24800;
 // maximum total length for greeting returned by client
 static const UInt32		kMaxHelloLength = 1024;
 
-// time between kMsgCKeepAlive (in seconds).  a non-positive value disables
-// keep alives.  this is the default rate that can be overridden using an
-// option.
-static const double		kKeepAliveRate = 3.0;
-
-// number of skipped kMsgCKeepAlive messages that indicates a problem
-static const double		kKeepAlivesUntilDeath = 3.0;
-
-// obsolete heartbeat stuff
+// time between heartbeats (in seconds).  negative value disables
+// heartbeat.
 static const double		kHeartRate = -1.0;
+
+// number of skipped heartbeats that constitutes death
 static const double		kHeartBeatsUntilDeath = 3.0;
 
 // direction constants
@@ -86,13 +74,13 @@ enum EDirectionMask {
 // say hello to client;  primary -> secondary
 // $1 = protocol major version number supported by server.  $2 =
 // protocol minor version number supported by server.
-extern const char*		kMsgHello;
+static const char		kMsgHello[]			= "Synergy%2i%2i";
 
 // respond to hello from server;  secondary -> primary
 // $1 = protocol major version number supported by client.  $2 =
 // protocol minor version number supported by client.  $3 = client
 // name.
-extern const char*		kMsgHelloBack;
+static const char		kMsgHelloBack[]		= "Synergy%2i%2i%s";
 
 
 //
@@ -100,10 +88,10 @@ extern const char*		kMsgHelloBack;
 //
 
 // no operation;  secondary -> primary
-extern const char*		kMsgCNoop;
+static const char		kMsgCNoop[] 		= "CNOP";
 
 // close connection;  primary -> secondary
-extern const char*		kMsgCClose;
+static const char		kMsgCClose[] 		= "CBYE";
 
 // enter screen:  primary -> secondary
 // entering screen at screen position $1 = x, $2 = y.  x,y are
@@ -113,7 +101,7 @@ extern const char*		kMsgCClose;
 // mask.  this will have bits set for each toggle modifier key
 // that is activated on entry to the screen.  the secondary screen
 // should adjust its toggle modifiers to reflect that state.
-extern const char*		kMsgCEnter;
+static const char		kMsgCEnter[] 		= "CINN%2i%2i%4i%2i";
 
 // leave screen:  primary -> secondary
 // leaving screen.  the secondary screen should send clipboard
@@ -122,38 +110,28 @@ extern const char*		kMsgCEnter;
 // not received a kMsgCClipboard for with a greater sequence
 // number) and that were grabbed or have changed since the
 // last leave.
-extern const char*		kMsgCLeave;
+static const char		kMsgCLeave[] 		= "COUT";
 
 // grab clipboard:  primary <-> secondary
 // sent by screen when some other app on that screen grabs a
 // clipboard.  $1 = the clipboard identifier, $2 = sequence number.
 // secondary screens must use the sequence number passed in the
 // most recent kMsgCEnter.  the primary always sends 0.
-extern const char*		kMsgCClipboard;
+static const char		kMsgCClipboard[] 	= "CCLP%1i%4i";
 
 // screensaver change:  primary -> secondary
 // screensaver on primary has started ($1 == 1) or closed ($1 == 0)
-extern const char*		kMsgCScreenSaver;
+static const char		kMsgCScreenSaver[] 	= "CSEC%1i";
 
 // reset options:  primary -> secondary
 // client should reset all of its options to their defaults.
-extern const char*		kMsgCResetOptions;
+static const char		kMsgCResetOptions[]	= "CROP";
 
 // resolution change acknowledgment:  primary -> secondary
 // sent by primary in response to a secondary screen's kMsgDInfo.
 // this is sent for every kMsgDInfo, whether or not the primary
 // had sent a kMsgQInfo.
-extern const char*		kMsgCInfoAck;
-
-// keep connection alive:  primary <-> secondary
-// sent by the server periodically to verify that connections are still
-// up and running.  clients must reply in kind on receipt.  if the server
-// gets an error sending the message or does not receive a reply within
-// a reasonable time then the server disconnects the client.  if the
-// client doesn't receive these (or any message) periodically then it
-// should disconnect from the server.  the appropriate interval is
-// defined by an option.
-extern const char*		kMsgCKeepAlive;
+static const char		kMsgCInfoAck[]		= "CIAK";
 
 
 //
@@ -171,64 +149,55 @@ extern const char*		kMsgCKeepAlive;
 // the press.  this can happen with combining (dead) keys or if
 // the keyboard layouts are not identical and the user releases
 // a modifier key before releasing the modified key.
-extern const char*		kMsgDKeyDown;
+static const char		kMsgDKeyDown[]		= "DKDN%2i%2i%2i";
 
 // key pressed 1.0:  same as above but without KeyButton
-extern const char*		kMsgDKeyDown1_0;
+static const char		kMsgDKeyDown1_0[]	= "DKDN%2i%2i";
 
 // key auto-repeat:  primary -> secondary
 // $1 = KeyID, $2 = KeyModifierMask, $3 = number of repeats, $4 = KeyButton
-extern const char*		kMsgDKeyRepeat;
+static const char		kMsgDKeyRepeat[]	= "DKRP%2i%2i%2i%2i";
 
 // key auto-repeat 1.0:  same as above but without KeyButton
-extern const char*		kMsgDKeyRepeat1_0;
+static const char		kMsgDKeyRepeat1_0[]	= "DKRP%2i%2i%2i";
 
 // key released:  primary -> secondary
 // $1 = KeyID, $2 = KeyModifierMask, $3 = KeyButton
-extern const char*		kMsgDKeyUp;
+static const char		kMsgDKeyUp[]		= "DKUP%2i%2i%2i";
 
 // key released 1.0:  same as above but without KeyButton
-extern const char*		kMsgDKeyUp1_0;
+static const char		kMsgDKeyUp1_0[]		= "DKUP%2i%2i";
 
 // mouse button pressed:  primary -> secondary
 // $1 = ButtonID
-extern const char*		kMsgDMouseDown;
+static const char		kMsgDMouseDown[]	= "DMDN%1i";
 
 // mouse button released:  primary -> secondary
 // $1 = ButtonID
-extern const char*		kMsgDMouseUp;
+static const char		kMsgDMouseUp[]		= "DMUP%1i";
 
 // mouse moved:  primary -> secondary
 // $1 = x, $2 = y.  x,y are absolute screen coordinates.
-extern const char*		kMsgDMouseMove;
+static const char		kMsgDMouseMove[]	= "DMMV%2i%2i";
 
-// relative mouse move:  primary -> secondary
-// $1 = dx, $2 = dy.  dx,dy are motion deltas.
-extern const char*		kMsgDMouseRelMove;
-
-// mouse scroll:  primary -> secondary
-// $1 = xDelta, $2 = yDelta.  the delta should be +120 for one tick forward
-// (away from the user) or right and -120 for one tick backward (toward
-// the user) or left.
-extern const char*		kMsgDMouseWheel;
-
-// mouse vertical scroll:  primary -> secondary
-// like as kMsgDMouseWheel except only sends $1 = yDelta.
-extern const char*		kMsgDMouseWheel1_0;
+// mouse button pressed:  primary -> secondary
+// $1 = delta.  the delta should be +120 for one tick forward (away
+// from the user) and -120 for one tick backward (toward the user).
+static const char		kMsgDMouseWheel[]	= "DMWM%2i";
 
 // clipboard data:  primary <-> secondary
 // $2 = sequence number, $3 = clipboard data.  the sequence number
 // is 0 when sent by the primary.  secondary screens should use the
 // sequence number from the most recent kMsgCEnter.  $1 = clipboard
 // identifier.
-extern const char*		kMsgDClipboard;
+static const char		kMsgDClipboard[]	= "DCLP%1i%4i%s";
 
 // client data:  secondary -> primary
 // $1 = coordinate of leftmost pixel on secondary screen,
 // $2 = coordinate of topmost pixel on secondary screen,
 // $3 = width of secondary screen in pixels,
 // $4 = height of secondary screen in pixels,
-// $5 = size of warp zone, (obsolete)
+// $5 = size of warp zone,
 // $6, $7 = the x,y position of the mouse on the secondary screen.
 //
 // the secondary screen must send this message in response to the
@@ -237,12 +206,12 @@ extern const char*		kMsgDClipboard;
 // should ignore any kMsgDMouseMove messages until it receives a
 // kMsgCInfoAck in order to prevent attempts to move the mouse off
 // the new screen area.
-extern const char*		kMsgDInfo;
+static const char		kMsgDInfo[]			= "DINF%2i%2i%2i%2i%2i%2i%2i";
 
 // set options:  primary -> secondary
 // client should set the given option/value pairs.  $1 = option/value
 // pairs.
-extern const char*		kMsgDSetOptions;
+static const char		kMsgDSetOptions[]	= "DSOP%4I";
 
 
 //
@@ -251,7 +220,7 @@ extern const char*		kMsgDSetOptions;
 
 // query screen info:  primary -> secondary
 // client should reply with a kMsgDInfo.
-extern const char*		kMsgQInfo;
+static const char		kMsgQInfo[]			= "QINF";
 
 
 //
@@ -260,19 +229,19 @@ extern const char*		kMsgQInfo;
 
 // incompatible versions:  primary -> secondary
 // $1 = major version of primary, $2 = minor version of primary.
-extern const char*		kMsgEIncompatible;
+static const char		kMsgEIncompatible[]	= "EICV%2i%2i";
 
 // name provided when connecting is already in use:  primary -> secondary
-extern const char*		kMsgEBusy;
+static const char		kMsgEBusy[] 		= "EBSY";
 
 // unknown client:  primary -> secondary
 // name provided when connecting is not in primary's screen
 // configuration map.
-extern const char*		kMsgEUnknown;
+static const char		kMsgEUnknown[]		= "EUNK";
 
 // protocol violation:  primary -> secondary
 // primary should disconnect after sending this message.
-extern const char*		kMsgEBad;
+static const char		kMsgEBad[]			= "EBAD";
 
 
 //
@@ -298,12 +267,17 @@ public:
 	*/
 	SInt32				m_w, m_h;
 
-	//! Obsolete (jump zone size)
-	SInt32				obsolete1;
+	//! Jump zone size
+	/*!
+	This is the size of the jump zone.  The cursor jumps to the adjacent
+	screen when it comes within this many pixels of the edge of the screen.
+	*/
+	SInt32				m_zoneSize;
 
 	//! Mouse position
 	/*!
-	The current location of the mouse cursor.
+	The position of the cursor.  This is not kept up-to-date so it's
+	only meaningful when receiving an update.
 	*/
 	SInt32				m_mx, m_my;
 };

@@ -1,6 +1,5 @@
 /*
- * synergy-plus -- mouse and keyboard sharing utility
- * Copyright (C) 2009 The Synergy+ Project
+ * synergy -- mouse and keyboard sharing utility
  * Copyright (C) 2002 Chris Schoeneman
  * 
  * This package is free software; you can redistribute it and/or
@@ -11,9 +10,6 @@
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
 #ifndef OPTIONTYPES_H
@@ -46,50 +42,19 @@ typedef std::vector<UInt32> COptionsList;
 
 //! @name Option identifiers
 //@{
-static const OptionID	kOptionHalfDuplexCapsLock     = OPTION_CODE("HDCL");
-static const OptionID	kOptionHalfDuplexNumLock      = OPTION_CODE("HDNL");
-static const OptionID	kOptionHalfDuplexScrollLock   = OPTION_CODE("HDSL");
-static const OptionID	kOptionModifierMapForShift    = OPTION_CODE("MMFS");
-static const OptionID	kOptionModifierMapForControl  = OPTION_CODE("MMFC");
-static const OptionID	kOptionModifierMapForAlt      = OPTION_CODE("MMFA");
-static const OptionID	kOptionModifierMapForMeta     = OPTION_CODE("MMFM");
-static const OptionID	kOptionModifierMapForSuper    = OPTION_CODE("MMFR");
-static const OptionID	kOptionHeartbeat              = OPTION_CODE("HART");
-static const OptionID	kOptionScreenSwitchCorners    = OPTION_CODE("SSCM");
-static const OptionID	kOptionScreenSwitchCornerSize = OPTION_CODE("SSCS");
-static const OptionID	kOptionScreenSwitchDelay      = OPTION_CODE("SSWT");
-static const OptionID	kOptionScreenSwitchTwoTap     = OPTION_CODE("SSTT");
-static const OptionID	kOptionScreenSaverSync        = OPTION_CODE("SSVR");
-static const OptionID	kOptionXTestXineramaUnaware   = OPTION_CODE("XTXU");
-static const OptionID	kOptionScreenPreserveFocus    = OPTION_CODE("SFOC");
-static const OptionID	kOptionRelativeMouseMoves     = OPTION_CODE("MDLT");
-static const OptionID	kOptionWin32KeepForeground    = OPTION_CODE("_KFW");
-//@}
-
-//! @name Screen switch corner enumeration
-//@{
-enum EScreenSwitchCorners {
-	kNoCorner,
-	kTopLeft,
-	kTopRight,
-	kBottomLeft,
-	kBottomRight,
-	kFirstCorner = kTopLeft,
-	kLastCorner  = kBottomRight
-};
-//@}
-
-//! @name Screen switch corner masks
-//@{
-enum EScreenSwitchCornerMasks {
-	kNoCornerMask    = 0,
-	kTopLeftMask     = 1 << (kTopLeft - kFirstCorner),
-	kTopRightMask    = 1 << (kTopRight - kFirstCorner),
-	kBottomLeftMask  = 1 << (kBottomLeft - kFirstCorner),
-	kBottomRightMask = 1 << (kBottomRight - kFirstCorner),
-	kAllCornersMask  = kTopLeftMask | kTopRightMask |
-						kBottomLeftMask | kBottomRightMask
-};
+static const OptionID	kOptionHalfDuplexCapsLock    = OPTION_CODE("HDCL");
+static const OptionID	kOptionHalfDuplexNumLock     = OPTION_CODE("HDNL");
+static const OptionID	kOptionHalfDuplexScrollLock  = OPTION_CODE("HDSL");
+static const OptionID	kOptionModifierMapForShift   = OPTION_CODE("MMFS");
+static const OptionID	kOptionModifierMapForControl = OPTION_CODE("MMFC");
+static const OptionID	kOptionModifierMapForAlt     = OPTION_CODE("MMFA");
+static const OptionID	kOptionModifierMapForMeta    = OPTION_CODE("MMFM");
+static const OptionID	kOptionModifierMapForSuper   = OPTION_CODE("MMFR");
+static const OptionID	kOptionHeartbeat             = OPTION_CODE("HART");
+static const OptionID	kOptionScreenSwitchDelay     = OPTION_CODE("SSWT");
+static const OptionID	kOptionScreenSwitchTwoTap    = OPTION_CODE("SSTT");
+static const OptionID	kOptionScreenSaverSync       = OPTION_CODE("SSVR");
+static const OptionID	kOptionXTestXineramaUnaware  = OPTION_CODE("XTXU");
 //@}
 
 #undef OPTION_CODE

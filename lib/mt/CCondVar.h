@@ -1,6 +1,5 @@
 /*
- * synergy-plus -- mouse and keyboard sharing utility
- * Copyright (C) 2009 The Synergy+ Project
+ * synergy -- mouse and keyboard sharing utility
  * Copyright (C) 2002 Chris Schoeneman
  * 
  * This package is free software; you can redistribute it and/or
@@ -11,9 +10,6 @@
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
 #ifndef CCONDVAR_H
@@ -164,12 +160,12 @@ public:
 	Get the variable's value.  The condition variable should be locked
 	before calling this method.
 	*/
-						operator const volatile T&() const;
+						operator const T&() const;
 
 	//@}
 
 private:
-	volatile T			m_data;
+	T					m_data;
 };
 
 template <class T>
@@ -203,7 +199,8 @@ CCondVar<T>::~CCondVar()
 template <class T>
 inline
 CCondVar<T>&
-CCondVar<T>::operator=(const CCondVar<T>& cv)
+CCondVar<T>::operator=(
+	const CCondVar<T>& cv)
 {
 	m_data = cv.m_data;
 	return *this;
@@ -212,7 +209,8 @@ CCondVar<T>::operator=(const CCondVar<T>& cv)
 template <class T>
 inline
 CCondVar<T>&
-CCondVar<T>::operator=(const T& data)
+CCondVar<T>::operator=(
+	const T& data)
 {
 	m_data = data;
 	return *this;
@@ -220,7 +218,7 @@ CCondVar<T>::operator=(const T& data)
 
 template <class T>
 inline
-CCondVar<T>::operator const volatile T&() const
+CCondVar<T>::operator const T&() const
 {
 	return m_data;
 }

@@ -1,6 +1,5 @@
 /*
- * synergy-plus -- mouse and keyboard sharing utility
- * Copyright (C) 2009 The Synergy+ Project
+ * synergy -- mouse and keyboard sharing utility
  * Copyright (C) 2002 Chris Schoeneman
  * 
  * This package is free software; you can redistribute it and/or
@@ -11,9 +10,6 @@
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
 #ifndef CPROTOCOLUTIL_H
@@ -23,7 +19,8 @@
 #include "XIO.h"
 #include <stdarg.h>
 
-class IStream;
+class IInputStream;
+class IOutputStream;
 
 //! Synergy protocol utilities
 /*!
@@ -50,14 +47,13 @@ public:
 	- \%s   -- converts CString* to stream of bytes
 	- \%S   -- converts integer N and const UInt8* to stream of N bytes
 	*/
-	static void			writef(IStream*,
+	static void			writef(IOutputStream*,
 							const char* fmt, ...);
 
 	//! Read formatted data
 	/*!
 	Read formatted binary data from a buffer.  This performs the
-	reverse operation of writef().  Returns true if the entire
-	format was successfully parsed, false otherwise.
+	reverse operation of writef().
 	
 	Format specifiers are:
 	- \%\%   -- read (and discard) a literal `\%'
@@ -69,19 +65,14 @@ public:
 	- \%4I  -- reads NBO 4 byte integers;  arg is std::vector<UInt32>*
 	- \%s   -- reads bytes;  argument must be a CString*, \b not a char*
 	*/
-	static bool			readf(IStream*,
+	static void			readf(IInputStream*,
 							const char* fmt, ...);
 
 private:
-	static void			vwritef(IStream*,
-							const char* fmt, UInt32 size, va_list);
-	static void			vreadf(IStream*,
-							const char* fmt, va_list);
-
 	static UInt32		getLength(const char* fmt, va_list);
 	static void			writef(void*, const char* fmt, va_list);
 	static UInt32		eatLength(const char** fmt);
-	static void			read(IStream*, void*, UInt32);
+	static void			read(IInputStream*, void*, UInt32);
 };
 
 //! Mismatched read exception

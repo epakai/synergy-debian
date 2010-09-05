@@ -1,6 +1,5 @@
 /*
- * synergy-plus -- mouse and keyboard sharing utility
- * Copyright (C) 2009 The Synergy+ Project
+ * synergy -- mouse and keyboard sharing utility
  * Copyright (C) 2002 Chris Schoeneman
  * 
  * This package is free software; you can redistribute it and/or
@@ -11,9 +10,6 @@
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
 #ifndef CAUTOSTART_H
@@ -24,10 +20,14 @@
 #define WINDOWS_LEAN_AND_MEAN
 #include <windows.h>
 
+class CConfig;
+
 //! Auto start dialog for Microsoft Windows launcher
 class CAutoStart {
 public:
-	CAutoStart(HWND parent, bool isServer, const CString& cmdLine);
+	// if config == NULL then it's assumed we're installing/uninstalling
+	// the client, otherwise the server.
+	CAutoStart(HWND parent, CConfig* config, const CString& cmdLine);
 	~CAutoStart();
 
 	//! @name manipulators
@@ -39,34 +39,16 @@ public:
 	*/
 	void				doModal();
 
-	//! Reinstall daemon
-	/*!
-	Reinstalls the currently installed daemon.
-	*/
-	static void			reinstallDaemon(bool isClient, const CString& cmdLine);
-
-	//! Uninstalls daemon
-	/*!
-	Uninstalls all installed client (\p client is \c true) or server daemons.
-	*/
-	static void			uninstallDaemons(bool client);
-
-	//! Starts an installed daemon
-	/*!
-	Returns \c true iff a daemon was started.  This will only start daemons
-	installed for all users.
-	*/
-	static bool			startDaemon();
-
 	//@}
 	//! @name accessors
 	//@{
 
-	//! Tests if any daemons are installed
+	//! Test if user configuration was saved
 	/*!
-	Returns \c true if any daemons are installed.
+	Returns true if the user's configuration (as opposed to the system-wide
+	configuration) was saved successfully while in doModal().
 	*/
-	static bool			isDaemonInstalled();
+	bool				wasUserConfigSaved() const;
 
 	//@}
 
@@ -83,12 +65,14 @@ private:
 	static CAutoStart*	s_singleton;
 
 	HWND				m_parent;
+	CConfig*			m_config;
 	bool				m_isServer;
 	CString				m_cmdLine;
 	CString				m_name;
 	HWND				m_hwnd;
 	bool				m_install;
 	CString				m_errorMessage;
+	bool				m_userConfigSaved;
 };
 
 #endif

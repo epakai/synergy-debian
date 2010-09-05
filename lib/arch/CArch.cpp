@@ -1,24 +1,19 @@
 /*
- * synergy-plus -- mouse and keyboard sharing utility
- * Copyright (C) 2009 The Synergy+ Project
+ * synergy -- mouse and keyboard sharing utility
  * Copyright (C) 2002 Chris Schoeneman
  * 
- * This package is free software; you can redistribute it and/or
+ * This package is free software you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
  * found in the file COPYING that should have accompanied this file.
  * 
  * This package is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * but WITHOUT ANY WARRANTY without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
 #include "common.h"
 #include "CArch.h"
-#include "CLog.h"
 
 #undef ARCH_CONSOLE
 #undef ARCH_DAEMON
@@ -28,26 +23,22 @@
 #undef ARCH_NETWORK
 #undef ARCH_SLEEP
 #undef ARCH_STRING
-#undef ARCH_SYSTEM
 #undef ARCH_TASKBAR
 #undef ARCH_TIME
 
 // include appropriate architecture implementation
-#if SYSAPI_WIN32
+#if WINDOWS_LIKE
 #	include "CArchConsoleWindows.h"
 #	include "CArchDaemonWindows.h"
 #	include "CArchFileWindows.h"
 #	include "CArchLogWindows.h"
-#	include "CArchMiscWindows.h"
 #	include "CArchMultithreadWindows.h"
 #	include "CArchNetworkWinsock.h"
 #	include "CArchSleepWindows.h"
 #	include "CArchStringWindows.h"
-#	include "CArchSystemWindows.h"
 #	include "CArchTaskBarWindows.h"
 #	include "CArchTimeWindows.h"
-#	include "CArchAppUtilWindows.h"
-#elif SYSAPI_UNIX
+#elif UNIX_LIKE
 #	include "CArchConsoleUnix.h"
 #	include "CArchDaemonUnix.h"
 #	include "CArchFileUnix.h"
@@ -58,10 +49,8 @@
 #	include "CArchNetworkBSD.h"
 #	include "CArchSleepUnix.h"
 #	include "CArchStringUnix.h"
-#	include "CArchSystemUnix.h"
 #	include "CArchTaskBarXWindows.h"
 #	include "CArchTimeUnix.h"
-#	include "CArchAppUtilUnix.h"
 #endif
 
 #if !defined(ARCH_CONSOLE)
@@ -96,10 +85,6 @@
 #	error unsupported platform for string
 #endif
 
-#if !defined(ARCH_SYSTEM)
-#	error unsupported platform for system
-#endif
-
 #if !defined(ARCH_TASKBAR)
 #	error unsupported platform for taskbar
 #endif
@@ -108,17 +93,13 @@
 #	error unsupported platform for time
 #endif
 
-#if !defined(ARCH_APPUTIL)
-#	error unsupported platform for app util
-#endif
-
 //
 // CArch
 //
 
 CArch*					CArch::s_instance = NULL;
 
-CArch::CArch()
+CArch::CArch(ARCH_ARGS* args)
 {
 	// only once instance of CArch
 	assert(s_instance == NULL);
@@ -126,7 +107,6 @@ CArch::CArch()
 
 	// create architecture implementation objects
 	m_mt      = new ARCH_MULTITHREAD;
-	m_system  = new ARCH_SYSTEM;
 	m_file    = new ARCH_FILE;
 	m_log     = new ARCH_LOG;
 	m_net     = new ARCH_NETWORK;
@@ -135,12 +115,7 @@ CArch::CArch()
 	m_time    = new ARCH_TIME;
 	m_console = new ARCH_CONSOLE;
 	m_daemon  = new ARCH_DAEMON;
-	m_taskbar = new ARCH_TASKBAR;
-	m_appUtil = new ARCH_APPUTIL;
-
-#if SYSAPI_WIN32
-	CArchMiscWindows::init();
-#endif
+	m_taskbar = new ARCH_TASKBAR(args);
 }
 
 CArch::~CArch()
@@ -155,9 +130,7 @@ CArch::~CArch()
 	delete m_net;
 	delete m_log;
 	delete m_file;
-	delete m_system;
 	delete m_mt;
-	delete m_appUtil;
 
 	// no instance
 	s_instance = NULL;
@@ -184,15 +157,15 @@ CArch::closeConsole()
 }
 
 void
-CArch::showConsole(bool showIfEmpty)
-{
-	m_console->showConsole(showIfEmpty);
-}
-
-void
 CArch::writeConsole(const char* str)
 {
 	m_console->writeConsole(str);
+}
+
+const char*
+CArch::getNewlineForConsole()
+{
+	return m_console->getNewlineForConsole();
 }
 
 void
@@ -200,11 +173,9 @@ CArch::installDaemon(const char* name,
 				const char* description,
 				const char* pathname,
 				const char* commandLine,
-				const char* dependencies,
 				bool allUsers)
 {
-	m_daemon->installDaemon(name, description, pathname,
-							commandLine, dependencies, allUsers);
+	m_daemon->installDaemon(name, description, pathname, commandLine, allUsers);
 }
 
 void
@@ -265,12 +236,6 @@ void
 CArch::closeLog()
 {
 	m_log->closeLog();
-}
-
-void
-CArch::showLog(bool showIfEmpty)
-{
-	m_log->showLog(showIfEmpty);
 }
 
 void
@@ -381,6 +346,12 @@ CArch::wait(CArchThread thread, double timeout)
 	return m_mt->wait(thread, timeout);
 }
 
+IArchMultithread::EWaitResult
+CArch::waitForEvent(CArchThread thread, double timeout)
+{
+	return m_mt->waitForEvent(thread, timeout);
+}
+
 bool
 CArch::isSameThread(CArchThread thread1, CArchThread thread2)
 {
@@ -403,18 +374,6 @@ IArchMultithread::ThreadID
 CArch::getIDOfThread(CArchThread thread)
 {
 	return m_mt->getIDOfThread(thread);
-}
-
-void
-CArch::setSignalHandler(ESignal signal, SignalFunc func, void* userData)
-{
-	m_mt->setSignalHandler(signal, func, userData);
-}
-
-void
-CArch::raiseSignal(ESignal signal)
-{
-	m_mt->raiseSignal(signal);
 }
 
 CArchSocket
@@ -465,22 +424,16 @@ CArch::acceptSocket(CArchSocket s, CArchNetAddress* addr)
 	return m_net->acceptSocket(s, addr);
 }
 
-bool
+void
 CArch::connectSocket(CArchSocket s, CArchNetAddress name)
 {
-	return m_net->connectSocket(s, name);
+	m_net->connectSocket(s, name);
 }
 
 int
 CArch::pollSocket(CPollEntry pe[], int num, double timeout)
 {
 	return m_net->pollSocket(pe, num, timeout);
-}
-
-void
-CArch::unblockPollSocket(CArchThread thread)
-{
-	m_net->unblockPollSocket(thread);
 }
 
 size_t
@@ -502,15 +455,15 @@ CArch::throwErrorOnSocket(CArchSocket s)
 }
 
 bool
-CArch::setNoDelayOnSocket(CArchSocket s, bool noDelay)
+CArch::setBlockingOnSocket(CArchSocket s, bool blocking)
 {
-	return m_net->setNoDelayOnSocket(s, noDelay);
+	return m_net->setBlockingOnSocket(s, blocking);
 }
 
 bool
-CArch::setReuseAddrOnSocket(CArchSocket s, bool reuse)
+CArch::setNoDelayOnSocket(CArchSocket s, bool noDelay)
 {
-	return m_net->setReuseAddrOnSocket(s, reuse);
+	return m_net->setNoDelayOnSocket(s, noDelay);
 }
 
 std::string
@@ -579,12 +532,6 @@ CArch::isAnyAddr(CArchNetAddress addr)
 	return m_net->isAnyAddr(addr);
 }
 
-bool
-CArch::isEqualAddr(CArchNetAddress a, CArchNetAddress b)
-{
-	return m_net->isEqualAddr(a, b);
-}
-
 void
 CArch::sleep(double timeout)
 {
@@ -597,34 +544,46 @@ CArch::vsnprintf(char* str, int size, const char* fmt, va_list ap)
 	return m_string->vsnprintf(str, size, fmt, ap);
 }
 
-int
-CArch::convStringMBToWC(wchar_t* dst, const char* src, UInt32 n, bool* errors)
+CArchMBState
+CArch::newMBState()
 {
-	return m_string->convStringMBToWC(dst, src, n, errors);
+	return m_string->newMBState();
+}
+
+void
+CArch::closeMBState(CArchMBState state)
+{
+	m_string->closeMBState(state);
+}
+
+void
+CArch::initMBState(CArchMBState state)
+{
+	m_string->initMBState(state);
+}
+
+bool
+CArch::isInitMBState(CArchMBState state)
+{
+	return m_string->isInitMBState(state);
 }
 
 int
-CArch::convStringWCToMB(char* dst, const wchar_t* src, UInt32 n, bool* errors)
+CArch::convMBToWC(wchar_t* dst, const char* src, int n, CArchMBState state)
 {
-	return m_string->convStringWCToMB(dst, src, n, errors);
+	return m_string->convMBToWC(dst, src, n, state);
+}
+
+int
+CArch::convWCToMB(char* dst, wchar_t src, CArchMBState state)
+{
+	return m_string->convWCToMB(dst, src, state);
 }
 
 IArchString::EWideCharEncoding
 CArch::getWideCharEncoding()
 {
 	return m_string->getWideCharEncoding();
-}
-
-std::string
-CArch::getOSName() const
-{
-	return m_system->getOSName();
-}
-
-std::string
-CArch::getPlatformName() const
-{
-	return m_system->getPlatformName();
 }
 
 void
@@ -649,34 +608,4 @@ double
 CArch::time()
 {
 	return m_time->time();
-}
-
-bool 
-CArch::parseArg(const int& argc, const char* const* argv, int& i)
-{
-	return m_appUtil->parseArg(argc, argv, i);
-}
-
-void
-CArch::adoptApp(CApp* app)
-{
-	m_appUtil->adoptApp(app);
-}
-
-CApp&
-CArch::app() const
-{
-	return m_appUtil->app();
-}
-
-int
-CArch::run(int argc, char** argv)
-{
-	return m_appUtil->run(argc, argv);
-}
-
-void
-CArch::beforeAppExit()
-{
-	m_appUtil->beforeAppExit();
 }

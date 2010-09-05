@@ -1,6 +1,5 @@
 /*
- * synergy-plus -- mouse and keyboard sharing utility
- * Copyright (C) 2009 The Synergy+ Project
+ * synergy -- mouse and keyboard sharing utility
  * Copyright (C) 2002 Chris Schoeneman
  * 
  * This package is free software; you can redistribute it and/or
@@ -11,17 +10,28 @@
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
 #ifndef IARCHSTRING_H
 #define IARCHSTRING_H
 
 #include "IInterface.h"
-#include "BasicTypes.h"
 #include <stdarg.h>
+
+/*!      
+\class CArchMBStateImpl
+\brief Internal multibyte conversion data.
+An architecture dependent type holding the necessary data for a
+multibyte to/from wide character conversion.
+*/
+class CArchMBStateImpl;
+
+/*!      
+\var CArchMBState
+\brief Opaque multibyte conversion state type.
+An opaque type representing multibyte conversion state.
+*/
+typedef CArchMBStateImpl* CArchMBState;
 
 //! Interface for architecture dependent string operations
 /*!
@@ -54,13 +64,24 @@ public:
 	virtual int			vsnprintf(char* str,
 							int size, const char* fmt, va_list ap) = 0;
 
-	//! Convert multibyte string to wide character string
-	virtual int			convStringMBToWC(wchar_t*,
-							const char*, UInt32 n, bool* errors) = 0;
+	//! Create a new multibyte conversion state
+	virtual CArchMBState	newMBState() = 0;
 
-	//! Convert wide character string to multibyte string
-	virtual int			convStringWCToMB(char*,
-							const wchar_t*, UInt32 n, bool* errors) = 0;
+	//! Destroy a multibyte conversion state
+	virtual void		closeMBState(CArchMBState) = 0;
+
+	//! Initialize a multibyte conversion state
+	virtual void		initMBState(CArchMBState) = 0;
+
+	//! Test a multibyte conversion state
+	virtual bool		isInitMBState(CArchMBState) = 0;
+
+	//! Convert multibyte to wide character
+	virtual int			convMBToWC(wchar_t*,
+							const char*, int, CArchMBState) = 0;
+
+	//! Convert wide character to multibyte
+	virtual int			convWCToMB(char*, wchar_t, CArchMBState) = 0;
 
 	//! Return the architecture's native wide character encoding
 	virtual EWideCharEncoding

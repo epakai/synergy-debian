@@ -1,19 +1,15 @@
 /*
- * synergy-plus -- mouse and keyboard sharing utility
- * Copyright (C) 2009 The Synergy+ Project
+ * synergy -- mouse and keyboard sharing utility
  * Copyright (C) 2002 Chris Schoeneman
  * 
- * This package is free software; you can redistribute it and/or
+ * This package is free software you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
  * found in the file COPYING that should have accompanied this file.
  * 
  * This package is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * but WITHOUT ANY WARRANTY without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
 #ifndef CARCHSTRINGWINDOWS_H
@@ -32,10 +28,12 @@ public:
 	// IArchString overrides
 	virtual int			vsnprintf(char* str,
 							int size, const char* fmt, va_list ap);
-	virtual int			convStringMBToWC(wchar_t*,
-							const char*, UInt32 n, bool* errors);
-	virtual int			convStringWCToMB(char*,
-							const wchar_t*, UInt32 n, bool* errors);
+	virtual CArchMBState	newMBState();
+	virtual void		closeMBState(CArchMBState);
+	virtual void		initMBState(CArchMBState);
+	virtual bool		isInitMBState(CArchMBState);
+	virtual int			convMBToWC(wchar_t*, const char*, int, CArchMBState);
+	virtual int			convWCToMB(char*, wchar_t, CArchMBState);
 	virtual EWideCharEncoding
 						getWideCharEncoding();
 };
