@@ -1,6 +1,5 @@
 /*
- * synergy-plus -- mouse and keyboard sharing utility
- * Copyright (C) 2009 The Synergy+ Project
+ * synergy -- mouse and keyboard sharing utility
  * Copyright (C) 2004 Chris Schoeneman
  * 
  * This package is free software; you can redistribute it and/or
@@ -11,9 +10,6 @@
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
 #include "IClipboard.h"
@@ -82,7 +78,7 @@ IClipboard::marshall(const IClipboard* clipboard)
 			++numFormats;
 			formatData[format] =
 				clipboard->get(static_cast<IClipboard::EFormat>(format));
-			size += 4 + 4 + (UInt32)formatData[format].size();
+			size += 4 + 4 + formatData[format].size();
 		}
 	}
 
@@ -94,7 +90,7 @@ IClipboard::marshall(const IClipboard* clipboard)
 	for (UInt32 format = 0; format != IClipboard::kNumFormats; ++format) {
 		if (clipboard->has(static_cast<IClipboard::EFormat>(format))) {
 			writeUInt32(&data, format);
-			writeUInt32(&data, (UInt32)formatData[format].size());
+			writeUInt32(&data, formatData[format].size());
 			data += formatData[format];
 		}
 	}

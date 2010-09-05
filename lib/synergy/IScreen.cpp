@@ -1,6 +1,5 @@
 /*
- * synergy-plus -- mouse and keyboard sharing utility
- * Copyright (C) 2009 The Synergy+ Project
+ * synergy -- mouse and keyboard sharing utility
  * Copyright (C) 2004 Chris Schoeneman
  * 
  * This package is free software; you can redistribute it and/or
@@ -11,9 +10,6 @@
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
 #include "IScreen.h"
@@ -25,8 +21,6 @@
 CEvent::Type			IScreen::s_errorEvent            = CEvent::kUnknown;
 CEvent::Type			IScreen::s_shapeChangedEvent     = CEvent::kUnknown;
 CEvent::Type			IScreen::s_clipboardGrabbedEvent = CEvent::kUnknown;
-CEvent::Type			IScreen::s_suspendEvent          = CEvent::kUnknown;
-CEvent::Type			IScreen::s_resumeEvent           = CEvent::kUnknown;
 
 CEvent::Type
 IScreen::getErrorEvent()
@@ -47,18 +41,4 @@ IScreen::getClipboardGrabbedEvent()
 {
 	return CEvent::registerTypeOnce(s_clipboardGrabbedEvent,
 							"IScreen::clipboardGrabbed");
-}
-
-CEvent::Type
-IScreen::getSuspendEvent()
-{
-	return CEvent::registerTypeOnce(s_suspendEvent,
-									"IScreen::suspend");
-}
-
-CEvent::Type
-IScreen::getResumeEvent()
-{
-	return CEvent::registerTypeOnce(s_resumeEvent,
-									"IScreen::resume");
 }

@@ -1,24 +1,19 @@
 /*
- * synergy-plus -- mouse and keyboard sharing utility
- * Copyright (C) 2009 The Synergy+ Project
+ * synergy -- mouse and keyboard sharing utility
  * Copyright (C) 2002 Chris Schoeneman
  * 
- * This package is free software; you can redistribute it and/or
+ * This package is free software you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
  * found in the file COPYING that should have accompanied this file.
  * 
  * This package is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * but WITHOUT ANY WARRANTY without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
 #include "common.h"
 #include "CArch.h"
-#include "CLog.h"
 
 #undef ARCH_CONSOLE
 #undef ARCH_DAEMON
@@ -46,7 +41,6 @@
 #	include "CArchSystemWindows.h"
 #	include "CArchTaskBarWindows.h"
 #	include "CArchTimeWindows.h"
-#	include "CArchAppUtilWindows.h"
 #elif SYSAPI_UNIX
 #	include "CArchConsoleUnix.h"
 #	include "CArchDaemonUnix.h"
@@ -61,7 +55,6 @@
 #	include "CArchSystemUnix.h"
 #	include "CArchTaskBarXWindows.h"
 #	include "CArchTimeUnix.h"
-#	include "CArchAppUtilUnix.h"
 #endif
 
 #if !defined(ARCH_CONSOLE)
@@ -108,17 +101,13 @@
 #	error unsupported platform for time
 #endif
 
-#if !defined(ARCH_APPUTIL)
-#	error unsupported platform for app util
-#endif
-
 //
 // CArch
 //
 
 CArch*					CArch::s_instance = NULL;
 
-CArch::CArch()
+CArch::CArch(ARCH_ARGS* args)
 {
 	// only once instance of CArch
 	assert(s_instance == NULL);
@@ -135,8 +124,7 @@ CArch::CArch()
 	m_time    = new ARCH_TIME;
 	m_console = new ARCH_CONSOLE;
 	m_daemon  = new ARCH_DAEMON;
-	m_taskbar = new ARCH_TASKBAR;
-	m_appUtil = new ARCH_APPUTIL;
+	m_taskbar = new ARCH_TASKBAR(args);
 
 #if SYSAPI_WIN32
 	CArchMiscWindows::init();
@@ -157,7 +145,6 @@ CArch::~CArch()
 	delete m_file;
 	delete m_system;
 	delete m_mt;
-	delete m_appUtil;
 
 	// no instance
 	s_instance = NULL;
@@ -184,15 +171,15 @@ CArch::closeConsole()
 }
 
 void
-CArch::showConsole(bool showIfEmpty)
-{
-	m_console->showConsole(showIfEmpty);
-}
-
-void
 CArch::writeConsole(const char* str)
 {
 	m_console->writeConsole(str);
+}
+
+const char*
+CArch::getNewlineForConsole()
+{
+	return m_console->getNewlineForConsole();
 }
 
 void
@@ -265,12 +252,6 @@ void
 CArch::closeLog()
 {
 	m_log->closeLog();
-}
-
-void
-CArch::showLog(bool showIfEmpty)
-{
-	m_log->showLog(showIfEmpty);
 }
 
 void
@@ -507,12 +488,6 @@ CArch::setNoDelayOnSocket(CArchSocket s, bool noDelay)
 	return m_net->setNoDelayOnSocket(s, noDelay);
 }
 
-bool
-CArch::setReuseAddrOnSocket(CArchSocket s, bool reuse)
-{
-	return m_net->setReuseAddrOnSocket(s, reuse);
-}
-
 std::string
 CArch::getHostName()
 {
@@ -621,12 +596,6 @@ CArch::getOSName() const
 	return m_system->getOSName();
 }
 
-std::string
-CArch::getPlatformName() const
-{
-	return m_system->getPlatformName();
-}
-
 void
 CArch::addReceiver(IArchTaskBarReceiver* receiver)
 {
@@ -649,34 +618,4 @@ double
 CArch::time()
 {
 	return m_time->time();
-}
-
-bool 
-CArch::parseArg(const int& argc, const char* const* argv, int& i)
-{
-	return m_appUtil->parseArg(argc, argv, i);
-}
-
-void
-CArch::adoptApp(CApp* app)
-{
-	m_appUtil->adoptApp(app);
-}
-
-CApp&
-CArch::app() const
-{
-	return m_appUtil->app();
-}
-
-int
-CArch::run(int argc, char** argv)
-{
-	return m_appUtil->run(argc, argv);
-}
-
-void
-CArch::beforeAppExit()
-{
-	m_appUtil->beforeAppExit();
 }

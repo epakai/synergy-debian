@@ -1,6 +1,5 @@
 /*
- * synergy-plus -- mouse and keyboard sharing utility
- * Copyright (C) 2009 The Synergy+ Project
+ * synergy -- mouse and keyboard sharing utility
  * Copyright (C) 2002 Chris Schoeneman
  * 
  * This package is free software; you can redistribute it and/or
@@ -11,9 +10,6 @@
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
 #ifndef ILOGOUTPUTTER_H
@@ -49,15 +45,6 @@ public:
 	*/
 	virtual void		close() = 0;
 
-	//! Show the outputter
-	/*!
-	Causes the output to become visible.  This generally only makes sense
-	for a logger in a graphical user interface.  Other implementations
-	will do nothing.  Iff \p showIfEmpty is \c false then the implementation
-	may optionally only show the log if it's not empty.
-	*/
-	virtual void		show(bool showIfEmpty) = 0;
-
 	//! Write a message with level
 	/*!
 	Writes \c message, which has the given \c level, to a log.
@@ -66,6 +53,18 @@ public:
 	it continues.  Most implementations should return true.
 	*/
 	virtual bool		write(ELevel level, const char* message) = 0;
+
+	//@}
+	//! @name accessors
+	//@{
+
+	//! Returns the newline sequence for the outputter
+	/*!
+	Different outputters use different character sequences for newlines.
+	This method returns the appropriate newline sequence for this
+	outputter.
+	*/
+	virtual const char*	getNewline() const = 0;
 
 	//@}
 };

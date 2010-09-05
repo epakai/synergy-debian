@@ -1,6 +1,5 @@
 /*
- * synergy-plus -- mouse and keyboard sharing utility
- * Copyright (C) 2009 The Synergy+ Project
+ * synergy -- mouse and keyboard sharing utility
  * Copyright (C) 2002 Chris Schoeneman
  * 
  * This package is free software; you can redistribute it and/or
@@ -11,9 +10,6 @@
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
 #include "CArchDaemonWindows.h"
@@ -140,23 +136,19 @@ CArchDaemonWindows::installDaemon(const char* name,
 								NULL);
 		if (service == NULL) {
 			// can't create service
+			// FIXME -- handle ERROR_SERVICE_EXISTS
 			DWORD err = GetLastError();
-			if (err != ERROR_SERVICE_EXISTS) {
-				CloseServiceHandle(mgr);
-				throw XArchDaemonInstallFailed(new XArchEvalWindows(err));
-			}
-		}
-		else {
-			// done with service (but only try to close if not null)
-			CloseServiceHandle(service);
+			CloseServiceHandle(mgr);
+			throw XArchDaemonInstallFailed(new XArchEvalWindows(err));
 		}
 
-		// done with manager
+		// done with service and manager
+		CloseServiceHandle(service);
 		CloseServiceHandle(mgr);
 
 		// open the registry key for this service
 		HKEY key = openNTServicesKey();
-		key      = CArchMiscWindows::addKey(key, name);
+		key      = CArchMiscWindows::openKey(key, name);
 		if (key == NULL) {
 			// can't open key
 			DWORD err = GetLastError();
@@ -173,7 +165,7 @@ CArchDaemonWindows::installDaemon(const char* name,
 		CArchMiscWindows::setValue(key, _T("Description"), description);
 
 		// set command line
-		key = CArchMiscWindows::addKey(key, _T("Parameters"));
+		key = CArchMiscWindows::openKey(key, _T("Parameters"));
 		if (key == NULL) {
 			// can't open key
 			DWORD err = GetLastError();
@@ -232,7 +224,7 @@ CArchDaemonWindows::uninstallDaemon(const char* name, bool allUsers)
 		}
 
 		// open the service.  oddly, you must open a service to delete it.
-		SC_HANDLE service = OpenService(mgr, name, DELETE | SERVICE_STOP);
+		SC_HANDLE service = OpenService(mgr, name, DELETE);
 		if (service == NULL) {
 			DWORD err = GetLastError();
 			CloseServiceHandle(mgr);
@@ -241,10 +233,6 @@ CArchDaemonWindows::uninstallDaemon(const char* name, bool allUsers)
 			}
 			throw XArchDaemonUninstallNotInstalled(new XArchEvalWindows(err));
 		}
-
-		// stop the service.  we don't care if we fail.
-		SERVICE_STATUS status;
-		ControlService(service, SERVICE_CONTROL_STOP, &status);
 
 		// delete the service
 		const bool okay = (DeleteService(service) == 0);
@@ -256,10 +244,6 @@ CArchDaemonWindows::uninstallDaemon(const char* name, bool allUsers)
 
 		// handle failure.  ignore error if service isn't installed anymore.
 		if (!okay && isDaemonInstalled(name, allUsers)) {
-			if (err == ERROR_IO_PENDING) {
-				// this seems to be a spurious error
-				return;
-			}
 			if (err != ERROR_SERVICE_MARKED_FOR_DELETE) {
 				throw XArchDaemonUninstallFailed(new XArchEvalWindows(err));
 			}
@@ -333,7 +317,7 @@ CArchDaemonWindows::daemonize(const char* name, DaemonFunc func)
 }
 
 bool
-CArchDaemonWindows::canInstallDaemon(const char* /*name*/, bool allUsers)
+CArchDaemonWindows::canInstallDaemon(const char* name, bool allUsers)
 {
 	// if not for all users then use the user's autostart registry.
 	// key.  if windows 95 family then use windows 95 services key.
@@ -354,10 +338,10 @@ CArchDaemonWindows::canInstallDaemon(const char* /*name*/, bool allUsers)
 		}
 		CloseServiceHandle(mgr);
 
-		// check if we can open the registry key
+		// check if we can open the registry key for this service
 		HKEY key = openNTServicesKey();
-//		key      = CArchMiscWindows::addKey(key, name);
-//		key      = CArchMiscWindows::addKey(key, _T("Parameters"));
+		key      = CArchMiscWindows::openKey(key, name);
+		key      = CArchMiscWindows::openKey(key, _T("Parameters"));
 		CArchMiscWindows::closeKey(key);
 
 		return (key != NULL);
@@ -431,7 +415,7 @@ CArchDaemonWindows::openNTServicesKey()
 		NULL
 	};
 
-	return CArchMiscWindows::addKey(HKEY_LOCAL_MACHINE, s_keyNames);
+	return CArchMiscWindows::openKey(HKEY_LOCAL_MACHINE, s_keyNames);
 }
 
 HKEY
@@ -446,7 +430,7 @@ CArchDaemonWindows::open95ServicesKey()
 		NULL
 	};
 
-	return CArchMiscWindows::addKey(HKEY_LOCAL_MACHINE, s_keyNames);
+	return CArchMiscWindows::openKey(HKEY_LOCAL_MACHINE, s_keyNames);
 }
 
 HKEY
@@ -461,7 +445,7 @@ CArchDaemonWindows::openUserStartupKey()
 		NULL
 	};
 
-	return CArchMiscWindows::addKey(HKEY_CURRENT_USER, s_keyNames);
+	return CArchMiscWindows::openKey(HKEY_CURRENT_USER, s_keyNames);
 }
 
 bool
@@ -619,14 +603,13 @@ CArchDaemonWindows::serviceMain(DWORD argc, LPTSTR* argvIn)
 	m_serviceState = SERVICE_START_PENDING;
 	setStatus(m_serviceState, 0, 10000);
 
-	std::string commandLine;
-
 	// if no arguments supplied then try getting them from the registry.
 	// the first argument doesn't count because it's the service name.
 	Arguments args;
 	ArgList myArgv;
 	if (argc <= 1) {
 		// read command line
+		std::string commandLine;
 		HKEY key = openNTServicesKey();
 		key      = CArchMiscWindows::openKey(key, argvIn[0]);
 		key      = CArchMiscWindows::openKey(key, _T("Parameters"));
@@ -680,17 +663,15 @@ CArchDaemonWindows::serviceMain(DWORD argc, LPTSTR* argvIn)
 			myArgv.push_back(argv[0]);
 
 			// get pointers
-			for (size_t j = 0; j < args.size(); ++j) {
-				myArgv.push_back(args[j].c_str());
+			for (size_t i = 0; i < args.size(); ++i) {
+				myArgv.push_back(args[i].c_str());
 			}
 
 			// adjust argc/argv
-			argc = (DWORD)myArgv.size();
+			argc = myArgv.size();
 			argv = &myArgv[0];
 		}
 	}
-
-	m_commandLine = commandLine;
 
 	try {
 		// invoke daemon function
@@ -708,10 +689,6 @@ CArchDaemonWindows::serviceMain(DWORD argc, LPTSTR* argvIn)
 	// clean up
 	ARCH->closeCondVar(m_serviceCondVar);
 	ARCH->closeMutex(m_serviceMutex);
-
-	// we're going to exit now, so set status to stopped
-	m_serviceState = SERVICE_STOPPED;
-	setStatus(m_serviceState, 0, 10000);
 }
 
 void WINAPI

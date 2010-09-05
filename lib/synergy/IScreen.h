@@ -1,6 +1,5 @@
 /*
- * synergy-plus -- mouse and keyboard sharing utility
- * Copyright (C) 2009 The Synergy+ Project
+ * synergy -- mouse and keyboard sharing utility
  * Copyright (C) 2003 Chris Schoeneman
  * 
  * This package is free software; you can redistribute it and/or
@@ -11,9 +10,6 @@
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
 #ifndef ISCREEN_H
@@ -89,28 +85,12 @@ public:
 	*/
 	static CEvent::Type	getClipboardGrabbedEvent();
 
-	//! Get suspend event type
-	/*!
-	Returns the suspend event type. This is sent whenever the system goes
-	to sleep or a user session is deactivated (fast user switching).
-	*/
-	static CEvent::Type	getSuspendEvent();
-	
-	//! Get resume event type
-	/*!
-	Returns the suspend event type. This is sent whenever the system wakes
-	up or a user session is activated (fast user switching).
-	*/
-	static CEvent::Type	getResumeEvent();
-	
 	//@}
 
 private:
 	static CEvent::Type	s_errorEvent;
 	static CEvent::Type	s_shapeChangedEvent;
 	static CEvent::Type	s_clipboardGrabbedEvent;
-	static CEvent::Type	s_suspendEvent;
-	static CEvent::Type	s_resumeEvent;
 };
 
 #endif

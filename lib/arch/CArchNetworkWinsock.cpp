@@ -1,19 +1,15 @@
 /*
- * synergy-plus -- mouse and keyboard sharing utility
- * Copyright (C) 2009 The Synergy+ Project
+ * synergy -- mouse and keyboard sharing utility
  * Copyright (C) 2002 Chris Schoeneman
  * 
- * This package is free software; you can redistribute it and/or
+ * This package is free software you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
  * found in the file COPYING that should have accompanied this file.
  * 
  * This package is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * but WITHOUT ANY WARRANTY without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
 
@@ -85,9 +81,9 @@ netGetProcAddress(HMODULE module, LPCSTR name)
 CArchNetAddressImpl*
 CArchNetAddressImpl::alloc(size_t size)
 {
-	size_t totalSize = size + ADDR_HDR_SIZE;
+	size_t totalSize          = size + ADDR_HDR_SIZE;
 	CArchNetAddressImpl* addr = (CArchNetAddressImpl*)malloc(totalSize);
-	addr->m_len = (int)size;
+	addr->m_len               = size;
 	return addr;
 }
 
@@ -531,7 +527,7 @@ CArchNetworkWinsock::readSocket(CArchSocket s, void* buf, size_t len)
 {
 	assert(s != NULL);
 
-	int n = recv_winsock(s->m_socket, buf, (int)len, 0);
+	int n = recv_winsock(s->m_socket, buf, len, 0);
 	if (n == SOCKET_ERROR) {
 		int err = getsockerror_winsock();
 		if (err == WSAEINTR || err == WSAEWOULDBLOCK) {
@@ -547,7 +543,7 @@ CArchNetworkWinsock::writeSocket(CArchSocket s, const void* buf, size_t len)
 {
 	assert(s != NULL);
 
-	int n = send_winsock(s->m_socket, buf, (int)len, 0);
+	int n = send_winsock(s->m_socket, buf, len, 0);
 	if (n == SOCKET_ERROR) {
 		int err = getsockerror_winsock();
 		if (err == WSAEINTR) {
@@ -610,30 +606,6 @@ CArchNetworkWinsock::setNoDelayOnSocket(CArchSocket s, bool noDelay)
 	size     = sizeof(flag);
 	if (setsockopt_winsock(s->m_socket, IPPROTO_TCP,
 								TCP_NODELAY, &flag, size) == SOCKET_ERROR) {
-		throwError(getsockerror_winsock());
-	}
-
-	return (oflag != 0);
-}
-
-bool
-CArchNetworkWinsock::setReuseAddrOnSocket(CArchSocket s, bool reuse)
-{
-	assert(s != NULL);
-
-	// get old state
-	BOOL oflag;
-	int size = sizeof(oflag);
-	if (getsockopt_winsock(s->m_socket, SOL_SOCKET,
-								SO_REUSEADDR, &oflag, &size) == SOCKET_ERROR) {
-		throwError(getsockerror_winsock());
-	}
-
-	// set new state
-	BOOL flag = reuse ? 1 : 0;
-	size     = sizeof(flag);
-	if (setsockopt_winsock(s->m_socket, SOL_SOCKET,
-								SO_REUSEADDR, &flag, size) == SOCKET_ERROR) {
 		throwError(getsockerror_winsock());
 	}
 

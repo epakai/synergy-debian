@@ -1,19 +1,15 @@
 /*
- * synergy-plus -- mouse and keyboard sharing utility
- * Copyright (C) 2009 The Synergy+ Project
+ * synergy -- mouse and keyboard sharing utility
  * Copyright (C) 2002 Chris Schoeneman
  * 
- * This package is free software; you can redistribute it and/or
+ * This package is free software you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
  * found in the file COPYING that should have accompanied this file.
  * 
  * This package is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * but WITHOUT ANY WARRANTY without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
 #include "CArchNetworkBSD.h"
@@ -35,6 +31,9 @@
 
 #if HAVE_POLL
 #	include <poll.h>
+#	if HAVE_ALLOCA_H
+#		include <alloca.h>
+#	endif
 #else
 #	if HAVE_SYS_SELECT_H
 #		include <sys/select.h>
@@ -46,6 +45,13 @@
 
 #if !HAVE_INET_ATON
 #	include <stdio.h>
+#endif
+
+#if HAVE_ALLOCA_H
+#	define freea(x_)
+#else
+#	define alloca(x_) malloc(x_)
+#	define freea(x_) free(x_)
 #endif
 
 static const int s_family[] = {
@@ -216,9 +222,7 @@ CArchNetworkBSD::acceptSocket(CArchSocket s, CArchNetAddress* addr)
 	*addr                      = new CArchNetAddressImpl;
 
 	// accept on socket
-	ACCEPT_TYPE_ARG3 len = (ACCEPT_TYPE_ARG3)((*addr)->m_len);
-	int fd = accept(s->m_fd, &(*addr)->m_addr, &len);
-	(*addr)->m_len = (socklen_t)len;
+	int fd = accept(s->m_fd, &(*addr)->m_addr, &(*addr)->m_len);
 	if (fd == -1) {
 		int err = errno;
 		delete newSocket;
@@ -287,7 +291,8 @@ CArchNetworkBSD::pollSocket(CPollEntry pe[], int num, double timeout)
 	}
 
 	// allocate space for translated query
-	struct pollfd* pfd = new struct pollfd[1 + num];
+	struct pollfd* pfd = reinterpret_cast<struct pollfd*>(
+								alloca((1 + num) * sizeof(struct pollfd)));
 
 	// translate query
 	for (int i = 0; i < num; ++i) {
@@ -317,13 +322,11 @@ CArchNetworkBSD::pollSocket(CPollEntry pe[], int num, double timeout)
 	n = poll(pfd, n, t);
 
 	// reset the unblock pipe
-	if (n > 0 && unblockPipe != NULL && (pfd[num].revents & POLLIN) != 0) {
+	if (unblockPipe != NULL && (pfd[num].revents & POLLIN) != 0) {
 		// the unblock event was signalled.  flush the pipe.
 		char dummy[100];
-		int ignore;
-
 		do {
-			ignore = read(unblockPipe[0], dummy, sizeof(dummy));
+			read(unblockPipe[0], dummy, sizeof(dummy));
 		} while (errno != EAGAIN);
 
 		// don't count this unblock pipe in return value
@@ -335,10 +338,10 @@ CArchNetworkBSD::pollSocket(CPollEntry pe[], int num, double timeout)
 		if (errno == EINTR) {
 			// interrupted system call
 			ARCH->testCancelThread();
-			delete[] pfd;
+			freea(pfd);
 			return 0;
 		}
-		delete[] pfd;
+		freea(pfd);
 		throwError(errno);
 	}
 
@@ -359,7 +362,7 @@ CArchNetworkBSD::pollSocket(CPollEntry pe[], int num, double timeout)
 		}
 	}
 
-	delete[] pfd;
+	freea(pfd);
 	return n;
 }
 
@@ -449,7 +452,7 @@ CArchNetworkBSD::pollSocket(CPollEntry pe[], int num, double timeout)
 				SELECT_TYPE_ARG5   timeout2P);
 
 	// reset the unblock pipe
-	if (n > 0 && unblockPipe != NULL && FD_ISSET(unblockPipe[0], &readSet)) {
+	if (unblockPipe != NULL && FD_ISSET(unblockPipe[0], &readSet)) {
 		// the unblock event was signalled.  flush the pipe.
 		char dummy[100];
 		do {
@@ -495,9 +498,7 @@ CArchNetworkBSD::unblockPollSocket(CArchThread thread)
 	const int* unblockPipe = getUnblockPipeForThread(thread);
 	if (unblockPipe != NULL) {
 		char dummy = 0;
-		int ignore;
-
-		ignore = write(unblockPipe[1], &dummy, 1);
+		write(unblockPipe[1], &dummy, 1);
 	}
 }
 
@@ -538,7 +539,7 @@ CArchNetworkBSD::throwErrorOnSocket(CArchSocket s)
 
 	// get the error from the socket layer
 	int err        = 0;
-	socklen_t size = (socklen_t)sizeof(err);
+	socklen_t size = sizeof(err);
 	if (getsockopt(s->m_fd, SOL_SOCKET, SO_ERROR,
 							(optval_t*)&err, &size) == -1) {
 		err = errno;
@@ -577,38 +578,15 @@ CArchNetworkBSD::setNoDelayOnSocket(CArchSocket s, bool noDelay)
 
 	// get old state
 	int oflag;
-	socklen_t size = (socklen_t)sizeof(oflag);
+	socklen_t size = sizeof(oflag);
 	if (getsockopt(s->m_fd, IPPROTO_TCP, TCP_NODELAY,
 							(optval_t*)&oflag, &size) == -1) {
 		throwError(errno);
 	}
 
 	int flag = noDelay ? 1 : 0;
-	size     = (socklen_t)sizeof(flag);
+	size     = sizeof(flag);
 	if (setsockopt(s->m_fd, IPPROTO_TCP, TCP_NODELAY,
-							(optval_t*)&flag, size) == -1) {
-		throwError(errno);
-	}
-
-	return (oflag != 0);
-}
-
-bool
-CArchNetworkBSD::setReuseAddrOnSocket(CArchSocket s, bool reuse)
-{
-	assert(s != NULL);
-
-	// get old state
-	int oflag;
-	socklen_t size = (socklen_t)sizeof(oflag);
-	if (getsockopt(s->m_fd, SOL_SOCKET, SO_REUSEADDR,
-							(optval_t*)&oflag, &size) == -1) {
-		throwError(errno);
-	}
-
-	int flag = reuse ? 1 : 0;
-	size     = (socklen_t)sizeof(flag);
-	if (setsockopt(s->m_fd, SOL_SOCKET, SO_REUSEADDR,
 							(optval_t*)&flag, size) == -1) {
 		throwError(errno);
 	}
@@ -643,7 +621,7 @@ CArchNetworkBSD::newAnyAddr(EAddressFamily family)
 		ipAddr->sin_family         = AF_INET;
 		ipAddr->sin_port           = 0;
 		ipAddr->sin_addr.s_addr    = INADDR_ANY;
-		addr->m_len                = (socklen_t)sizeof(struct sockaddr_in);
+		addr->m_len                = sizeof(struct sockaddr_in);
 		break;
 	}
 
@@ -675,7 +653,7 @@ CArchNetworkBSD::nameToAddr(const std::string& name)
 	memset(&inaddr, 0, sizeof(inaddr));
 	if (inet_aton(name.c_str(), &inaddr.sin_addr) != 0) {
 		// it's a dot notation address
-		addr->m_len       = (socklen_t)sizeof(struct sockaddr_in);
+		addr->m_len       = sizeof(struct sockaddr_in);
 		inaddr.sin_family = AF_INET;
 		inaddr.sin_port   = 0;
 		memcpy(&addr->m_addr, &inaddr, addr->m_len);
@@ -693,7 +671,7 @@ CArchNetworkBSD::nameToAddr(const std::string& name)
 
 		// copy over address (only IPv4 currently supported)
 		if (info->h_addrtype == AF_INET) {
-			addr->m_len       = (socklen_t)sizeof(struct sockaddr_in);
+			addr->m_len       = sizeof(struct sockaddr_in);
 			inaddr.sin_family = info->h_addrtype;
 			inaddr.sin_port   = 0;
 			memcpy(&inaddr.sin_addr, info->h_addr_list[0],
@@ -829,7 +807,7 @@ CArchNetworkBSD::isAnyAddr(CArchNetAddress addr)
 		struct sockaddr_in* ipAddr =
 			reinterpret_cast<struct sockaddr_in*>(&addr->m_addr);
 		return (ipAddr->sin_addr.s_addr == INADDR_ANY &&
-				addr->m_len == (socklen_t)sizeof(struct sockaddr_in));
+				addr->m_len == sizeof(struct sockaddr_in));
 	}
 
 	default:

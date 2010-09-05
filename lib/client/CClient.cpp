@@ -1,6 +1,5 @@
 /*
- * synergy-plus -- mouse and keyboard sharing utility
- * Copyright (C) 2009 The Synergy+ Project
+ * synergy -- mouse and keyboard sharing utility
  * Copyright (C) 2002 Chris Schoeneman
  * 
  * This package is free software; you can redistribute it and/or
@@ -11,9 +10,6 @@
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
 #include "CClient.h"
@@ -30,9 +26,6 @@
 #include "CLog.h"
 #include "IEventQueue.h"
 #include "TMethodEventJob.h"
-#include <cstring>
-#include <cstdlib>
-#include "CArch.h"
 
 //
 // CClient
@@ -54,32 +47,17 @@ CClient::CClient(const CString& name, const CNetworkAddress& address,
 	m_stream(NULL),
 	m_timer(NULL),
 	m_server(NULL),
-	m_ready(false),
-	m_active(false),
-	m_suspended(false),
-	m_connectOnResume(false)
+	
+	m_active(false)
 {
 	assert(m_socketFactory != NULL);
 	assert(m_screen        != NULL);
 
-	// register suspend/resume event handlers
-	EVENTQUEUE->adoptHandler(IScreen::getSuspendEvent(),
-							getEventTarget(),
-							new TMethodEventJob<CClient>(this,
-								&CClient::handleSuspend));
-	EVENTQUEUE->adoptHandler(IScreen::getResumeEvent(),
-							getEventTarget(),
-							new TMethodEventJob<CClient>(this,
-								&CClient::handleResume));
+	// do nothing
 }
 
 CClient::~CClient()
 {
-	EVENTQUEUE->removeHandler(IScreen::getSuspendEvent(),
-							  getEventTarget());
-	EVENTQUEUE->removeHandler(IScreen::getResumeEvent(),
-							  getEventTarget());
-
 	cleanupTimer();
 	cleanupScreen();
 	cleanupConnecting();
@@ -94,10 +72,6 @@ CClient::connect()
 	if (m_stream != NULL) {
 		return;
 	}
-	if (m_suspended) {
-		m_connectOnResume = true;
-		return;
-	}
 
 	try {
 		// resolve the server hostname.  do this every time we connect
@@ -106,15 +80,6 @@ CClient::connect()
 		// being shuttled between various networks).  patch by Brent
 		// Priddy.
 		m_serverAddress.resolve();
-		
-		// m_serverAddress will be null if the hostname address is not reolved
-		if (m_serverAddress.getAddress() != NULL) {
-		  // to help users troubleshoot, show server host name (issue: 60)
-		  LOG((CLOG_NOTE "connecting to '%s': %s:%i", 
-		  m_serverAddress.getHostname().c_str(),
-		  ARCH->addrToString(m_serverAddress.getAddress()).c_str(),
-		  m_serverAddress.getPort()));
-		}
 
 		// create the socket
 		IDataSocket* socket = m_socketFactory->create();
@@ -146,10 +111,8 @@ CClient::connect()
 void
 CClient::disconnect(const char* msg)
 {
-	m_connectOnResume = false;
 	cleanupTimer();
 	cleanupScreen();
-	cleanupConnecting();
 	cleanupConnection();
 	if (msg != NULL) {
 		sendConnectionFailedEvent(msg);
@@ -177,12 +140,6 @@ bool
 CClient::isConnecting() const
 {
 	return (m_timer != NULL);
-}
-
-CNetworkAddress
-CClient::getServerAddress() const
-{
-	return m_serverAddress;
 }
 
 CEvent::Type
@@ -259,16 +216,13 @@ void
 CClient::setClipboard(ClipboardID id, const IClipboard* clipboard)
 {
  	m_screen->setClipboard(id, clipboard);
-	m_ownClipboard[id]  = false;
-	m_sentClipboard[id] = false;
 }
 
 void
 CClient::grabClipboard(ClipboardID id)
 {
 	m_screen->grabClipboard(id);
-	m_ownClipboard[id]  = false;
-	m_sentClipboard[id] = false;
+	m_ownClipboard[id] = false;
 }
 
 void
@@ -321,9 +275,9 @@ CClient::mouseRelativeMove(SInt32 dx, SInt32 dy)
 }
 
 void
-CClient::mouseWheel(SInt32 xDelta, SInt32 yDelta)
+CClient::mouseWheel(SInt32 delta)
 {
-	m_screen->mouseWheel(xDelta, yDelta);
+	m_screen->mouseWheel(delta);
 }
 
 void
@@ -376,9 +330,8 @@ CClient::sendClipboard(ClipboardID id)
 		// marshall the data
 		CString data = clipboard.marshall();
 
-		// save and send data if different or not yet sent
-		if (!m_sentClipboard[id] || data != m_dataClipboard[id]) {
-			m_sentClipboard[id] = true;
+		// save and send data if different
+		if (data != m_dataClipboard[id]) {
 			m_dataClipboard[id] = data;
 			m_server->onClipboardChanged(id, &clipboard);
 		}
@@ -394,10 +347,10 @@ CClient::sendEvent(CEvent::Type type, void* data)
 void
 CClient::sendConnectionFailedEvent(const char* msg)
 {
-	CFailInfo* info = new CFailInfo(msg);
-	info->m_retry = true;
-	CEvent event(getConnectionFailedEvent(), getEventTarget(), info, CEvent::kDontFreeData);
-	EVENTQUEUE->addEvent(event);
+	CFailInfo* info = (CFailInfo*)malloc(sizeof(CFailInfo) + strlen(msg));
+	info->m_retry   = true;
+	strcpy(info->m_what, msg);
+	sendEvent(getConnectionFailedEvent(), info);
 }
 
 void
@@ -537,7 +490,6 @@ CClient::handleConnected(const CEvent&, void*)
 	// reset clipboard state
 	for (ClipboardID id = 0; id < kClipboardEnd; ++id) {
 		m_ownClipboard[id]  = false;
-		m_sentClipboard[id] = false;
 		m_timeClipboard[id] = 0;
 	}
 }
@@ -553,8 +505,7 @@ CClient::handleConnectionFailed(const CEvent& event, void*)
 	delete m_stream;
 	m_stream = NULL;
 	LOG((CLOG_DEBUG1 "connection failed"));
-	sendConnectionFailedEvent(info->m_what.c_str());
-	delete info;
+	sendConnectionFailedEvent(info->m_what);
 }
 
 void
@@ -562,7 +513,6 @@ CClient::handleConnectTimeout(const CEvent&, void*)
 {
 	cleanupTimer();
 	cleanupConnecting();
-	cleanupConnection();
 	delete m_stream;
 	m_stream = NULL;
 	LOG((CLOG_DEBUG1 "connection timed out"));
@@ -607,7 +557,6 @@ CClient::handleClipboardGrabbed(const CEvent& event, void*)
 
 	// we now own the clipboard and it has not been sent to the server
 	m_ownClipboard[info->m_id]  = true;
-	m_sentClipboard[info->m_id] = false;
 	m_timeClipboard[info->m_id] = 0;
 
 	// if we're not the active screen then send the clipboard now,
@@ -654,26 +603,5 @@ CClient::handleHello(const CEvent&, void*)
 	if (m_stream->isReady()) {
 		EVENTQUEUE->addEvent(CEvent(IStream::getInputReadyEvent(),
 							m_stream->getEventTarget()));
-	}
-}
-
-void
-CClient::handleSuspend(const CEvent&, void*)
-{
-	LOG((CLOG_INFO "suspend"));
-	m_suspended       = true;
-	bool wasConnected = isConnected();
-	disconnect(NULL);
-	m_connectOnResume = wasConnected;
-}
-
-void
-CClient::handleResume(const CEvent&, void*)
-{
-	LOG((CLOG_INFO "resume"));
-	m_suspended = false;
-	if (m_connectOnResume) {
-		m_connectOnResume = false;
-		connect();
 	}
 }

@@ -1,6 +1,5 @@
 /*
- * synergy-plus -- mouse and keyboard sharing utility
- * Copyright (C) 2009 The Synergy+ Project
+ * synergy -- mouse and keyboard sharing utility
  * Copyright (C) 2002 Chris Schoeneman
  * 
  * This package is free software; you can redistribute it and/or
@@ -11,9 +10,6 @@
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
 #ifndef LAUNCHUTIL_H
@@ -23,12 +19,9 @@
 
 #define WINDOWS_LEAN_AND_MEAN
 #include <windows.h>
-#include <sys/types.h>
-#include <sys/stat.h>
 
 #define CLIENT_APP "synergyc.exe"
 #define SERVER_APP "synergys.exe"
-#define CONFIG_NAME "synergy.sgc"
 
 class CConfig;
 
@@ -42,7 +35,6 @@ void					showError(HWND hwnd, const CString& msg);
 void					askOkay(HWND hwnd, const CString& title,
 							const CString& msg);
 bool					askVerify(HWND hwnd, const CString& msg);
-bool					isShowingDialog();
 
 void					setWindowText(HWND hwnd, const CString& msg);
 CString					getWindowText(HWND hwnd);
@@ -55,10 +47,8 @@ bool					isItemChecked(HWND);
 
 CString					getAppPath(const CString& appName);
 
-bool					isConfigNewer(time_t&, bool userConfig);
-bool					loadConfig(CConfig& config, time_t&, bool& userConfig);
-bool					saveConfig(const CConfig& config,
-							bool sysOnly, time_t&);
+bool					loadConfig(CConfig& config);
+bool					saveConfig(const CConfig& config, bool sysOnly);
 
 const TCHAR* const*		getSettingsPath();
 

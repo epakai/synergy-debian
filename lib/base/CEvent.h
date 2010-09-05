@@ -1,6 +1,5 @@
 /*
- * synergy-plus -- mouse and keyboard sharing utility
- * Copyright (C) 2009 The Synergy+ Project
+ * synergy -- mouse and keyboard sharing utility
  * Copyright (C) 2004 Chris Schoeneman
  * 
  * This package is free software; you can redistribute it and/or
@@ -11,9 +10,6 @@
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
 #ifndef CEVENT_H
@@ -37,13 +33,6 @@ public:
 		kLast		//!< Must be last
 	};
 
-	typedef UInt32 Flags;
-	enum {
-		kNone				= 0x00,	//!< No flags
-		kDeliverImmediately	= 0x01,	//!< Dispatch and free event immediately
-		kDontFreeData		= 0x02	//!< Don't free data in deleteData
-	};
-
 	CEvent();
 
 	//! Create \c CEvent with data
@@ -52,10 +41,9 @@ public:
 	The \p data must be POD (plain old data) allocated by malloc(),
 	which means it cannot have a constructor, destructor or be
 	composed of any types that do.  \p target is the intended
-	recipient of the event.  \p flags is any combination of \c Flags.
+	recipient of the event.
 	*/
-	CEvent(Type type, void* target = NULL, void* data = NULL,
-							 UInt32 flags = kNone);
+	CEvent(Type type, void* target = NULL, void* data = NULL);
 
 	//! @name manipulators
 	//@{
@@ -109,19 +97,12 @@ public:
 	*/
 	void*				getData() const;
 
-	//! Get event flags
-	/*!
-	Returns the event flags.
-	*/
-	Flags				getFlags() const;
-	
 	//@}
 
 private:
 	Type				m_type;
 	void*				m_target;
 	void*				m_data;
-	Flags				m_flags;
 };
 
 #endif
