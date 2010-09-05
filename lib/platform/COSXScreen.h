@@ -1,6 +1,5 @@
 /*
- * synergy-plus -- mouse and keyboard sharing utility
- * Copyright (C) 2009 The Synergy+ Project
+ * synergy -- mouse and keyboard sharing utility
  * Copyright (C) 2004 Chris Schoeneman
  * 
  * This package is free software; you can redistribute it and/or
@@ -11,22 +10,14 @@
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
 #ifndef COSXSCREEN_H
 #define COSXSCREEN_H
 
-#include <bitset>
-
-#include "stdmap.h"
-#include "stdvector.h"
-
-#include <Carbon/Carbon.h>
-#include "COSXClipboard.h"
 #include "CPlatformScreen.h"
+#include "stdvector.h"
+#include <Carbon/Carbon.h>
 
 #include <mach/mach_port.h>
 #include <mach/mach_interface.h>
@@ -36,7 +27,6 @@
 
 template <class T>
 class CCondVar;
-class CEventQueueTimer;
 class CMutex;
 class CThread;
 class COSXKeyState;
@@ -58,10 +48,6 @@ public:
 	// IPrimaryScreen overrides
 	virtual void		reconfigure(UInt32 activeSides);
 	virtual void		warpCursor(SInt32 x, SInt32 y);
-	virtual UInt32		registerHotKey(KeyID key, KeyModifierMask mask);
-	virtual void		unregisterHotKey(UInt32 id);
-	virtual void		fakeInputBegin();
-	virtual void		fakeInputEnd();
 	virtual SInt32		getJumpZoneSize() const;
 	virtual bool		isAnyMouseButtonDown() const;
 	virtual void		getCursorCenter(SInt32& x, SInt32& y) const;
@@ -70,7 +56,7 @@ public:
 	virtual void		fakeMouseButton(ButtonID id, bool press) const;
 	virtual void		fakeMouseMove(SInt32 x, SInt32 y) const;
 	virtual void		fakeMouseRelativeMove(SInt32 dx, SInt32 dy) const;
-	virtual void		fakeMouseWheel(SInt32 xDelta, SInt32 yDelta) const;
+	virtual void		fakeMouseWheel(SInt32 delta) const;
 
 	// IPlatformScreen overrides
 	virtual void		enable();
@@ -94,122 +80,60 @@ protected:
 	virtual IKeyState*	getKeyState() const;
 
 private:
-	void				updateScreenShape(const CGDirectDisplayID, const CGDisplayChangeSummaryFlags);
-	void				postMouseEvent(CGPoint&) const;
+	void				updateScreenShape();
+	void				postMouseEvent(const CGPoint &) const;
 	
 	// convenience function to send events
 	void				sendEvent(CEvent::Type type, void* = NULL) const;
 	void				sendClipboardEvent(CEvent::Type type, ClipboardID id) const;
 
 	// message handlers
-	bool				onMouseMove(SInt32 mx, SInt32 my);
+	bool				onMouseMove(SInt32 x, SInt32 y);
 	// mouse button handler.  pressed is true if this is a mousedown
 	// event, false if it is a mouseup event.  macButton is the index
 	// of the button pressed using the mac button mapping.
-	bool				onMouseButton(bool pressed, UInt16 macButton);
-	bool				onMouseWheel(SInt32 xDelta, SInt32 yDelta) const;
+	bool				onMouseButton(bool pressed, UInt16 macButton) const;
+	bool				onMouseWheel(SInt32 delta) const;
 
-	void				constructMouseButtonEventMap();
+	bool				onDisplayChange();
 
-	bool				onKey(CGEventRef event);
-	bool				onHotKey(EventRef event) const;
+	bool				onKey(EventRef event) const;
 
 	// map mac mouse button to synergy buttons
 	ButtonID			mapMacButtonToSynergy(UInt16) const;
 
-	// map mac scroll wheel value to a synergy scroll wheel value
-	SInt32				mapScrollWheelToSynergy(SInt32) const;
-
-	// map synergy scroll wheel value to a mac scroll wheel value
-	SInt32				mapScrollWheelFromSynergy(SInt32) const;
-
-	// get the current scroll wheel speed
-	double				getScrollSpeed() const;
-
-	// get the current scroll wheel speed
-	double				getScrollSpeedFactor() const;
-
-	// enable/disable drag handling for buttons 3 and up
-	void				enableDragTimer(bool enable);
-
-	// drag timer handler
-	void				handleDrag(const CEvent&, void*);
-
-	// clipboard check timer handler
-	void				handleClipboardCheck(const CEvent&, void*);
-
-	// Resolution switch callback
-	static void	displayReconfigurationCallback(CGDirectDisplayID,
-							CGDisplayChangeSummaryFlags, void*);
+	// map mac modifier mask to synergy modifier mask
+	KeyModifierMask		mapMacModifiersToSynergy(EventRef event) const;
+	
+	/// Resolution switch callback
+	static pascal void	displayManagerCallback(void* inUserData,
+							SInt16 inMessage, void* inNotifyData);
 	
 	// fast user switch callback
-	static pascal OSStatus
-						userSwitchCallback(EventHandlerCallRef nextHandler,
-						   EventRef theEvent, void* inUserData);
+	static pascal OSStatus userSwitchCallback (EventHandlerCallRef nextHandler,
+											   EventRef theEvent,
+											   void* inUserData);
 	
 	// sleep / wakeup support
-	void				watchSystemPowerThread(void*);
-	static void			testCanceled(CFRunLoopTimerRef timer, void*info);
-	static void			powerChangeCallback(void* refcon, io_service_t service,
-							natural_t messageType, void* messageArgument);
-	void				handlePowerChangeRequest(natural_t messageType,
-							 void* messageArgument);
+	void watchSystemPowerThread(void*);
+	static void testCanceled (CFRunLoopTimerRef timer, void *info);
 
-	static CEvent::Type	getConfirmSleepEvent();
-	void				handleConfirmSleep(const CEvent& event, void*);
+
+	static void powerChangeCallback(void * refcon, io_service_t service,
+								natural_t messageType, void * messageArgument);
+	
+	void		handlePowerChangeRequest(natural_t messageType,
+										 void * messageArgument);
+
+	static CEvent::Type		getConfirmSleepEvent();
+	void		handleConfirmSleep(const CEvent& event, void*);
 	
 	// global hotkey operating mode
-	static bool			isGlobalHotKeyOperatingModeAvailable();
-	static void			setGlobalHotKeysEnabled(bool enabled);
-	static bool			getGlobalHotKeysEnabled();
-	
-	// Quartz event tap support
-	static CGEventRef	handleCGInputEvent(CGEventTapProxy proxy,
-										   CGEventType type,
-										   CGEventRef event,
-										   void* refcon);
+	static bool isGlobalHotKeyOperatingModeAvailable();
+	static void setGlobalHotKeysEnabled(bool enabled);
+	static bool getGlobalHotKeysEnabled();
+
 private:
-	struct CHotKeyItem {
-	public:
-		CHotKeyItem(UInt32, UInt32);
-		CHotKeyItem(EventHotKeyRef, UInt32, UInt32);
-
-		EventHotKeyRef	getRef() const;
-
-		bool			operator<(const CHotKeyItem&) const;
-
-	private:
-		EventHotKeyRef	m_ref;
-		UInt32			m_keycode;
-		UInt32			m_mask;
-	};
-
-	enum MouseButtonState {
-		kMouseButtonUp = 0,
-		kMouseButtonDragged,
-		kMouseButtonDown,
-		kMouseButtonStateMax
-	};
-	
-
-	class CMouseButtonState {
-	public:
-		void set(UInt32 button, MouseButtonState state);
-		bool any();
-		void reset(); 
-		void overwrite(UInt32 buttons);
-
-		bool test(UInt32 button) const;
-		SInt8 getFirstButtonDown() const;
-	private:
-		std::bitset<NumButtonIDs>	  m_buttons;
-	};
-
-	typedef std::map<UInt32, CHotKeyItem> HotKeyMap;
-	typedef std::vector<UInt32> HotKeyIDList;
-	typedef std::map<KeyModifierMask, UInt32> ModifierHotKeyMap;
-	typedef std::map<CHotKeyItem, UInt32> HotKeyToIDMap;
-
 	// true if screen is being used as a primary screen, false otherwise
 	bool				m_isPrimary;
 
@@ -227,27 +151,13 @@ private:
 	// mouse state
 	mutable SInt32		m_xCursor, m_yCursor;
 	mutable bool		m_cursorPosValid;
-	
-    /* FIXME: this data structure is explicitly marked mutable due
-       to a need to track the state of buttons since the remote
-       side only lets us know of change events, and because the
-       fakeMouseButton button method is marked 'const'. This is
-       Evil, and this should be moved to a place where it need not
-       be mutable as soon as possible. */
-	mutable CMouseButtonState m_buttonState;
-	typedef std::map<UInt16, CGEventType> MouseButtonEventMapType;
-	std::vector<MouseButtonEventMapType> MouseButtonEventMap;
-
+	mutable boolean_t	m_buttons[5];
 	bool				m_cursorHidden;
-	SInt32				m_dragNumButtonsDown;
-	Point				m_dragLastPoint;
-	CEventQueueTimer*	m_dragTimer;
 
 	// keyboard stuff
 	COSXKeyState*		m_keyState;
 
 	// clipboards
-	COSXClipboard       m_pasteboard;
 	UInt32				m_sequenceNumber;
 
 	// screen saver stuff
@@ -256,7 +166,6 @@ private:
 
 	// clipboard stuff
 	bool				m_ownClipboard;
-	CEventQueueTimer*	m_clipboardTimer;
 
 	// window object that gets user input events when the server
 	// has focus.
@@ -264,6 +173,10 @@ private:
 	// window object that gets user input events when the server
 	// does not have focus.
 	WindowRef			m_userInputWindow;
+
+	// display manager stuff (to get screen resolution switches).
+	DMExtendedNotificationUPP   m_displayManagerNotificationUPP;
+	ProcessSerialNumber			m_PSN;
 
 	// fast user switching
 	EventHandlerRef			m_switchEventHandlerRef;
@@ -275,24 +188,12 @@ private:
 	CFRunLoopRef			m_pmRunloop;
 	io_connect_t			m_pmRootPort;
 
-	// hot key stuff
-	HotKeyMap				m_hotKeys;
-	HotKeyIDList			m_oldHotKeyIDs;
-	ModifierHotKeyMap		m_modifierHotKeys;
-	UInt32					m_activeModifierHotKey;
-	KeyModifierMask			m_activeModifierHotKeyMask;
-	HotKeyToIDMap			m_hotKeyToIDMap;
-
 	// global hotkey operating mode
 	static bool				s_testedForGHOM;
 	static bool				s_hasGHOM;
 
 	// events
 	static CEvent::Type		s_confirmSleepEvent;
-	
-	// Quartz input event support
-	CFMachPortRef			m_eventTapPort;
-	CFRunLoopSourceRef		m_eventTapRLSR;
 };
 
 #endif

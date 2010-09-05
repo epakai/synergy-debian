@@ -1,6 +1,5 @@
 /*
- * synergy-plus -- mouse and keyboard sharing utility
- * Copyright (C) 2009 The Synergy+ Project
+ * synergy -- mouse and keyboard sharing utility
  * Copyright (C) 2004 Chris Schoeneman
  * 
  * This package is free software; you can redistribute it and/or
@@ -11,17 +10,14 @@
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
 #ifndef COSXCLIPBOARD_H
 #define COSXCLIPBOARD_H
 
-#include <Carbon/Carbon.h>
 #include "IClipboard.h"
 #include <vector>
+#include <Carbon/Carbon.h>
 
 class IOSXClipboardConverter;
 
@@ -43,16 +39,17 @@ public:
 	virtual bool		has(EFormat) const;
 	virtual CString		get(EFormat) const;
 
-	bool				synchronize();
 private:
 	void				clearConverters();
+	static ScrapFlavorType
+						getOwnershipFlavor();
 
 private:
 	typedef std::vector<IOSXClipboardConverter*> ConverterList;
 
 	mutable Time		m_time;
 	ConverterList		m_converters;
-	PasteboardRef		m_pboard;
+	mutable ScrapRef	m_scrap;
 };
 
 //! Clipboard format converter interface
@@ -72,7 +69,7 @@ public:
 						getFormat() const = 0;
 
 	//! returns the scrap flavor type that this object converts from/to
-	virtual CFStringRef
+	virtual ScrapFlavorType
 						getOSXFormat() const = 0;
 
 	//! Convert from IClipboard format

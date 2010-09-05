@@ -1,6 +1,5 @@
 /*
- * synergy-plus -- mouse and keyboard sharing utility
- * Copyright (C) 2009 The Synergy+ Project
+ * synergy -- mouse and keyboard sharing utility
  * Copyright (C) 2002 Chris Schoeneman
  * 
  * This package is free software; you can redistribute it and/or
@@ -11,9 +10,6 @@
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
 #include "CMSWindowsScreen.h"
@@ -23,7 +19,6 @@
 #include "CMSWindowsKeyState.h"
 #include "CMSWindowsScreenSaver.h"
 #include "CClipboard.h"
-#include "CKeyMap.h"
 #include "XScreen.h"
 #include "CLock.h"
 #include "CThread.h"
@@ -59,8 +54,8 @@
 #define WM_NCXBUTTONDOWN	0x00AB
 #define WM_NCXBUTTONUP		0x00AC
 #define WM_NCXBUTTONDBLCLK	0x00AD
-#define MOUSEEVENTF_XDOWN	0x0080
-#define MOUSEEVENTF_XUP		0x0100
+#define MOUSEEVENTF_XDOWN	0x0100
+#define MOUSEEVENTF_XUP		0x0200
 #define XBUTTON1			0x0001
 #define XBUTTON2			0x0002
 #endif
@@ -81,9 +76,8 @@
 HINSTANCE				CMSWindowsScreen::s_instance = NULL;
 CMSWindowsScreen*		CMSWindowsScreen::s_screen   = NULL;
 
-CMSWindowsScreen::CMSWindowsScreen(bool isPrimary, bool noHooks) :
+CMSWindowsScreen::CMSWindowsScreen(bool isPrimary) :
 	m_isPrimary(isPrimary),
-	m_noHooks(noHooks),
 	m_is95Family(CArchMiscWindows::isWindows95Family()),
 	m_isOnScreen(m_isPrimary),
 	m_class(0),
@@ -95,8 +89,8 @@ CMSWindowsScreen::CMSWindowsScreen(bool isPrimary, bool noHooks) :
 	m_sequenceNumber(0),
 	m_mark(0),
 	m_markReceived(0),
-	m_fixTimer(NULL),
 	m_keyLayout(NULL),
+	m_fixTimer(NULL),
 	m_screensaver(NULL),
 	m_screensaverNotify(false),
 	m_screensaverActive(false),
@@ -123,12 +117,11 @@ CMSWindowsScreen::CMSWindowsScreen(bool isPrimary, bool noHooks) :
 			m_hookLibrary = openHookLibrary("synrgyhk");
 		}
 		m_screensaver = new CMSWindowsScreenSaver();
-		m_desks       = new CMSWindowsDesks(
-							m_isPrimary, m_noHooks,
+		m_desks       = new CMSWindowsDesks(m_isPrimary,
 							m_hookLibrary, m_screensaver,
 							new TMethodJob<CMSWindowsScreen>(this,
 								&CMSWindowsScreen::updateKeysCB));
-		m_keyState    = new CMSWindowsKeyState(m_desks, getEventTarget());
+		m_keyState    = new CMSWindowsKeyState(m_desks);
 		updateScreenShape();
 		m_class       = createWindowClass();
 		m_window      = createWindow(m_class, "Synergy");
@@ -192,12 +185,6 @@ CMSWindowsScreen::enable()
 {
 	assert(m_isOnScreen == m_isPrimary);
 
-	// we need to poll some things to fix them
-	m_fixTimer = EVENTQUEUE->newTimer(1.0, NULL);
-	EVENTQUEUE->adoptHandler(CEvent::kTimer, m_fixTimer,
-							new TMethodEventJob<CMSWindowsScreen>(this,
-								&CMSWindowsScreen::handleFixes));
-
 	// install our clipboard snooper
 	m_nextClipboardWindow = SetClipboardViewer(m_window);
 
@@ -238,19 +225,16 @@ CMSWindowsScreen::disable()
 							CArchMiscWindows::kDISPLAY);
 	}
 
-	// tell key state
-	m_keyState->disable();
-
-	// stop snooping the clipboard
-	ChangeClipboardChain(m_window, m_nextClipboardWindow);
-	m_nextClipboardWindow = NULL;
-
-	// uninstall fix timer
+	// uninstall fix key timer
 	if (m_fixTimer != NULL) {
 		EVENTQUEUE->removeHandler(CEvent::kTimer, m_fixTimer);
 		EVENTQUEUE->deleteTimer(m_fixTimer);
 		m_fixTimer = NULL;
 	}
+
+	// stop snooping the clipboard
+	ChangeClipboardChain(m_window, m_nextClipboardWindow);
+	m_nextClipboardWindow = NULL;
 
 	m_isOnScreen = m_isPrimary;
 	forceShowCursor();
@@ -269,16 +253,6 @@ CMSWindowsScreen::enter()
 
 		// all messages prior to now are invalid
 		nextMark();
-	} else {
-		// Entering a secondary screen. Ensure that no screensaver is active
-		// and that the screen is not in powersave mode.
-		CArchMiscWindows::wakeupDisplay();
-
-		if(m_screensaver != NULL && m_screensaverActive)
-		{
-			m_screensaver->deactivate();
-			m_screensaverActive = 0;
-		}
 	}
 
 	// now on screen
@@ -302,9 +276,7 @@ CMSWindowsScreen::leave()
 	m_desks->leave(m_keyLayout);
 
 	if (m_isPrimary) {
-
 		// warp to center
-		LOG((CLOG_DEBUG1 "warping cursor to center: %+d, %+d", m_xCenter, m_yCenter));
 		warpCursor(m_xCenter, m_yCenter);
 
 		// disable special key sequences on win95 family
@@ -312,10 +284,6 @@ CMSWindowsScreen::leave()
 
 		// all messages prior to now are invalid
 		nextMark();
-
-		// remember the modifier state.  this is the modifier state
-		// reflected in the internal keyboard state.
-		m_keyState->saveModifiers();
 
 		// capture events
 		m_setMode(kHOOK_RELAY_EVENTS);
@@ -378,7 +346,7 @@ CMSWindowsScreen::openScreensaver(bool notify)
 	if (m_screensaverNotify) {
 		m_desks->installScreensaverHooks(true);
 	}
-	else if (m_screensaver) {
+	else {
 		m_screensaver->disable();
 	}
 }
@@ -401,7 +369,6 @@ void
 CMSWindowsScreen::screensaver(bool activate)
 {
 	assert(m_screensaver != NULL);
-	if (m_screensaver==NULL) return;
 
 	if (activate) {
 		m_screensaver->activate();
@@ -414,13 +381,13 @@ CMSWindowsScreen::screensaver(bool activate)
 void
 CMSWindowsScreen::resetOptions()
 {
-	m_desks->resetOptions();
+	// no options
 }
 
 void
-CMSWindowsScreen::setOptions(const COptionsList& options)
+CMSWindowsScreen::setOptions(const COptionsList&)
 {
-	m_desks->setOptions(options);
+	// no options
 }
 
 void
@@ -488,141 +455,9 @@ CMSWindowsScreen::warpCursor(SInt32 x, SInt32 y)
 		// do nothing
 	}
 
-	// save position to compute delta of next motion
-	saveMousePosition(x, y);
-}
-
-void CMSWindowsScreen::saveMousePosition(SInt32 x, SInt32 y) {
-
+	// save position as last position
 	m_xCursor = x;
 	m_yCursor = y;
-
-	LOG((CLOG_DEBUG5 "saved mouse position for next delta: %+d,%+d", x,y));
-}
-
-UInt32
-CMSWindowsScreen::registerHotKey(KeyID key, KeyModifierMask mask)
-{
-	// only allow certain modifiers
-	if ((mask & ~(KeyModifierShift | KeyModifierControl |
-				  KeyModifierAlt   | KeyModifierSuper)) != 0) {
-		LOG((CLOG_WARN "could not map hotkey id=%04x mask=%04x", key, mask));
-		return 0;
-	}
-
-	// fail if no keys
-	if (key == kKeyNone && mask == 0) {
-		return 0;
-	}
-
-	// convert to win32
-	UINT modifiers = 0;
-	if ((mask & KeyModifierShift) != 0) {
-		modifiers |= MOD_SHIFT;
-	}
-	if ((mask & KeyModifierControl) != 0) {
-		modifiers |= MOD_CONTROL;
-	}
-	if ((mask & KeyModifierAlt) != 0) {
-		modifiers |= MOD_ALT;
-	}
-	if ((mask & KeyModifierSuper) != 0) {
-		modifiers |= MOD_WIN;
-	}
-	UINT vk = m_keyState->mapKeyToVirtualKey(key);
-	if (key != kKeyNone && vk == 0) {
-		// can't map key
-		LOG((CLOG_WARN "could not map hotkey id=%04x mask=%04x", key, mask));
-		return 0;
-	}
-
-	// choose hotkey id
-	UInt32 id;
-	if (!m_oldHotKeyIDs.empty()) {
-		id = m_oldHotKeyIDs.back();
-		m_oldHotKeyIDs.pop_back();
-	}
-	else {
-		//id = m_hotKeys.size() + 1;
-		id = (UInt32)m_hotKeys.size() + 1;
-	}
-
-	// if this hot key has modifiers only then we'll handle it specially
-	bool err;
-	if (key == kKeyNone) {
-		// check if already registered
-		err = (m_hotKeyToIDMap.count(CHotKeyItem(vk, modifiers)) > 0);
-	}
-	else {
-		// register with OS
-		err = (RegisterHotKey(NULL, id, modifiers, vk) == 0);
-	}
-
-	if (!err) {
-		m_hotKeys.insert(std::make_pair(id, CHotKeyItem(vk, modifiers)));
-		m_hotKeyToIDMap[CHotKeyItem(vk, modifiers)] = id;
-	}
-	else {
-		m_oldHotKeyIDs.push_back(id);
-		m_hotKeys.erase(id);
-		LOG((CLOG_WARN "failed to register hotkey %s (id=%04x mask=%04x)", CKeyMap::formatKey(key, mask).c_str(), key, mask));
-		return 0;
-	}
-	
-	LOG((CLOG_DEBUG "registered hotkey %s (id=%04x mask=%04x) as id=%d", CKeyMap::formatKey(key, mask).c_str(), key, mask, id));
-	return id;
-}
-
-void
-CMSWindowsScreen::unregisterHotKey(UInt32 id)
-{
-	// look up hotkey
-	HotKeyMap::iterator i = m_hotKeys.find(id);
-	if (i == m_hotKeys.end()) {
-		return;
-	}
-
-	// unregister with OS
-	bool err;
-	if (i->second.getVirtualKey() != 0) {
-		err = !UnregisterHotKey(NULL, id);
-	}
-	else {
-		err = false;
-	}
-	if (err) {
-		LOG((CLOG_WARN "failed to unregister hotkey id=%d", id));
-	}
-	else {
-		LOG((CLOG_DEBUG "unregistered hotkey id=%d", id));
-	}
-
-	// discard hot key from map and record old id for reuse
-	m_hotKeyToIDMap.erase(i->second);
-	m_hotKeys.erase(i);
-	m_oldHotKeyIDs.push_back(id);
-}
-
-void
-CMSWindowsScreen::fakeInputBegin()
-{
-	assert(m_isPrimary);
-
-	if (!m_isOnScreen) {
-		m_keyState->useSavedModifiers(true);
-	}
-	m_desks->fakeInputBegin();
-}
-
-void
-CMSWindowsScreen::fakeInputEnd()
-{
-	assert(m_isPrimary);
-
-	m_desks->fakeInputEnd();
-	if (!m_isOnScreen) {
-		m_keyState->useSavedModifiers(false);
-	}
 }
 
 SInt32
@@ -679,9 +514,9 @@ CMSWindowsScreen::fakeMouseRelativeMove(SInt32 dx, SInt32 dy) const
 }
 
 void
-CMSWindowsScreen::fakeMouseWheel(SInt32 xDelta, SInt32 yDelta) const
+CMSWindowsScreen::fakeMouseWheel(SInt32 delta) const
 {
-	m_desks->fakeMouseWheel(xDelta, yDelta);
+	m_desks->fakeMouseWheel(delta);
 }
 
 void
@@ -714,9 +549,9 @@ CMSWindowsScreen::fakeKeyUp(KeyButton button)
 }
 
 void
-CMSWindowsScreen::fakeAllKeysUp()
+CMSWindowsScreen::fakeToggle(KeyModifierMask modifier)
 {
-	CPlatformScreen::fakeAllKeysUp();
+	CPlatformScreen::fakeToggle(modifier);
 	updateForceShowCursor();
 }
 
@@ -769,7 +604,6 @@ CMSWindowsScreen::createBlankCursor() const
 	// create a transparent cursor
 	int cw = GetSystemMetrics(SM_CXCURSOR);
 	int ch = GetSystemMetrics(SM_CYCURSOR);
-
 	UInt8* cursorAND = new UInt8[ch * ((cw + 31) >> 2)];
 	UInt8* cursorXOR = new UInt8[ch * ((cw + 31) >> 2)];
 	memset(cursorAND, 0xff, ch * ((cw + 31) >> 2));
@@ -853,10 +687,6 @@ void
 CMSWindowsScreen::sendClipboardEvent(CEvent::Type type, ClipboardID id)
 {
 	CClipboardInfo* info   = (CClipboardInfo*)malloc(sizeof(CClipboardInfo));
-	if(info == NULL) {
-		LOG((CLOG_ERR "malloc failed on %s:%s", __FILE__, __LINE__ ));
-		return;
-	}
 	info->m_id             = id;
 	info->m_sequenceNumber = m_sequenceNumber;
 	sendEvent(type, info);
@@ -923,8 +753,6 @@ bool
 CMSWindowsScreen::onPreDispatchPrimary(HWND,
 				UINT message, WPARAM wParam, LPARAM lParam)
 {
-	LOG((CLOG_DEBUG5 "handling pre-dispatch primary"));
-
 	// handle event
 	switch (message) {
 	case SYNERGY_MSG_MARK:
@@ -941,13 +769,13 @@ CMSWindowsScreen::onPreDispatchPrimary(HWND,
 							static_cast<SInt32>(lParam));
 
 	case SYNERGY_MSG_MOUSE_WHEEL:
-		// XXX -- support x-axis scrolling
-		return onMouseWheel(0, static_cast<SInt32>(wParam));
+		return onMouseWheel(static_cast<SInt32>(wParam));
 
 	case SYNERGY_MSG_PRE_WARP:
 		{
 			// save position to compute delta of next motion
-			saveMousePosition(static_cast<SInt32>(wParam), static_cast<SInt32>(lParam));
+			m_xCursor = static_cast<SInt32>(wParam);
+			m_yCursor = static_cast<SInt32>(lParam);
 
 			// we warped the mouse.  discard events until we find the
 			// matching post warp event.  see warpCursorNoFlush() for
@@ -965,13 +793,6 @@ CMSWindowsScreen::onPreDispatchPrimary(HWND,
 	case SYNERGY_MSG_POST_WARP:
 		LOG((CLOG_WARN "unmatched post warp"));
 		return true;
-
-	case WM_HOTKEY:
-		// we discard these messages.  we'll catch the hot key in the
-		// regular key event handling, where we can detect both key
-		// press and release.  we only register the hot key so no other
-		// app will act on the key combination.
-		break;
 	}
 
 	return false;
@@ -999,6 +820,8 @@ CMSWindowsScreen::onEvent(HWND, UINT msg,
 		break;
 
 	case WM_DRAWCLIPBOARD:
+		LOG((CLOG_DEBUG "clipboard was taken"));
+
 		// first pass on the message
 		if (m_nextClipboardWindow != NULL) {
 			SendMessage(m_nextClipboardWindow, msg, wParam, lParam);
@@ -1013,6 +836,7 @@ CMSWindowsScreen::onEvent(HWND, UINT msg,
 			LOG((CLOG_DEBUG "clipboard chain: new next: 0x%08x", m_nextClipboardWindow));
 		}
 		else if (m_nextClipboardWindow != NULL) {
+			LOG((CLOG_DEBUG "clipboard chain: forward: %d 0x%08x 0x%08x", msg, wParam, lParam));
 			SendMessage(m_nextClipboardWindow, msg, wParam, lParam);
 		}
 		return true;
@@ -1063,70 +887,62 @@ CMSWindowsScreen::onMark(UInt32 mark)
 bool
 CMSWindowsScreen::onKey(WPARAM wParam, LPARAM lParam)
 {
-	static const KeyModifierMask s_ctrlAlt =
-		KeyModifierControl | KeyModifierAlt;
+	LOG((CLOG_DEBUG1 "event: Key char=%d, vk=0x%02x, lParam=0x%08x", (wParam & 0xff00u) >> 8, wParam & 0xffu, lParam));
 
-	LOG((CLOG_DEBUG1 "event: Key char=%d, vk=0x%02x, nagr=%d, lParam=0x%08x", (wParam & 0xff00u) >> 8, wParam & 0xffu, (wParam & 0x10000u) ? 1 : 0, lParam));
+	// fix up key state
+	fixKeys();
 
-	// get event info
-	KeyButton button         = (KeyButton)((lParam & 0x01ff0000) >> 16);
-	bool down                = ((lParam & 0x80000000u) == 0x00000000u);
-	bool wasDown             = isKeyDown(button);
-	KeyModifierMask oldState = pollActiveModifiers();
+	// get key info
+	KeyButton button = (KeyButton)((lParam & 0x01ff0000) >> 16);
+	bool down        = ((lParam & 0xc0000000u) == 0x00000000u);
+	bool up          = ((lParam & 0x80000000u) == 0x80000000u);
+	bool wasDown     = isKeyDown(button);
 
-	// check for autorepeat
-	if (m_keyState->testAutoRepeat(down, (lParam & 0x40000000u) == 1, button)) {
-		lParam |= 0x40000000u;
+	// the windows keys are a royal pain on the windows 95 family.
+	// the system eats the key up events if and only if the windows
+	// key wasn't combined with another key, i.e. it was tapped.
+	// fixKeys() and scheduleFixKeys() are all about synthesizing
+	// the missing key up.  but even windows itself gets a little
+	// confused and sets bit 30 in lParam if you tap the windows
+	// key twice.  that bit means the key was previously down and
+	// that makes some sense since the up event was missing.
+	// anyway, on the windows 95 family we forget about windows
+	// key repeats and treat anything that's not a key down as a
+	// key up.
+	if (m_is95Family &&
+		((wParam & 0xffu) == VK_LWIN || (wParam & 0xffu) == VK_RWIN)) {
+		down = !up;
 	}
 
-	// if the button is zero then guess what the button should be.
-	// these are badly synthesized key events and logitech software
-	// that maps mouse buttons to keys is known to do this.
-	// alternatively, we could just throw these events out.
-	if (button == 0) {
-		button = m_keyState->virtualKeyToButton(wParam & 0xffu);
-		if (button == 0) {
-			return true;
-		}
-		wasDown = isKeyDown(button);
+	// update key state.  ignore key repeats.
+	if (down) {
+		m_keyState->setKeyDown(button, true);
+	}
+	else if (up) {
+		m_keyState->setKeyDown(button, false);
 	}
 
-	// record keyboard state
-	m_keyState->onKey(button, down, oldState);
+	// schedule a timer if we need to fix keys later
+	scheduleFixKeys();
 
-	// windows doesn't tell us the modifier key state on mouse or key
-	// events so we have to figure it out.  most apps would use
-	// GetKeyState() or even GetAsyncKeyState() for that but we can't
-	// because our hook doesn't pass on key events for several modifiers.
-	// it can't otherwise the system would interpret them normally on
-	// the primary screen even when on a secondary screen.  so tapping
-	// alt would activate menus and tapping the windows key would open
-	// the start menu.  if you don't pass those events on in the hook
-	// then GetKeyState() understandably doesn't reflect the effect of
-	// the event.  curiously, neither does GetAsyncKeyState(), which is
-	// surprising.
-	//
-	// so anyway, we have to track the modifier state ourselves for
-	// at least those modifiers we don't pass on.  pollActiveModifiers()
-	// does that but we have to update the keyboard state before calling
-	// pollActiveModifiers() to get the right answer.  but the only way
-	// to set the modifier state or to set the up/down state of a key
-	// is via onKey().  so we have to call onKey() twice.
-	KeyModifierMask state = pollActiveModifiers();
-	m_keyState->onKey(button, down, state);
-
-	// check for hot keys
-	if (oldState != state) {
-		// modifier key was pressed/released
-		if (onHotKey(0, lParam)) {
-			return true;
-		}
-	}
-	else {
-		// non-modifier was pressed/released
-		if (onHotKey(wParam, lParam)) {
-			return true;
-		}
+	// special case:  we detect ctrl+alt+del being pressed on some
+	// systems but we don't detect the release of those keys.  so
+	// if ctrl, alt, and del are down then mark them up.
+	KeyModifierMask mask = getActiveModifiers();
+	bool ctrlAlt = ((mask & (KeyModifierControl | KeyModifierAlt)) ==
+							(KeyModifierControl | KeyModifierAlt));
+	if (down && ctrlAlt &&
+		isKeyDown(m_keyState->virtualKeyToButton(VK_DELETE))) {
+		m_keyState->setKeyDown(
+							m_keyState->virtualKeyToButton(VK_LCONTROL), false);
+		m_keyState->setKeyDown(
+							m_keyState->virtualKeyToButton(VK_RCONTROL), false);
+		m_keyState->setKeyDown(
+							m_keyState->virtualKeyToButton(VK_LMENU), false);
+		m_keyState->setKeyDown(
+							m_keyState->virtualKeyToButton(VK_RMENU), false);
+		m_keyState->setKeyDown(
+							m_keyState->virtualKeyToButton(VK_DELETE), false);
 	}
 
 	// ignore message if posted prior to last mark change
@@ -1134,23 +950,20 @@ CMSWindowsScreen::onKey(WPARAM wParam, LPARAM lParam)
 		// check for ctrl+alt+del.  we do not want to pass that to the
 		// client.  the user can use ctrl+alt+pause to emulate it.
 		UINT virtKey = (wParam & 0xffu);
-		if (virtKey == VK_DELETE && (state & s_ctrlAlt) == s_ctrlAlt) {
+		if (virtKey == VK_DELETE && ctrlAlt) {
 			LOG((CLOG_DEBUG "discard ctrl+alt+del"));
 			return true;
 		}
 
 		// check for ctrl+alt+del emulation
-		if ((virtKey == VK_PAUSE || virtKey == VK_CANCEL) &&
-			(state & s_ctrlAlt) == s_ctrlAlt) {
+		if ((virtKey == VK_PAUSE || virtKey == VK_CANCEL) && ctrlAlt) {
 			LOG((CLOG_DEBUG "emulate ctrl+alt+del"));
 			// switch wParam and lParam to be as if VK_DELETE was
-			// pressed or released.  when mapping the key we require that
-			// we not use AltGr (the 0x10000 flag in wParam) and we not
-			// use the keypad delete key (the 0x01000000 flag in lParam).
-			wParam  = VK_DELETE | 0x00010000u;
+			// pressed or released
+			wParam  = VK_DELETE;
 			lParam &= 0xfe000000;
-			lParam |= m_keyState->virtualKeyToButton(wParam & 0xffu) << 16;
-			lParam |= 0x01000001;
+			lParam |= m_keyState->virtualKeyToButton(wParam) << 16;
+			lParam |= 0x00000001;
 		}
 
 		// process key
@@ -1158,28 +971,28 @@ CMSWindowsScreen::onKey(WPARAM wParam, LPARAM lParam)
 		KeyID key = m_keyState->mapKeyFromEvent(wParam, lParam, &mask);
 		button    = static_cast<KeyButton>((lParam & 0x01ff0000u) >> 16);
 		if (key != kKeyNone) {
-			// fix key up.  if the key isn't down according to
+			// fix up key.  if the key isn't down according to
 			// our table then we never got the key press event
 			// for it.  if it's not a modifier key then we'll
 			// synthesize the press first.  only do this on
 			// the windows 95 family, which eats certain special
 			// keys like alt+tab, ctrl+esc, etc.
-			if (m_is95Family && !wasDown && !down) {
+			if (m_is95Family && !wasDown && up) {
 				switch (virtKey) {
-				case VK_SHIFT:
 				case VK_LSHIFT:
 				case VK_RSHIFT:
-				case VK_CONTROL:
+				case VK_SHIFT:
 				case VK_LCONTROL:
 				case VK_RCONTROL:
-				case VK_MENU:
+				case VK_CONTROL:
 				case VK_LMENU:
 				case VK_RMENU:
-				case VK_LWIN:
-				case VK_RWIN:
+				case VK_MENU:
 				case VK_CAPITAL:
 				case VK_NUMLOCK:
 				case VK_SCROLL:
+				case VK_LWIN:
+				case VK_RWIN:
 					break;
 
 				default:
@@ -1192,60 +1005,13 @@ CMSWindowsScreen::onKey(WPARAM wParam, LPARAM lParam)
 			// do it
 			m_keyState->sendKeyEvent(getEventTarget(),
 							((lParam & 0x80000000u) == 0),
-							((lParam & 0x40000000u) != 0),
+							((lParam & 0x40000000u) == 1),
 							key, mask, (SInt32)(lParam & 0xffff), button);
 		}
 		else {
-			LOG((CLOG_DEBUG1 "cannot map key"));
+			LOG((CLOG_DEBUG2 "event: cannot map key"));
 		}
 	}
-
-	return true;
-}
-
-bool
-CMSWindowsScreen::onHotKey(WPARAM wParam, LPARAM lParam)
-{
-	// get the key info
-	KeyModifierMask state = getActiveModifiers();
-	UINT virtKey   = (wParam & 0xffu);
-	UINT modifiers = 0;
-	if ((state & KeyModifierShift) != 0) {
-		modifiers |= MOD_SHIFT;
-	}
-	if ((state & KeyModifierControl) != 0) {
-		modifiers |= MOD_CONTROL;
-	}
-	if ((state & KeyModifierAlt) != 0) {
-		modifiers |= MOD_ALT;
-	}
-	if ((state & KeyModifierSuper) != 0) {
-		modifiers |= MOD_WIN;
-	}
-
-	// find the hot key id
-	HotKeyToIDMap::const_iterator i =
-		m_hotKeyToIDMap.find(CHotKeyItem(virtKey, modifiers));
-	if (i == m_hotKeyToIDMap.end()) {
-		return false;
-	}
-
-	// find what kind of event
-	CEvent::Type type;
-	if ((lParam & 0x80000000u) == 0u) {
-		if ((lParam & 0x40000000u) != 0u) {
-			// ignore key repeats but it counts as a hot key
-			return true;
-		}
-		type = getHotKeyDownEvent();
-	}
-	else {
-		type = getHotKeyUpEvent();
-	}
-
-	// generate event
-	EVENTQUEUE->addEvent(CEvent(type, getEventTarget(),
-							CHotKeyInfo::alloc(i->second)));
 
 	return true;
 }
@@ -1269,19 +1035,16 @@ CMSWindowsScreen::onMouseButton(WPARAM wParam, LPARAM lParam)
 
 	// ignore message if posted prior to last mark change
 	if (!ignore()) {
-		KeyModifierMask mask = m_keyState->getActiveModifiers();
 		if (pressed) {
 			LOG((CLOG_DEBUG1 "event: button press button=%d", button));
 			if (button != kButtonNone) {
-				sendEvent(getButtonDownEvent(),
-								CButtonInfo::alloc(button, mask));
+				sendEvent(getButtonDownEvent(), CButtonInfo::alloc(button));
 			}
 		}
 		else {
 			LOG((CLOG_DEBUG1 "event: button release button=%d", button));
 			if (button != kButtonNone) {
-				sendEvent(getButtonUpEvent(),
-								CButtonInfo::alloc(button, mask));
+				sendEvent(getButtonUpEvent(), CButtonInfo::alloc(button));
 			}
 		}
 	}
@@ -1289,14 +1052,6 @@ CMSWindowsScreen::onMouseButton(WPARAM wParam, LPARAM lParam)
 	return true;
 }
 
-// here's how mouse movements are sent across the network to a client:
-//   1. synergy checks the mouse position on server screen
-//   2. records the delta (current x,y minus last x,y)
-//   3. records the current x,y as "last" (so we can calc delta next time)
-//   4. on the server, puts the cursor back to the center of the screen
-//      - remember the cursor is hidden on the server at this point
-//      - this actually records the current x,y as "last" a second time (it seems)
-//   5. sends the delta movement to the client (could be +1,+1 or -1,+4 for example)
 bool
 CMSWindowsScreen::onMouseMove(SInt32 mx, SInt32 my)
 {
@@ -1305,10 +1060,6 @@ CMSWindowsScreen::onMouseMove(SInt32 mx, SInt32 my)
 	SInt32 x = mx - m_xCursor;
 	SInt32 y = my - m_yCursor;
 
-	LOG((CLOG_DEBUG3
-		"mouse move - motion delta: %+d=(%+d - %+d),%+d=(%+d - %+d)",
-		x, mx, m_xCursor, y, my, m_yCursor));
-
 	// ignore if the mouse didn't move or if message posted prior
 	// to last mark change.
 	if (ignore() || (x == 0 && y == 0)) {
@@ -1316,24 +1067,19 @@ CMSWindowsScreen::onMouseMove(SInt32 mx, SInt32 my)
 	}
 
 	// save position to compute delta of next motion
-	saveMousePosition(mx, my);
+	m_xCursor = mx;
+	m_yCursor = my;
 
 	if (m_isOnScreen) {
-		
 		// motion on primary screen
-		sendEvent(
-			getMotionOnPrimaryEvent(),
-			CMotionInfo::alloc(m_xCursor, m_yCursor));
+		sendEvent(getMotionOnPrimaryEvent(),
+							CMotionInfo::alloc(m_xCursor, m_yCursor));
 	}
-	else 
-	{
-		// the motion is on the secondary screen, so we warp mouse back to
-		// center on the server screen. if we don't do this, then the mouse 
-		// will always try to return to the original entry point on the 
-		// secondary screen.
-		LOG((CLOG_DEBUG5 "warping server cursor to center: %+d,%+d", m_xCenter, m_yCenter));
+	else {
+		// motion on secondary screen.  warp mouse back to
+		// center.
 		warpCursorNoFlush(m_xCenter, m_yCenter);
-		
+
 		// examine the motion.  if it's about the distance
 		// from the center of the screen to an edge then
 		// it's probably a bogus motion that we want to
@@ -1344,8 +1090,7 @@ CMSWindowsScreen::onMouseMove(SInt32 mx, SInt32 my)
 			 x + bogusZoneSize > m_x + m_w - m_xCenter ||
 			-y + bogusZoneSize > m_yCenter - m_y ||
 			 y + bogusZoneSize > m_y + m_h - m_yCenter) {
-			
-			LOG((CLOG_DEBUG "dropped bogus delta motion: %+d,%+d", x, y));
+			LOG((CLOG_DEBUG "dropped bogus motion %+d,%+d", x, y));
 		}
 		else {
 			// send motion
@@ -1357,12 +1102,12 @@ CMSWindowsScreen::onMouseMove(SInt32 mx, SInt32 my)
 }
 
 bool
-CMSWindowsScreen::onMouseWheel(SInt32 xDelta, SInt32 yDelta)
+CMSWindowsScreen::onMouseWheel(SInt32 delta)
 {
 	// ignore message if posted prior to last mark change
 	if (!ignore()) {
-		LOG((CLOG_DEBUG1 "event: button wheel delta=%+d,%+d", xDelta, yDelta));
-		sendEvent(getWheelEvent(), CWheelInfo::alloc(xDelta, yDelta));
+		LOG((CLOG_DEBUG1 "event: button wheel delta=%d", delta));
+		sendEvent(getWheelEvent(), CWheelInfo::alloc(delta));
 	}
 	return true;
 }
@@ -1421,8 +1166,6 @@ CMSWindowsScreen::onDisplayChange()
 		if (m_isPrimary) {
 			// warp mouse to center if off screen
 			if (!m_isOnScreen) {
-
-				LOG((CLOG_DEBUG1 "warping cursor to center: %+d, %+d", m_xCenter, m_yCenter));
 				warpCursor(m_xCenter, m_yCenter);
 			}
 
@@ -1447,6 +1190,7 @@ CMSWindowsScreen::onClipboardChange()
 	// now notify client that somebody changed the clipboard (unless
 	// we're the owner).
 	if (!CMSWindowsClipboard::isOwnedBySynergy()) {
+		LOG((CLOG_DEBUG "clipboard changed: foreign owned"));
 		if (m_ownClipboard) {
 			LOG((CLOG_DEBUG "clipboard changed: lost ownership"));
 			m_ownClipboard = false;
@@ -1454,7 +1198,7 @@ CMSWindowsScreen::onClipboardChange()
 			sendClipboardEvent(getClipboardGrabbedEvent(), kClipboardSelection);
 		}
 	}
-	else if (!m_ownClipboard) {
+	else {
 		LOG((CLOG_DEBUG "clipboard changed: synergy owned"));
 		m_ownClipboard = true;
 	}
@@ -1472,24 +1216,6 @@ CMSWindowsScreen::warpCursorNoFlush(SInt32 x, SInt32 y)
 	// between the previous message and the following message.
 	SetCursorPos(x, y);
 
-	// check to see if the mouse pos was set correctly
-	POINT cursorPos;
-	GetCursorPos(&cursorPos);
-
-	if ((cursorPos.x != x) && (cursorPos.y != y)) {
-		LOG((CLOG_DEBUG "SetCursorPos did not work; using fakeMouseMove instead"));
-		
-		// when at Vista/7 login screen, SetCursorPos does not work (which could be
-		// an MS security feature). instead we can use fakeMouseMove, which calls
-		// mouse_event.
-		// IMPORTANT: as of implementing this function, it has an annoying side 
-		// effect; instead of the mouse returning to the correct exit point, it
-		// returns to the center of the screen. this could have something to do with
-		// the center screen warping technique used (see comments for onMouseMove
-		// definition).
-		fakeMouseMove(x, y);
-	}
-	
 	// yield the CPU.  there's a race condition when warping:
 	//   a hardware mouse event occurs
 	//   the mouse hook is not called because that process doesn't have the CPU
@@ -1547,35 +1273,6 @@ CMSWindowsScreen::updateScreenShape()
 
 	// tell the desks
 	m_desks->setShape(m_x, m_y, m_w, m_h, m_xCenter, m_yCenter, m_multimon);
-}
-
-void
-CMSWindowsScreen::handleFixes(const CEvent&, void*)
-{
-	// fix clipboard chain
-	fixClipboardViewer();
-
-	// update keys if keyboard layouts have changed
-	if (m_keyState->didGroupsChange()) {
-		updateKeys();
-	}
-}
-
-void
-CMSWindowsScreen::fixClipboardViewer()
-{
-	// XXX -- disable this code for now.  somehow it can cause an infinite
-	// recursion in the WM_DRAWCLIPBOARD handler.  either we're sending
-	// the message to our own window or some window farther down the chain
-	// forwards the message to our window or a window farther up the chain.
-	// i'm not sure how that could happen.  the m_nextClipboardWindow = NULL
-	// was not in the code that infinite loops and may fix the bug but i
-	// doubt it.
-/*
-	ChangeClipboardChain(m_window, m_nextClipboardWindow);
-	m_nextClipboardWindow = NULL;
-	m_nextClipboardWindow = SetClipboardViewer(m_window);
-*/
 }
 
 void
@@ -1684,36 +1381,62 @@ CMSWindowsScreen::mapPressFromEvent(WPARAM msg, LPARAM) const
 }
 
 void
+CMSWindowsScreen::fixKeys()
+{
+	// fake key releases for the windows keys if we think they're
+	// down but they're really up.  we have to do this because if the
+	// user presses and releases a windows key without pressing any
+	// other key while it's down then the system will eat the key
+	// release.  if we don't detect that and synthesize the release
+	// then the client won't take the usual windows key release action
+	// (which on windows is to show the start menu).
+	//
+	// only check on the windows 95 family since the NT family reports
+	// the key releases as usual.
+	if (m_is95Family) {
+		m_keyState->fixKey(getEventTarget(), VK_LWIN);
+		m_keyState->fixKey(getEventTarget(), VK_RWIN);
+
+		// check if we need the fix timer anymore
+		scheduleFixKeys();
+	}
+}
+
+void
+CMSWindowsScreen::scheduleFixKeys()
+{
+	if (m_is95Family) {
+		// see if any keys that need fixing are down
+		bool fix =
+			(m_keyState->isKeyDown(m_keyState->virtualKeyToButton(VK_LWIN)) ||
+			 m_keyState->isKeyDown(m_keyState->virtualKeyToButton(VK_RWIN)));
+
+		// start or stop fix timer
+		if (fix && m_fixTimer == NULL) {
+			m_fixTimer = EVENTQUEUE->newTimer(0.1, NULL);
+			EVENTQUEUE->adoptHandler(CEvent::kTimer, m_fixTimer,
+								new TMethodEventJob<CMSWindowsScreen>(
+									this, &CMSWindowsScreen::handleFixKeys));
+		}
+		else if (!fix && m_fixTimer != NULL) {
+			EVENTQUEUE->removeHandler(CEvent::kTimer, m_fixTimer);
+			EVENTQUEUE->deleteTimer(m_fixTimer);
+			m_fixTimer = NULL;
+		}
+	}
+}
+
+void
+CMSWindowsScreen::handleFixKeys(const CEvent&, void*)
+{
+	fixKeys();
+}
+
+void
 CMSWindowsScreen::updateKeysCB(void*)
 {
-	// record which keys we think are down
-	bool down[IKeyState::kNumButtons];
-	bool sendFixes = (isPrimary() && !m_isOnScreen);
-	if (sendFixes) {
-		for (KeyButton i = 0; i < IKeyState::kNumButtons; ++i) {
-			down[i] = m_keyState->isKeyDown(i);
-		}
-	}
-
-	// update layouts if necessary
-	if (m_keyState->didGroupsChange()) {
-		CPlatformScreen::updateKeyMap();
-	}
-
-	// now update the keyboard state
-	CPlatformScreen::updateKeyState();
-
-	// now see which keys we thought were down but now think are up.
-	// send key releases for these keys to the active client.
-	if (sendFixes) {
-		KeyModifierMask mask = pollActiveModifiers();
-		for (KeyButton i = 0; i < IKeyState::kNumButtons; ++i) {
-			if (down[i] && !m_keyState->isKeyDown(i)) {
-				m_keyState->sendKeyEvent(getEventTarget(),
-							false, false, kKeyNone, mask, 1, i);
-			}
-		}
-	}
+	m_keyState->updateKeys();
+	updateButtons();
 }
 
 void
@@ -1781,29 +1504,4 @@ CMSWindowsScreen::wndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam)
 	}
 
 	return result;
-}
-
-
-//
-// CMSWindowsScreen::CHotKeyItem
-//
-
-CMSWindowsScreen::CHotKeyItem::CHotKeyItem(UINT keycode, UINT mask) :
-	m_keycode(keycode),
-	m_mask(mask)
-{
-	// do nothing
-}
-
-UINT
-CMSWindowsScreen::CHotKeyItem::getVirtualKey() const
-{
-	return m_keycode;
-}
-
-bool
-CMSWindowsScreen::CHotKeyItem::operator<(const CHotKeyItem& x) const
-{
-	return (m_keycode < x.m_keycode ||
-			(m_keycode == x.m_keycode && m_mask < x.m_mask));
 }

@@ -1,6 +1,5 @@
 /*
- * synergy-plus -- mouse and keyboard sharing utility
- * Copyright (C) 2009 The Synergy+ Project
+ * synergy -- mouse and keyboard sharing utility
  * Copyright (C) 2003 Chris Schoeneman
  * 
  * This package is free software; you can redistribute it and/or
@@ -11,16 +10,12 @@
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
 #ifndef IPRIMARYSCREEN_H
 #define IPRIMARYSCREEN_H
 
 #include "IInterface.h"
-#include "KeyTypes.h"
 #include "MouseTypes.h"
 #include "CEvent.h"
 
@@ -34,14 +29,10 @@ public:
 	//! Button event data
 	class CButtonInfo {
 	public:
-		static CButtonInfo* alloc(ButtonID, KeyModifierMask);
-		static CButtonInfo* alloc(const CButtonInfo&);
-
-		static bool			equal(const CButtonInfo*, const CButtonInfo*);
+		static CButtonInfo* alloc(ButtonID);
 
 	public:
 		ButtonID		m_button;
-		KeyModifierMask	m_mask;
 	};
 	//! Motion event data
 	class CMotionInfo {
@@ -55,19 +46,10 @@ public:
 	//! Wheel motion event data
 	class CWheelInfo {
 	public:
-		static CWheelInfo* alloc(SInt32 xDelta, SInt32 yDelta);
+		static CWheelInfo* alloc(SInt32);
 
 	public:
-		SInt32			m_xDelta;
-		SInt32			m_yDelta;
-	};
-	//! Hot key event data
-	class CHotKeyInfo {
-	public:
-		static CHotKeyInfo* alloc(UInt32 id);
-
-	public:
-		UInt32			m_id;
+		SInt32			m_wheel;
 	};
 
 	//! @name manipulators
@@ -89,50 +71,6 @@ public:
 	returning.
 	*/
 	virtual void		warpCursor(SInt32 x, SInt32 y) = 0;
-
-	//! Register a system hotkey
-	/*!
-	Registers a system-wide hotkey.  The screen should arrange for an event
-	to be delivered to itself when the hot key is pressed or released.  When
-	that happens the screen should post a \c getHotKeyDownEvent() or
-	\c getHotKeyUpEvent(), respectively.  The hot key is key \p key with
-	exactly the modifiers \p mask.  Returns 0 on failure otherwise an id
-	that can be used to unregister the hotkey.
-
-	A hot key is a set of modifiers and a key, which may itself be a modifier.
-	The hot key is pressed when the hot key's modifiers and only those
-	modifiers are logically down (active) and the key is pressed.  The hot
-	key is released when the key is released, regardless of the modifiers.
-
-	The hot key event should be generated no matter what window or application
-	has the focus.  No other window or application should receive the key
-	press or release events (they can and should see the modifier key events).
-	When the key is a modifier, it's acceptable to allow the user to press
-	the modifiers in any order or to require the user to press the given key
-	last.
-	*/
-	virtual UInt32		registerHotKey(KeyID key, KeyModifierMask mask) = 0;
-
-	//! Unregister a system hotkey
-	/*!
-	Unregisters a previously registered hot key.
-	*/
-	virtual void		unregisterHotKey(UInt32 id) = 0;
-
-	//! Prepare to synthesize input on primary screen
-	/*!
-	Prepares the primary screen to receive synthesized input.  We do not
-	want to receive this synthesized input as user input so this method
-	ensures that we ignore it.  Calls to \c fakeInputBegin() may not be
-	nested.
-	*/
-	virtual void		fakeInputBegin() = 0;
-
-	//! Done synthesizing input on primary screen
-	/*!
-	Undoes whatever \c fakeInputBegin() did.
-	*/
-	virtual void		fakeInputEnd() = 0;
 
 	//@}
 	//! @name accessors
@@ -160,7 +98,7 @@ public:
 	the edges of the screen, typically the center.
 	*/
 	virtual void		getCursorCenter(SInt32& x, SInt32& y) const = 0;
-	
+
 	//! Get button down event type.  Event data is CButtonInfo*.
 	static CEvent::Type	getButtonDownEvent();
 	//! Get button up event type.  Event data is CButtonInfo*.
@@ -182,14 +120,6 @@ public:
 	static CEvent::Type	getScreensaverActivatedEvent();
 	//! Get screensaver deactivated event type
 	static CEvent::Type	getScreensaverDeactivatedEvent();
-	//! Get hot key down event type.  Event data is CHotKeyInfo*.
-	static CEvent::Type	getHotKeyDownEvent();
-	//! Get hot key up event type.  Event data is CHotKeyInfo*.
-	static CEvent::Type	getHotKeyUpEvent();
-	//! Get start of fake input event type
-	static CEvent::Type	getFakeInputBeginEvent();
-	//! Get end of fake input event type
-	static CEvent::Type	getFakeInputEndEvent();
 
 	//@}
 
@@ -201,10 +131,6 @@ private:
 	static CEvent::Type	s_wheelEvent;
 	static CEvent::Type	s_ssActivatedEvent;
 	static CEvent::Type	s_ssDeactivatedEvent;
-	static CEvent::Type	s_hotKeyDownEvent;
-	static CEvent::Type	s_hotKeyUpEvent;
-	static CEvent::Type	s_fakeInputBegin;
-	static CEvent::Type	s_fakeInputEnd;
 };
 
 #endif

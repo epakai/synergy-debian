@@ -1,6 +1,5 @@
 /*
- * synergy-plus -- mouse and keyboard sharing utility
- * Copyright (C) 2009 The Synergy+ Project
+ * synergy -- mouse and keyboard sharing utility
  * Copyright (C) 2002 Chris Schoeneman
  * 
  * This package is free software; you can redistribute it and/or
@@ -11,9 +10,6 @@
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
 #include "CMSWindowsScreenSaver.h"
@@ -111,7 +107,7 @@ CMSWindowsScreenSaver::checkStarted(UINT msg, WPARAM wParam, LPARAM lParam)
 		HANDLE process = OpenProcess(SYNCHRONIZE, FALSE, processID);
 		if (process == NULL) {
 			// didn't start
-			LOG((CLOG_DEBUG2 "can't open screen saver process"));
+			LOG((CLOG_DEBUG "can't open screen saver process"));
 			return false;
 		}
 
@@ -127,7 +123,7 @@ CMSWindowsScreenSaver::checkStarted(UINT msg, WPARAM wParam, LPARAM lParam)
 		// we first check that the screen saver is indeed active
 		// before watching for it to stop.
 		if (!isActive()) {
-			LOG((CLOG_DEBUG2 "can't open screen saver desktop"));
+			LOG((CLOG_DEBUG "can't open screen saver desktop"));
 			return false;
 		}
 
@@ -298,7 +294,7 @@ BOOL CALLBACK
 CMSWindowsScreenSaver::killScreenSaverFunc(HWND hwnd, LPARAM arg)
 {
 	if (IsWindowVisible(hwnd)) {
-		HINSTANCE instance = (HINSTANCE)GetWindowLongPtr(hwnd, GWLP_HINSTANCE);
+		HINSTANCE instance = (HINSTANCE)GetWindowLong(hwnd, GWL_HINSTANCE);
 		if (instance != CMSWindowsScreen::getInstance()) {
 			PostMessage(hwnd, WM_CLOSE, 0, 0);
 			*reinterpret_cast<bool*>(arg) = true;
@@ -445,7 +441,7 @@ void
 CMSWindowsScreenSaver::setSecure(bool secure, bool saveSecureAsInt)
 {
 	HKEY hkey =
-		CArchMiscWindows::addKey(HKEY_CURRENT_USER, g_pathScreenSaverIsSecure);
+		CArchMiscWindows::openKey(HKEY_CURRENT_USER, g_pathScreenSaverIsSecure);
 	if (hkey == NULL) {
 		return;
 	}

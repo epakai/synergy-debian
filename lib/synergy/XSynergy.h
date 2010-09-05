@@ -1,6 +1,5 @@
 /*
- * synergy-plus -- mouse and keyboard sharing utility
- * Copyright (C) 2009 The Synergy+ Project
+ * synergy -- mouse and keyboard sharing utility
  * Copyright (C) 2002 Chris Schoeneman
  * 
  * This package is free software; you can redistribute it and/or
@@ -11,9 +10,6 @@
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
 #ifndef XSYNERGY_H
@@ -104,26 +100,6 @@ protected:
 
 private:
 	CString				m_name;
-};
-
-//! Generic exit eception
-/*!
-Thrown when we want to abort, with the opportunity to clean up. This is a 
-little bit of a hack, but it's a better way of exiting, than just calling 
-exit(int).
-*/
-class XExitApp : public XSynergy {
-public:
-	XExitApp(int code);
-
-	//! Get the exit code
-	int getCode() const throw();
-
-protected:
-	virtual CString	getWhat() const throw();
-	
-private:
-	int	m_code;
 };
 
 #endif

@@ -1,6 +1,5 @@
 /*
- * synergy-plus -- mouse and keyboard sharing utility
- * Copyright (C) 2009 The Synergy+ Project
+ * synergy -- mouse and keyboard sharing utility
  * Copyright (C) 2002 Chris Schoeneman
  * 
  * This package is free software; you can redistribute it and/or
@@ -11,9 +10,6 @@
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
 #ifndef COMMON_H
@@ -40,6 +36,7 @@
 #		define SYSAPI_UNIX 1
 #		define WINAPI_CARBON 1
 
+#		define HAVE_ALLOCA_H 1
 #		define HAVE_CXX_BOOL 1
 #		define HAVE_CXX_CASTS 1
 #		define HAVE_CXX_EXCEPTIONS 1
@@ -74,8 +71,7 @@
 #		define HAVE_SYS_UTSNAME_H 1
 #		define HAVE_UNISTD_H 1
 #		define HAVE_VSNPRINTF 1
-/* disable this so we can build with the 10.2.8 SDK */
-/*#		define HAVE_WCHAR_H 1*/
+#		define HAVE_WCHAR_H 1
 
 #		define SELECT_TYPE_ARG1 int
 #		define SELECT_TYPE_ARG234 (fd_set *)
@@ -101,10 +97,6 @@
 
 	// this one's a little too aggressive
 #	pragma warning(disable: 4127) // conditional expression is constant
-
-	// Code Analysis
-#	pragma warning(disable: 6011)
-
 
 	// emitted incorrectly under release build in some circumstances
 #	if defined(NDEBUG)
@@ -135,20 +127,11 @@
 #endif
 
 // define NULL
-#include <stddef.h>
-
-// we don't want to use NULL since it's old and nasty, so replace any
-// usages with nullptr (warning: this could break many things).
-// if not c++0x yet, future proof code by allowing use of nullptr
-#ifdef nullptr
-#define NULL nullptr
-#else
-#define nullptr NULL
+#ifndef NULL
+#define NULL 0
 #endif
 
 // make assert available since we use it a lot
 #include <assert.h>
-#include <stdlib.h>
-#include <string.h>
 
 #endif

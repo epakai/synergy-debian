@@ -1,6 +1,5 @@
 /*
- * synergy-plus -- mouse and keyboard sharing utility
- * Copyright (C) 2009 The Synergy+ Project
+ * synergy -- mouse and keyboard sharing utility
  * Copyright (C) 2003 Chris Schoeneman
  * 
  * This package is free software; you can redistribute it and/or
@@ -11,9 +10,6 @@
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
 #ifndef IKEYSTATE_H
@@ -22,8 +18,6 @@
 #include "IInterface.h"
 #include "KeyTypes.h"
 #include "CEvent.h"
-#include "CString.h"
-#include "stdset.h"
 
 //! Key state interface
 /*!
@@ -40,43 +34,23 @@ public:
 	class CKeyInfo {
 	public:
 		static CKeyInfo* alloc(KeyID, KeyModifierMask, KeyButton, SInt32 count);
-		static CKeyInfo* alloc(KeyID, KeyModifierMask, KeyButton, SInt32 count,
-							const std::set<CString>& destinations);
-		static CKeyInfo* alloc(const CKeyInfo&);
-
-		static bool isDefault(const char* screens);
-		static bool contains(const char* screens, const CString& name);
-		static bool equal(const CKeyInfo*, const CKeyInfo*);
-		static CString join(const std::set<CString>& destinations);
-		static void split(const char* screens, std::set<CString>&);
 
 	public:
 		KeyID			m_key;
 		KeyModifierMask	m_mask;
 		KeyButton		m_button;
 		SInt32			m_count;
-		char*			m_screens;
-		char			m_screensBuffer[1];
 	};
-
-	typedef std::set<KeyButton> KeyButtonSet;
 
 	//! @name manipulators
 	//@{
 
-	//! Update the keyboard map
-	/*!
-	Causes the key state to get updated to reflect the current keyboard
-	mapping.
-	*/
-	virtual void		updateKeyMap() = 0;
-
 	//! Update the key state
 	/*!
 	Causes the key state to get updated to reflect the physical keyboard
-	state.
+	state and current keyboard mapping.
 	*/
-	virtual void		updateKeyState() = 0;
+	virtual void		updateKeys() = 0;
 
 	//! Set half-duplex mask
 	/*!
@@ -106,12 +80,12 @@ public:
 	*/
 	virtual void		fakeKeyUp(KeyButton button) = 0;
 
-	//! Fake key releases for all fake pressed keys
+	//! Fake a modifier toggle
 	/*!
-	Synthesizes a key release event for every key that is synthetically
-	pressed and updates the key state.
+	Synthesizes key press/release events to toggle the given \p modifier
+	and updates the key state.
 	*/
-	virtual void		fakeAllKeysUp() = 0;
+	virtual void		fakeToggle(KeyModifierMask modifier) = 0;
 
 	//! Fake ctrl+alt+del
 	/*!
@@ -133,32 +107,16 @@ public:
 
 	//! Get the active modifiers
 	/*!
-	Returns the modifiers that are currently active according to our
-	shadowed state.
+	Returns the modifiers that are currently active.
 	*/
 	virtual KeyModifierMask
 						getActiveModifiers() const = 0;
 
-	//! Get the active modifiers from OS
+	//! Get name of key
 	/*!
-	Returns the modifiers that are currently active according to the
-	operating system.
+	Return a string describing the given key.
 	*/
-	virtual KeyModifierMask
-						pollActiveModifiers() const = 0;
-
-	//! Get the active keyboard layout from OS
-	/*!
-	Returns the active keyboard layout according to the operating system.
-	*/
-	virtual SInt32		pollActiveGroup() const = 0;
-
-	//! Get the keys currently pressed from OS
-	/*!
-	Adds any keys that are currently pressed according to the operating
-	system to \p pressedKeys.
-	*/
-	virtual void		pollPressedKeys(KeyButtonSet& pressedKeys) const = 0;
+	virtual const char*	getKeyName(KeyButton) const = 0;
 
 	//! Get key down event type.  Event data is CKeyInfo*, count == 1.
 	static CEvent::Type	getKeyDownEvent();
