@@ -1,6 +1,6 @@
 /*
  * synergy -- mouse and keyboard sharing utility
- * Copyright (C) 2002 Chris Schoeneman, Nick Bolton, Sorin Sbarnea
+ * Copyright (C) 2002 Chris Schoeneman
  * 
  * This package is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -10,9 +10,6 @@
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
 #ifndef CXWINDOWSSCREEN_H
@@ -34,7 +31,7 @@ class CXWindowsScreenSaver;
 //! Implementation of IPlatformScreen for X11
 class CXWindowsScreen : public CPlatformScreen {
 public:
-	CXWindowsScreen(const char* displayName, bool isPrimary, bool disableXInitThreads, int mouseScrollDelta=0);
+	CXWindowsScreen(const char* displayName, bool isPrimary, int mouseScrollDelta=0);
 	virtual ~CXWindowsScreen();
 
 	//! @name manipulators

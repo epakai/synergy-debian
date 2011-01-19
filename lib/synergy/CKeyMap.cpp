@@ -1,6 +1,6 @@
 /*
  * synergy -- mouse and keyboard sharing utility
- * Copyright (C) 2005 Chris Schoeneman, Nick Bolton, Sorin Sbarnea
+ * Copyright (C) 2005 Chris Schoeneman
  * 
  * This package is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -10,9 +10,6 @@
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
 #include "CKeyMap.h"
@@ -101,7 +98,7 @@ CKeyMap::addKeyEntry(const KeyItem& item)
 
 	// add item list
 	entries.push_back(items);
-	LOG((CLOG_DEBUG3 "add key: %04x %d %03x %04x (%04x %04x %04x)%s", newItem.m_id, newItem.m_group, newItem.m_button, newItem.m_client, newItem.m_required, newItem.m_sensitive, newItem.m_generates, newItem.m_dead ? " dead" : ""));
+	LOG((CLOG_DEBUG1 "add key: %04x %d %03x %04x (%04x %04x %04x)%s", newItem.m_id, newItem.m_group, newItem.m_button, newItem.m_client, newItem.m_required, newItem.m_sensitive, newItem.m_generates, newItem.m_dead ? " dead" : ""));
 }
 
 void
@@ -491,7 +488,7 @@ CKeyMap::setModifierKeys()
 				for (SInt32 b = 0; b < kKeyModifierNumBits; ++b) {
 					// skip if item doesn't generate bit b
 					if (((1u << b) & item.m_generates) != 0) {
-						SInt32 mIndex = (SInt32)g * kKeyModifierNumBits + b;
+						SInt32 mIndex = g * kKeyModifierNumBits + b;
 						m_modifierKeys[mIndex].push_back(&item);
 					}
 				}
@@ -687,7 +684,7 @@ CKeyMap::findBestKey(const KeyEntryList& entryList,
 				KeyModifierMask desiredState) const
 {
 	// check for an item that can accommodate the desiredState exactly
-	for (SInt32 i = 0; i < (SInt32)entryList.size(); ++i) {
+	for (size_t i = 0; i < entryList.size(); ++i) {
 		const KeyItem& item = entryList[i].back();
 		if ((item.m_required & desiredState) ==
 			(item.m_sensitive & desiredState)) {
@@ -699,7 +696,7 @@ CKeyMap::findBestKey(const KeyEntryList& entryList,
 	// choose the item that requires the fewest modifier changes
 	SInt32 bestCount = 32;
 	SInt32 bestIndex = -1;
-	for (SInt32 i = 0; i < (SInt32)entryList.size(); ++i) {
+	for (size_t i = 0; i < entryList.size(); ++i) {
 		const KeyItem& item = entryList[i].back();
 		KeyModifierMask change =
 			((item.m_required ^ desiredState) & item.m_sensitive);

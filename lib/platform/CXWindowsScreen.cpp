@@ -1,6 +1,6 @@
 /*
  * synergy -- mouse and keyboard sharing utility
- * Copyright (C) 2002 Chris Schoeneman, Nick Bolton, Sorin Sbarnea
+ * Copyright (C) 2002 Chris Schoeneman
  * 
  * This package is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -10,9 +10,6 @@
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
 #include "CXWindowsScreen.h"
@@ -40,11 +37,9 @@
 #	define XK_MISCELLANY
 #	define XK_XKB_KEYS
 #	include <X11/keysymdef.h>
-#	if HAVE_X11_EXTENSIONS_DPMS_H
-		extern "C" {
-#		include <X11/extensions/dpms.h>
-		}
-#	endif
+	extern "C" {
+#	include <X11/extensions/dpms.h>
+	}
 #	if HAVE_X11_EXTENSIONS_XTEST_H
 #		include <X11/extensions/XTest.h>
 #	else
@@ -80,7 +75,7 @@
 
 CXWindowsScreen*		CXWindowsScreen::s_screen = NULL;
 
-CXWindowsScreen::CXWindowsScreen(const char* displayName, bool isPrimary, bool disableXInitThreads, int mouseScrollDelta) :
+CXWindowsScreen::CXWindowsScreen(const char* displayName, bool isPrimary, int mouseScrollDelta) :
 	m_isPrimary(isPrimary),
 	m_mouseScrollDelta(mouseScrollDelta),
 	m_display(NULL),
@@ -109,13 +104,12 @@ CXWindowsScreen::CXWindowsScreen(const char* displayName, bool isPrimary, bool d
 	if (mouseScrollDelta==0) m_mouseScrollDelta=120;
 	s_screen = this;
 	
-	if (!disableXInitThreads) {
-	  // initializes Xlib support for concurrent threads.
-	  if (XInitThreads() == 0)
-	    throw XArch("XInitThreads() returned zero");
-	} else {
-		LOG((CLOG_DEBUG "skipping XInitThreads()"));
+	// initializes Xlib support for concurrent threads.
+	if (XInitThreads() == 0)
+	{
+		throw XArch("XInitThreads() returned zero");
 	}
+	
 
 	// set the X I/O error handler so we catch the display disconnecting
 	XSetIOErrorHandler(&CXWindowsScreen::ioErrorHandler);
@@ -252,7 +246,6 @@ CXWindowsScreen::enter()
 		XSetInputFocus(m_display, m_lastFocus, m_lastFocusRevert, CurrentTime);
 	}
 
-	#if HAVE_X11_EXTENSIONS_DPMS_H
 	// Force the DPMS to turn screen back on since we don't
 	// actually cause physical hardware input to trigger it
 	int dummy;
@@ -265,8 +258,7 @@ CXWindowsScreen::enter()
 		if (enabled && powerlevel != DPMSModeOn)
 			DPMSForceLevel(m_display, DPMSModeOn);
 	}
-	#endif
-	
+
 	// unmap the hider/grab window.  this also ungrabs the mouse and
 	// keyboard if they're grabbed.
 	XUnmapWindow(m_display, m_window);
@@ -1492,15 +1484,9 @@ CXWindowsScreen::onMouseMove(const XMotionEvent& xmotion)
 		// sent.  we discard the matching sent event and
 		// can be sure we've skipped the warp event.
 		XEvent xevent;
-		char cntr = 0;
 		do {
 			XMaskEvent(m_display, PointerMotionMask, &xevent);
-			if (cntr++ > 10) {
-				LOG((CLOG_WARN "too many discarded events! %d", cntr));
-				break;
-			}
 		} while (!xevent.xany.send_event);
-		cntr = 0;
 	}
 	else if (m_isOnScreen) {
 		// motion on primary screen

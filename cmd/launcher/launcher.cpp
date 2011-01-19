@@ -1,6 +1,6 @@
 /*
  * synergy -- mouse and keyboard sharing utility
- * Copyright (C) 2002 Chris Schoeneman, Nick Bolton, Sorin Sbarnea
+ * Copyright (C) 2002 Chris Schoeneman
  * 
  * This package is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -10,9 +10,6 @@
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
 #include "CConfig.h"
@@ -473,7 +470,7 @@ saveMainWindow(HWND hwnd, SaveMode mode, CString* cmdLineOut = NULL)
 		CArchMiscWindows::setValue(key, "server", getWindowText(child));
 		child = getItem(hwnd, IDC_MAIN_DEBUG);
 		CArchMiscWindows::setValue(key, "debug",
-								(DWORD)SendMessage(child, CB_GETCURSEL, 0, 0));
+								SendMessage(child, CB_GETCURSEL, 0, 0));
 		CArchMiscWindows::setValue(key, "isServer", isClient ? 0 : 1);
 		CArchMiscWindows::closeKey(key);
 	}
@@ -559,8 +556,8 @@ mainWndProc(HWND hwnd, UINT message, WPARAM wParam, LPARAM lParam)
 
 			// see if the configuration changed
 			if (isConfigNewer(s_configTime, s_userConfig)) {
-				CString message2 = getString(IDS_CONFIG_CHANGED);
-				if (askVerify(hwnd, message2)) {
+				CString message = getString(IDS_CONFIG_CHANGED);
+				if (askVerify(hwnd, message)) {
 					time_t configTime;
 					bool userConfig;
 					CConfig newConfig;
@@ -570,8 +567,8 @@ mainWndProc(HWND hwnd, UINT message, WPARAM wParam, LPARAM lParam)
 						s_lastConfig  = ARG->m_config;
 					}
 					else {
-						message2 = getString(IDS_LOAD_FAILED);
-						showError(hwnd, message2);
+						message = getString(IDS_LOAD_FAILED);
+						showError(hwnd, message);
 						s_lastConfig = CConfig();
 					}
 				}
@@ -678,9 +675,7 @@ mainWndProc(HWND hwnd, UINT message, WPARAM wParam, LPARAM lParam)
 int WINAPI
 WinMain(HINSTANCE instance, HINSTANCE, LPSTR cmdLine, int nCmdShow)
 {
-	CArchMiscWindows::setInstanceWin32(instance);
-
-	CArch arch;
+	CArch arch(instance);
 	CLOG;
 	CArgs args;
 
@@ -755,5 +750,5 @@ WinMain(HINSTANCE instance, HINSTANCE, LPSTR cmdLine, int nCmdShow)
 		}
 	} while (!done);
 
-	return (int)msg.wParam;
+	return msg.wParam;
 }

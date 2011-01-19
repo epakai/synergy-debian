@@ -1,6 +1,6 @@
 /*
  * synergy -- mouse and keyboard sharing utility
- * Copyright (C) 2003 Chris Schoeneman, Nick Bolton, Sorin Sbarnea
+ * Copyright (C) 2003 Chris Schoeneman
  * 
  * This package is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -10,9 +10,6 @@
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
 #ifndef IARCHTASKBARRECEIVER_H
@@ -20,9 +17,6 @@
 
 #include "IInterface.h"
 #include "stdstring.h"
-
-class IScreen;
-class INode;
 
 //! Interface for architecture dependent task bar event handling
 /*!
@@ -89,10 +83,6 @@ public:
 	the icon must be thread safe.
 	*/
 	virtual std::string	getToolTip() const = 0;
-
-	virtual void updateStatus(INode*, const CString& errorMsg) = 0;
-
-	virtual void cleanup() {}
 
 	//@}
 };

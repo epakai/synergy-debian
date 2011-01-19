@@ -1,6 +1,6 @@
 /*
  * synergy -- mouse and keyboard sharing utility
- * Copyright (C) 2004 Chris Schoeneman, Nick Bolton, Sorin Sbarnea
+ * Copyright (C) 2004 Chris Schoeneman
  * 
  * This package is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -10,9 +10,6 @@
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
 #include "CClipboard.h"
@@ -32,20 +29,8 @@ COSXClipboard::COSXClipboard() :
 {
 	m_converters.push_back(new COSXClipboardUTF16Converter);
 	m_converters.push_back(new COSXClipboardTextConverter);
-
-	OSStatus createErr = PasteboardCreate(kPasteboardClipboard, &m_pboard);
-	if (createErr != noErr) {
-		LOG((CLOG_DEBUG "failed to create clipboard reference: error %i", createErr));
-		LOG((CLOG_ERR "Unable to connect to pasteboard. Clipboard sharing disabled.", createErr));
-		m_pboard = NULL;
-		return;
-
-	}
-
-	OSStatus syncErr = PasteboardSynchronize(m_pboard);
-	if (syncErr != noErr) {
-		LOG((CLOG_DEBUG "failed to syncronize clipboard: error %i", syncErr));
-	}
+	PasteboardCreate( kPasteboardClipboard, &m_pboard);
+	PasteboardSynchronize(m_pboard);
 }
 
 COSXClipboard::~COSXClipboard()
@@ -53,30 +38,27 @@ COSXClipboard::~COSXClipboard()
 	clearConverters();
 }
 
-	bool
+bool
 COSXClipboard::empty()
 {
-	LOG((CLOG_DEBUG "emptying clipboard"));
-	if (m_pboard == NULL)
-		return false;
+	LOG((CLOG_DEBUG "empty clipboard"));
+	assert(m_pboard != NULL);
 
 	OSStatus err = PasteboardClear(m_pboard);
 	if (err != noErr) {
-		LOG((CLOG_DEBUG "failed to clear clipboard: error %i", err));
+		LOG((CLOG_DEBUG "failed to grab clipboard"));
 		return false;
 	}
+
 
 	return true;
 }
 
-	bool
+bool
 COSXClipboard::synchronize()
 {
-	if (m_pboard == NULL)
-		return false;
-
 	PasteboardSyncFlags flags = PasteboardSynchronize(m_pboard);
-	LOG((CLOG_DEBUG1 "flags: %x", flags));
+	LOG((CLOG_DEBUG "flags: %x", flags));
 
 	if (flags & kPasteboardModified) {
 		return true;
@@ -84,12 +66,9 @@ COSXClipboard::synchronize()
 	return false;
 }    
 
-	void
+void
 COSXClipboard::add(EFormat format, const CString & data)
 {
-	if (m_pboard == NULL)
-		return;
-
 	LOG((CLOG_DEBUG "add %d bytes to clipboard format: %d", data.size(), format));
 
 	for (ConverterList::const_iterator index = m_converters.begin();
@@ -117,9 +96,6 @@ COSXClipboard::add(EFormat format, const CString & data)
 bool
 COSXClipboard::open(Time time) const 
 {
-	if (m_pboard == NULL)
-		return false;
-
 	LOG((CLOG_DEBUG "opening clipboard"));
 	m_time = time;
 	return true;
@@ -141,8 +117,7 @@ COSXClipboard::getTime() const
 bool
 COSXClipboard::has(EFormat format) const
 {
-	if (m_pboard == NULL)
-		return false;
+	assert(m_pboard != NULL);
 
 	PasteboardItemID item;
 	PasteboardGetItemIdentifier(m_pboard, (CFIndex) 1, &item);
@@ -168,13 +143,10 @@ COSXClipboard::has(EFormat format) const
 CString
 COSXClipboard::get(EFormat format) const
 {
-	CFStringRef type;
-	PasteboardItemID item;
 	CString result;
+	CFStringRef type;
 
-	if (m_pboard == NULL)
-		return result;
-
+	PasteboardItemID item;
 	PasteboardGetItemIdentifier(m_pboard, (CFIndex) 1, &item);
 
 
@@ -225,12 +197,9 @@ COSXClipboard::get(EFormat format) const
 	return converter->toIClipboard(result);
 }
 
-	void
+void
 COSXClipboard::clearConverters()
 {
-	if (m_pboard == NULL)
-		return;
-
 	for (ConverterList::iterator index = m_converters.begin();
 			index != m_converters.end(); ++index) {
 		delete *index;

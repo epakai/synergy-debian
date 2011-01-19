@@ -1,6 +1,6 @@
 /*
  * synergy -- mouse and keyboard sharing utility
- * Copyright (C) 2002 Chris Schoeneman, Nick Bolton, Sorin Sbarnea
+ * Copyright (C) 2002 Chris Schoeneman
  * 
  * This package is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -10,9 +10,6 @@
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
 #ifndef CSERVER_H
@@ -28,7 +25,6 @@
 #include "stdmap.h"
 #include "stdset.h"
 #include "stdvector.h"
-#include "INode.h"
 
 class CBaseClientProxy;
 class CEventQueueTimer;
@@ -39,7 +35,7 @@ class CInputFilter;
 /*!
 This class implements the top-level server algorithms for synergy.
 */
-class CServer : public INode {
+class CServer {
 public:
 	//! Lock cursor to screen data
 	class CLockCursorToScreenInfo {
@@ -74,10 +70,11 @@ public:
 	//! Screen connected data
 	class CScreenConnectedInfo {
 	public:
-		CScreenConnectedInfo(CString screen) : m_screen(screen) { }
+		static CScreenConnectedInfo* alloc(const CString& screen);
 
 	public:
-		CString			m_screen; // was char[1]
+		// this is a C-string;  this type is a variable size structure
+		char			m_screen[1];
 	};
 
 	//! Keyboard broadcast data

@@ -1,6 +1,6 @@
 /*
  * synergy -- mouse and keyboard sharing utility
- * Copyright (C) 2002 Chris Schoeneman, Nick Bolton, Sorin Sbarnea
+ * Copyright (C) 2002 Chris Schoeneman
  * 
  * This package is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -10,9 +10,6 @@
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
 #ifndef CARCHDAEMONWINDOWS_H
@@ -86,8 +83,6 @@ public:
 	virtual bool		canInstallDaemon(const char* name, bool allUsers);
 	virtual bool		isDaemonInstalled(const char* name, bool allUsers);
 
-	std::string commandLine() const { return m_commandLine; }
-
 private:
 	static HKEY			openNTServicesKey();
 	static HKEY			open95ServicesKey();
@@ -134,8 +129,6 @@ private:
 	SERVICE_STATUS_HANDLE m_statusHandle;
 
 	UINT				m_quitMessage;
-
-	std::string			m_commandLine;
 };
 
 #endif

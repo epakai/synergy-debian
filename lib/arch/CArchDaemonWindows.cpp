@@ -1,6 +1,6 @@
 /*
  * synergy -- mouse and keyboard sharing utility
- * Copyright (C) 2002 Chris Schoeneman, Nick Bolton, Sorin Sbarnea
+ * Copyright (C) 2002 Chris Schoeneman
  * 
  * This package is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -10,9 +10,6 @@
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
 #include "CArchDaemonWindows.h"
@@ -145,12 +142,9 @@ CArchDaemonWindows::installDaemon(const char* name,
 				throw XArchDaemonInstallFailed(new XArchEvalWindows(err));
 			}
 		}
-		else {
-			// done with service (but only try to close if not null)
-			CloseServiceHandle(service);
-		}
 
-		// done with manager
+		// done with service and manager
+		CloseServiceHandle(service);
 		CloseServiceHandle(mgr);
 
 		// open the registry key for this service
@@ -618,14 +612,13 @@ CArchDaemonWindows::serviceMain(DWORD argc, LPTSTR* argvIn)
 	m_serviceState = SERVICE_START_PENDING;
 	setStatus(m_serviceState, 0, 10000);
 
-	std::string commandLine;
-
 	// if no arguments supplied then try getting them from the registry.
 	// the first argument doesn't count because it's the service name.
 	Arguments args;
 	ArgList myArgv;
 	if (argc <= 1) {
 		// read command line
+		std::string commandLine;
 		HKEY key = openNTServicesKey();
 		key      = CArchMiscWindows::openKey(key, argvIn[0]);
 		key      = CArchMiscWindows::openKey(key, _T("Parameters"));
@@ -679,17 +672,15 @@ CArchDaemonWindows::serviceMain(DWORD argc, LPTSTR* argvIn)
 			myArgv.push_back(argv[0]);
 
 			// get pointers
-			for (size_t j = 0; j < args.size(); ++j) {
-				myArgv.push_back(args[j].c_str());
+			for (size_t i = 0; i < args.size(); ++i) {
+				myArgv.push_back(args[i].c_str());
 			}
 
 			// adjust argc/argv
-			argc = (DWORD)myArgv.size();
+			argc = myArgv.size();
 			argv = &myArgv[0];
 		}
 	}
-
-	m_commandLine = commandLine;
 
 	try {
 		// invoke daemon function
@@ -707,10 +698,6 @@ CArchDaemonWindows::serviceMain(DWORD argc, LPTSTR* argvIn)
 	// clean up
 	ARCH->closeCondVar(m_serviceCondVar);
 	ARCH->closeMutex(m_serviceMutex);
-
-	// we're going to exit now, so set status to stopped
-	m_serviceState = SERVICE_STOPPED;
-	setStatus(m_serviceState, 0, 10000);
 }
 
 void WINAPI

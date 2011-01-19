@@ -1,6 +1,6 @@
 /*
  * synergy -- mouse and keyboard sharing utility
- * Copyright (C) 2002 Chris Schoeneman, Nick Bolton, Sorin Sbarnea
+ * Copyright (C) 2002 Chris Schoeneman
  * 
  * This package is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -10,9 +10,6 @@
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
 #include "XSynergy.h"
@@ -104,29 +101,4 @@ CString
 XUnknownClient::getWhat() const throw()
 {
 	return format("XUnknownClient", "unknown client %{1}", m_name.c_str());
-}
-
-
-//
-// XExitApp
-//
-
-XExitApp::XExitApp(int code) :
-	m_code(code)
-{
-	// do nothing
-}
-
-int
-XExitApp::getCode() const throw()
-{
-	return m_code;
-}
-
-CString
-XExitApp::getWhat() const throw()
-{
-	return format(
-		"XExitApp", "exiting with code %{1}", 
-		CStringUtil::print("%d", m_code).c_str());
 }

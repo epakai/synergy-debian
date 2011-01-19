@@ -1,6 +1,6 @@
 /*
  * synergy -- mouse and keyboard sharing utility
- * Copyright (C) 2002 Chris Schoeneman, Nick Bolton, Sorin Sbarnea
+ * Copyright (C) 2002 Chris Schoeneman
  * 
  * This package is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -10,9 +10,6 @@
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
 #include "CSynergyHook.h"
@@ -159,9 +156,6 @@ attachThreadToForeground()
 	// already in the right thread.
 	if (g_hookThread != 0) {
 		HWND window    = GetForegroundWindow();
-        if (window == NULL)
-            return false;
-
 		DWORD threadID = GetWindowThreadProcessId(window, NULL);
 		// skip if no change
 		if (g_attachedThread != threadID) {
@@ -303,14 +297,14 @@ doKeyboardHookHandler(WPARAM wParam, LPARAM lParam)
 	// map the key event to a character.  we have to put the dead
 	// key back first and this has the side effect of removing it.
 	if (g_deadVirtKey != 0) {
-		if(ToAscii((UINT)g_deadVirtKey, (g_deadLParam & 0x10ff0000u) >> 16,
+		if(ToAscii(g_deadVirtKey, (g_deadLParam & 0x10ff0000u) >> 16,
 					g_deadKeyState, &c, flags) == 2)
 		{
 			// If ToAscii returned 2, it means that we accidentally removed
 			// a double dead key instead of restoring it. Thus, we call
 			// ToAscii again with the same parameters to restore the
 			// internal dead key state.
-			ToAscii((UINT)g_deadVirtKey, (g_deadLParam & 0x10ff0000u) >> 16,
+			ToAscii(g_deadVirtKey, (g_deadLParam & 0x10ff0000u) >> 16,
 					g_deadKeyState, &c, flags);
 			
 			// We need to keep track of this because g_deadVirtKey will be
@@ -321,7 +315,7 @@ doKeyboardHookHandler(WPARAM wParam, LPARAM lParam)
 	}
 	
 	UINT scanCode = ((lParam & 0x10ff0000u) >> 16);
-	int n         = ToAscii((UINT)wParam, scanCode, keys, &c, flags);
+	int n         = ToAscii(wParam, scanCode, keys, &c, flags);
 
 	// if mapping failed and ctrl and alt are pressed then try again
 	// with both not pressed.  this handles the case where ctrl and
@@ -335,10 +329,10 @@ doKeyboardHookHandler(WPARAM wParam, LPARAM lParam)
 		PostThreadMessage(g_threadID, SYNERGY_MSG_DEBUG,
 							wParam | 0x05000000, lParam);
 		if (g_deadVirtKey != 0) {
-			if(ToAscii((UINT)g_deadVirtKey, (g_deadLParam & 0x10ff0000u) >> 16,
+			if(ToAscii(g_deadVirtKey, (g_deadLParam & 0x10ff0000u) >> 16,
 							g_deadKeyState, &c, flags) == 2)
 			{
-				ToAscii((UINT)g_deadVirtKey, (g_deadLParam & 0x10ff0000u) >> 16,
+				ToAscii(g_deadVirtKey, (g_deadLParam & 0x10ff0000u) >> 16,
 							g_deadKeyState, &c, flags);
 				g_deadRelease = g_deadVirtKey;
 			}
@@ -353,7 +347,7 @@ doKeyboardHookHandler(WPARAM wParam, LPARAM lParam)
 		keys2[VK_LMENU]    = 0;
 		keys2[VK_RMENU]    = 0;
 		keys2[VK_MENU]     = 0;
-		n = ToAscii((UINT)wParam, scanCode, keys2, &c, flags);
+		n = ToAscii(wParam, scanCode, keys2, &c, flags);
 	}
 
 	PostThreadMessage(g_threadID, SYNERGY_MSG_DEBUG,
@@ -384,12 +378,12 @@ doKeyboardHookHandler(WPARAM wParam, LPARAM lParam)
 	case 0:
 		// key doesn't map to a character.  this can happen if
 		// non-character keys are pressed after a dead key.
-		charAndVirtKey = makeKeyMsg((UINT)wParam, (char)0, noAltGr);
+		charAndVirtKey = makeKeyMsg(wParam, (char)0, noAltGr);
 		break;
 
 	case 1:
 		// key maps to a character composed with dead key
-		charAndVirtKey = makeKeyMsg((UINT)wParam, (char)LOBYTE(c), noAltGr);
+		charAndVirtKey = makeKeyMsg(wParam, (char)LOBYTE(c), noAltGr);
 		clearDeadKey   = true;
 		break;
 
@@ -397,14 +391,14 @@ doKeyboardHookHandler(WPARAM wParam, LPARAM lParam)
 		// previous dead key not composed.  send a fake key press
 		// and release for the dead key to our window.
 		WPARAM deadCharAndVirtKey =
-							makeKeyMsg((UINT)g_deadVirtKey, (char)LOBYTE(c), noAltGr);
+							makeKeyMsg(g_deadVirtKey, (char)LOBYTE(c), noAltGr);
 		PostThreadMessage(g_threadID, SYNERGY_MSG_KEY,
 							deadCharAndVirtKey, g_deadLParam & 0x7fffffffu);
 		PostThreadMessage(g_threadID, SYNERGY_MSG_KEY,
 							deadCharAndVirtKey, g_deadLParam | 0x80000000u);
 
 		// use uncomposed character
-		charAndVirtKey = makeKeyMsg((UINT)wParam, (char)HIBYTE(c), noAltGr);
+		charAndVirtKey = makeKeyMsg(wParam, (char)HIBYTE(c), noAltGr);
 		clearDeadKey   = true;
 		break;
 	}
@@ -412,7 +406,7 @@ doKeyboardHookHandler(WPARAM wParam, LPARAM lParam)
 
 	// put back the dead key, if any, for the application to use
 	if (g_deadVirtKey != 0) {
-		ToAscii((UINT)g_deadVirtKey, (g_deadLParam & 0x10ff0000u) >> 16,
+		ToAscii(g_deadVirtKey, (g_deadLParam & 0x10ff0000u) >> 16,
 							g_deadKeyState, &c, flags);
 	}
 

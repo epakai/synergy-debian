@@ -1,6 +1,6 @@
 /*
  * synergy -- mouse and keyboard sharing utility
- * Copyright (C) 2002 Chris Schoeneman, Nick Bolton, Sorin Sbarnea
+ * Copyright (C) 2002 Chris Schoeneman
  * 
  * This package is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -10,30 +10,16 @@
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
 #ifndef CSYNERGYHOOK_H
 #define CSYNERGYHOOK_H
 
-// hack: vs2005 doesn't declare _WIN32_WINNT, so we need to hard code it.
-// however, some say that this should be hard coded since it defines the
-// target system, but since this is suposed to compile on pre-XP, maybe
-// we should just leave it like this.
-#if _MSC_VER == 1400
-#define _WIN32_WINNT 0x0400
-#endif
-
 #include "BasicTypes.h"
 #define WIN32_LEAN_AND_MEAN
 #include <windows.h>
 
-// fix: cmake defines the library name in lower case (synrgyhk_EXPORTS) as 
-// opposed to upper case (SYNRGYHK_EXPORTS), so rather than figuring out 
-// how to change cmake's behaviour, it's easier to just change the code.
-#if defined(synrgyhk_EXPORTS)
+#if defined(SYNRGYHK_EXPORTS)
 #define CSYNERGYHOOK_API __declspec(dllexport)
 #else
 #define CSYNERGYHOOK_API __declspec(dllimport)

@@ -1,6 +1,6 @@
 /*
  * synergy -- mouse and keyboard sharing utility
- * Copyright (C) 2002 Chris Schoeneman, Nick Bolton, Sorin Sbarnea
+ * Copyright (C) 2002 Chris Schoeneman
  * 
  * This package is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -10,9 +10,6 @@
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
 #ifndef COMMON_H
@@ -101,10 +98,6 @@
 	// this one's a little too aggressive
 #	pragma warning(disable: 4127) // conditional expression is constant
 
-	// Code Analysis
-#	pragma warning(disable: 6011)
-
-
 	// emitted incorrectly under release build in some circumstances
 #	if defined(NDEBUG)
 #		pragma warning(disable: 4702) // unreachable code
@@ -135,15 +128,6 @@
 
 // define NULL
 #include <stddef.h>
-
-// we don't want to use NULL since it's old and nasty, so replace any
-// usages with nullptr (warning: this could break many things).
-// if not c++0x yet, future proof code by allowing use of nullptr
-#ifdef nullptr
-#define NULL nullptr
-#else
-#define nullptr NULL
-#endif
 
 // make assert available since we use it a lot
 #include <assert.h>

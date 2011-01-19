@@ -1,6 +1,6 @@
 /*
  * synergy -- mouse and keyboard sharing utility
- * Copyright (C) 2003 Chris Schoeneman, Nick Bolton, Sorin Sbarnea
+ * Copyright (C) 2003 Chris Schoeneman
  * 
  * This package is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -10,9 +10,6 @@
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
 #include "CMSWindowsClientTaskBarReceiver.h"
@@ -22,9 +19,7 @@
 #include "BasicTypes.h"
 #include "CArch.h"
 #include "CArchTaskBarWindows.h"
-#include "CArchMiscWindows.h"
 #include "resource.h"
-#include "CMSWindowsScreen.h"
 
 //
 // CMSWindowsClientTaskBarReceiver
@@ -61,12 +56,6 @@ CMSWindowsClientTaskBarReceiver::CMSWindowsClientTaskBarReceiver(
 }
 
 CMSWindowsClientTaskBarReceiver::~CMSWindowsClientTaskBarReceiver()
-{
-	cleanup();
-}
-
-void
-CMSWindowsClientTaskBarReceiver::cleanup()
 {
 	ARCH->removeReceiver(this);
 	for (UInt32 i = 0; i < kMaxState; ++i) {
@@ -353,21 +342,4 @@ CMSWindowsClientTaskBarReceiver::staticDlgProc(HWND hwnd,
 	else {
 		return (msg == WM_INITDIALOG) ? TRUE : FALSE;
 	}
-}
-
-IArchTaskBarReceiver*
-createTaskBarReceiver(const CBufferedLogOutputter* logBuffer)
-{
-	CArchMiscWindows::setIcons(
-		(HICON)LoadImage(CArchMiscWindows::instanceWin32(),
-		MAKEINTRESOURCE(IDI_SYNERGY),
-		IMAGE_ICON,
-		32, 32, LR_SHARED),
-		(HICON)LoadImage(CArchMiscWindows::instanceWin32(),
-		MAKEINTRESOURCE(IDI_SYNERGY),
-		IMAGE_ICON,
-		16, 16, LR_SHARED));
-
-	return new CMSWindowsClientTaskBarReceiver(
-		CMSWindowsScreen::getInstance(), logBuffer);
 }

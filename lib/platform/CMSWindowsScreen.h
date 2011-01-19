@@ -1,6 +1,6 @@
 /*
  * synergy -- mouse and keyboard sharing utility
- * Copyright (C) 2002 Chris Schoeneman, Nick Bolton, Sorin Sbarnea
+ * Copyright (C) 2002 Chris Schoeneman
  * 
  * This package is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -10,9 +10,6 @@
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
 #ifndef CMSWINDOWSSCREEN_H
@@ -35,7 +32,7 @@ class CThread;
 //! Implementation of IPlatformScreen for Microsoft Windows
 class CMSWindowsScreen : public CPlatformScreen {
 public:
-	CMSWindowsScreen(bool isPrimary, bool noHooks);
+	CMSWindowsScreen(bool isPrimary);
 	virtual ~CMSWindowsScreen();
 
 	//! @name manipulators
@@ -219,9 +216,6 @@ private:
 	// true if screen is being used as a primary screen, false otherwise
 	bool				m_isPrimary;
 
-	// true if hooks are not to be installed (useful for debugging)
-	bool				m_noHooks;
-
 	// true if windows 95/98/me
 	bool				m_is95Family;
 
@@ -309,9 +303,6 @@ private:
 	MOUSEKEYS			m_oldMouseKeys;
 
 	static CMSWindowsScreen*	s_screen;
-
-	// save last position of mouse to compute next delta movement
-	void saveMousePosition(SInt32 x, SInt32 y);
 };
 
 #endif

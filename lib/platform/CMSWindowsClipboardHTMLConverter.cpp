@@ -1,6 +1,6 @@
 /*
  * synergy -- mouse and keyboard sharing utility
- * Copyright (C) 2004 Chris Schoeneman, Nick Bolton, Sorin Sbarnea
+ * Copyright (C) 2004 Chris Schoeneman
  * 
  * This package is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -10,9 +10,6 @@
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
 #include "CMSWindowsClipboardHTMLConverter.h"
@@ -52,8 +49,8 @@ CMSWindowsClipboardHTMLConverter::doFromIClipboard(const CString& data) const
 					"StartFragment:XXXXXXXXXX\nEndFragment:YYYYYYYYYY\n"
 					"<!DOCTYPE><HTML><BODY><!--StartFragment-->");
 	CString suffix("<!--EndFragment--></BODY></HTML>\n");
-	UInt32 start = (UInt32)prefix.size();
-	UInt32 end   = start + (UInt32)data.size();
+	UInt32 start = prefix.size();
+	UInt32 end   = start + data.size();
 	prefix.replace(prefix.find("XXXXXXXXXX"), 10,
 							CStringUtil::print("%010u", start));
 	prefix.replace(prefix.find("YYYYYYYYYY"), 10,

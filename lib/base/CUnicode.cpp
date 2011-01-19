@@ -1,6 +1,6 @@
 /*
  * synergy -- mouse and keyboard sharing utility
- * Copyright (C) 2002 Chris Schoeneman, Nick Bolton, Sorin Sbarnea
+ * Copyright (C) 2002 Chris Schoeneman
  * 
  * This package is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -10,9 +10,6 @@
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
 #include "CUnicode.h"
@@ -100,7 +97,7 @@ CUnicode::isUTF8(const CString& src)
 {
 	// convert and test each character
 	const UInt8* data = reinterpret_cast<const UInt8*>(src.c_str());
-	for (UInt32 n = (UInt32)src.size(); n > 0; ) {
+	for (UInt32 n = src.size(); n > 0; ) {
 		if (fromUTF8(data, n) == s_invalid) {
 			return false;
 		}
@@ -115,7 +112,7 @@ CUnicode::UTF8ToUCS2(const CString& src, bool* errors)
 	resetError(errors);
 
 	// get size of input string and reserve some space in output
-	UInt32 n = (UInt32)src.size();
+	UInt32 n = src.size();
 	CString dst;
 	dst.reserve(2 * n);
 
@@ -144,7 +141,7 @@ CUnicode::UTF8ToUCS4(const CString& src, bool* errors)
 	resetError(errors);
 
 	// get size of input string and reserve some space in output
-	UInt32 n = (UInt32)src.size();
+	UInt32 n = src.size();
 	CString dst;
 	dst.reserve(4 * n);
 
@@ -168,7 +165,7 @@ CUnicode::UTF8ToUTF16(const CString& src, bool* errors)
 	resetError(errors);
 
 	// get size of input string and reserve some space in output
-	UInt32 n = (UInt32)src.size();
+	UInt32 n = src.size();
 	CString dst;
 	dst.reserve(2 * n);
 
@@ -206,7 +203,7 @@ CUnicode::UTF8ToUTF32(const CString& src, bool* errors)
 	resetError(errors);
 
 	// get size of input string and reserve some space in output
-	UInt32 n = (UInt32)src.size();
+	UInt32 n = src.size();
 	CString dst;
 	dst.reserve(4 * n);
 
@@ -257,7 +254,7 @@ CUnicode::UCS2ToUTF8(const CString& src, bool* errors)
 	resetError(errors);
 
 	// convert
-	UInt32 n = (UInt32)src.size() >> 1;
+	UInt32 n = src.size() >> 1;
 	return doUCS2ToUTF8(reinterpret_cast<const UInt8*>(src.data()), n, errors);
 }
 
@@ -268,7 +265,7 @@ CUnicode::UCS4ToUTF8(const CString& src, bool* errors)
 	resetError(errors);
 
 	// convert
-	UInt32 n = (UInt32)src.size() >> 2;
+	UInt32 n = src.size() >> 2;
 	return doUCS4ToUTF8(reinterpret_cast<const UInt8*>(src.data()), n, errors);
 }
 
@@ -279,7 +276,7 @@ CUnicode::UTF16ToUTF8(const CString& src, bool* errors)
 	resetError(errors);
 
 	// convert
-	UInt32 n = (UInt32)src.size() >> 1;
+	UInt32 n = src.size() >> 1;
 	return doUTF16ToUTF8(reinterpret_cast<const UInt8*>(src.data()), n, errors);
 }
 
@@ -290,7 +287,7 @@ CUnicode::UTF32ToUTF8(const CString& src, bool* errors)
 	resetError(errors);
 
 	// convert
-	UInt32 n = (UInt32)src.size() >> 2;
+	UInt32 n = src.size() >> 2;
 	return doUTF32ToUTF8(reinterpret_cast<const UInt8*>(src.data()), n, errors);
 }
 
@@ -301,7 +298,7 @@ CUnicode::textToUTF8(const CString& src, bool* errors)
 	resetError(errors);
 
 	// convert string to wide characters
-	UInt32 n     = (UInt32)src.size();
+	UInt32 n     = src.size();
 	int len      = ARCH->convStringMBToWC(NULL, src.c_str(), n, errors);
 	wchar_t* wcs = new wchar_t[len + 1];
 	ARCH->convStringMBToWC(wcs, src.c_str(), n, errors);
@@ -323,22 +320,22 @@ CUnicode::UTF8ToWideChar(const CString& src, UInt32& size, bool* errors)
 	switch (ARCH->getWideCharEncoding()) {
 	case IArchString::kUCS2:
 		tmp = UTF8ToUCS2(src, errors);
-		size = (UInt32)tmp.size() >> 1;
+		size = tmp.size() >> 1;
 		break;
 
 	case IArchString::kUCS4:
 		tmp = UTF8ToUCS4(src, errors);
-		size = (UInt32)tmp.size() >> 2;
+		size = tmp.size() >> 2;
 		break;
 
 	case IArchString::kUTF16:
 		tmp = UTF8ToUTF16(src, errors);
-		size = (UInt32)tmp.size() >> 1;
+		size = tmp.size() >> 1;
 		break;
 
 	case IArchString::kUTF32:
 		tmp = UTF8ToUTF32(src, errors);
-		size = (UInt32)tmp.size() >> 2;
+		size = tmp.size() >> 2;
 		break;
 
 	default:

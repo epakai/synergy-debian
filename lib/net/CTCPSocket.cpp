@@ -1,6 +1,6 @@
 /*
  * synergy -- mouse and keyboard sharing utility
- * Copyright (C) 2002 Chris Schoeneman, Nick Bolton, Sorin Sbarnea
+ * Copyright (C) 2002 Chris Schoeneman
  * 
  * This package is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -10,9 +10,6 @@
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
 #include "CTCPSocket.h"
@@ -349,9 +346,11 @@ CTCPSocket::newJob()
 void
 CTCPSocket::sendConnectionFailedEvent(const char* msg)
 {
-	CConnectionFailedInfo* info = new CConnectionFailedInfo(msg);
+	CConnectionFailedInfo* info = (CConnectionFailedInfo*)malloc(
+							sizeof(CConnectionFailedInfo) + strlen(msg));
+	strcpy(info->m_what, msg);
 	EVENTQUEUE->addEvent(CEvent(getConnectionFailedEvent(),
-							getEventTarget(), info, CEvent::kDontFreeData));
+							getEventTarget(), info));
 }
 
 void
@@ -507,7 +506,7 @@ CTCPSocket::serviceConnected(ISocketMultiplexerJob* job,
 
 				// slurp up as much as possible
 				do {
-					m_inputBuffer.write(buffer, (UInt32)n);
+					m_inputBuffer.write(buffer, n);
 					n = ARCH->readSocket(m_socket, buffer, sizeof(buffer));
 				} while (n > 0);
 
