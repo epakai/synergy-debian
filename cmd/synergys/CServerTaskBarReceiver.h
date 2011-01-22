@@ -10,9 +10,6 @@
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
 #ifndef CSERVERTASKBARRECEIVER_H
@@ -21,9 +18,8 @@
 #include "CString.h"
 #include "IArchTaskBarReceiver.h"
 #include "stdvector.h"
-#include "CEvent.h"
-#include "CServerApp.h"
-#include "CServer.h"
+
+class CServer;
 
 //! Implementation of IArchTaskBarReceiver for the synergy server
 class CServerTaskBarReceiver : public IArchTaskBarReceiver {
@@ -39,8 +35,6 @@ public:
 	Determine the status and query required information from the server.
 	*/
 	void				updateStatus(CServer*, const CString& errorMsg);
-
-	void updateStatus(INode* n, const CString& errorMsg) { updateStatus((CServer*)n, errorMsg); }
 
 	//@}
 
@@ -85,17 +79,10 @@ protected:
 	*/
 	virtual void		onStatusChanged(CServer* server);
 
-protected:
-	CEvent::Type getReloadConfigEvent();
-	CEvent::Type getForceReconnectEvent();
-	CEvent::Type getResetServerEvent();
-
 private:
 	EState				m_state;
 	CString				m_errorMessage;
 	CClients			m_clients;
 };
-
-IArchTaskBarReceiver* createTaskBarReceiver(const CBufferedLogOutputter* logBuffer);
 
 #endif

@@ -89,10 +89,9 @@
 //
 
 CMSWindowsDesks::CMSWindowsDesks(
-				bool isPrimary, bool noHooks, HINSTANCE hookLibrary,
+				bool isPrimary, HINSTANCE hookLibrary,
 				const IScreenSaver* screensaver, IJob* updateKeys) :
 	m_isPrimary(isPrimary),
-	m_noHooks(noHooks),
 	m_is95Family(CArchMiscWindows::isWindows95Family()),
 	m_isModernFamily(CArchMiscWindows::isWindowsModern()),
 	m_isOnScreen(m_isPrimary),
@@ -365,7 +364,7 @@ void
 CMSWindowsDesks::queryHookLibrary(HINSTANCE hookLibrary)
 {
 	// look up functions
-	if (m_isPrimary && !m_noHooks) {
+	if (m_isPrimary) {
 		m_install   = (InstallFunc)GetProcAddress(hookLibrary, "install");
 		m_uninstall = (UninstallFunc)GetProcAddress(hookLibrary, "uninstall");
 		m_installScreensaver   =
@@ -740,7 +739,7 @@ CMSWindowsDesks::deskThread(void* vdesk)
 			continue;
 
 		case SYNERGY_MSG_SWITCH:
-			if (m_isPrimary && !m_noHooks) {
+			if (m_isPrimary) {
 				m_uninstall();
 				if (m_screensaverNotify) {
 					m_uninstallScreensaver();
@@ -820,13 +819,11 @@ CMSWindowsDesks::deskThread(void* vdesk)
 			break;
 
 		case SYNERGY_MSG_SCREENSAVER:
-			if (!m_noHooks) {
-				if (msg.wParam != 0) {
-					m_installScreensaver();
-				}
-				else {
-					m_uninstallScreensaver();
-				}
+			if (msg.wParam != 0) {
+				m_installScreensaver();
+			}
+			else {
+				m_uninstallScreensaver();
 			}
 			break;
 

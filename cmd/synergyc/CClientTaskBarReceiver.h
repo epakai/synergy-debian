@@ -10,9 +10,6 @@
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
 #ifndef CCLIENTTASKBARRECEIVER_H
@@ -20,8 +17,8 @@
 
 #include "CString.h"
 #include "IArchTaskBarReceiver.h"
-#include "LogOutputters.h"
-#include "CClient.h"
+
+class CClient;
 
 //! Implementation of IArchTaskBarReceiver for the synergy server
 class CClientTaskBarReceiver : public IArchTaskBarReceiver {
@@ -38,8 +35,6 @@ public:
 	*/
 	void				updateStatus(CClient*, const CString& errorMsg);
 
-	void updateStatus(INode* n, const CString& errorMsg) { updateStatus((CClient*)n, errorMsg); }
-
 	//@}
 
 	// IArchTaskBarReceiver overrides
@@ -50,7 +45,6 @@ public:
 	virtual void		unlock() const;
 	virtual const Icon	getIcon() const = 0;
 	virtual std::string	getToolTip() const;
-	virtual void cleanup() {}
 
 protected:
 	enum EState {
@@ -85,7 +79,5 @@ private:
 	CString				m_errorMessage;
 	CString				m_server;
 };
-
-IArchTaskBarReceiver* createTaskBarReceiver(const CBufferedLogOutputter* logBuffer);
 
 #endif

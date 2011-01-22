@@ -15,8 +15,8 @@
 
 # Version number for Synergy
 SET(VERSION_MAJOR 1)
-SET(VERSION_MINOR 5)
-SET(VERSION_REV 0)
+SET(VERSION_MINOR 3)
+SET(VERSION_REV 6)
 SET(VERSION "${VERSION_MAJOR}.${VERSION_MINOR}.${VERSION_REV}")
 
 
@@ -43,7 +43,6 @@ PROJECT(synergy C CXX)
 SET(root_dir ${CMAKE_SOURCE_DIR})
 SET(cmake_dir ${root_dir}/cmake)
 SET(bin_dir ${root_dir}/bin)
-SET(doc_dir ${root_dir}/doc)
 SET(doc_dir ${root_dir}/doc)
 
 # Now for the stuff to generate config.h (and setup defines).
@@ -94,4 +93,3 @@ IF(WIN32)
 	SET(CMAKE_CXX_FLAGS_RELEASE "/MD /O2 /Ob2")
 
 ENDIF(WIN32)
-

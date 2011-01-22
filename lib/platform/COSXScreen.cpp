@@ -40,7 +40,7 @@
 #if !defined(MAC_OS_X_VERSION_10_3) || \
 	(MAC_OS_X_VERSION_MAX_ALLOWED < MAC_OS_X_VERSION_10_3)
 enum {
-	kEventClassSystem				  = 'macs',
+	kEventClassSystem                  = 'macs',
 	kEventSystemUserSessionActivated   = 10,
 	kEventSystemUserSessionDeactivated = 11
 };
@@ -57,14 +57,11 @@ enum {
 // COSXScreen
 //
 
-
-
-bool					COSXScreen::s_testedForGHOM = false;
-bool					COSXScreen::s_hasGHOM	    = false;
+bool					COSXScreen::s_testedForGHOM     = false;
+bool					COSXScreen::s_hasGHOM           = false;
 CEvent::Type			COSXScreen::s_confirmSleepEvent = CEvent::kUnknown;
 
 COSXScreen::COSXScreen(bool isPrimary) :
-	MouseButtonEventMap(NumButtonIDs),
 	m_isPrimary(isPrimary),
 	m_isOnScreen(m_isPrimary),
 	m_cursorPosValid(false),
@@ -112,8 +109,6 @@ COSXScreen::COSXScreen(bool isPrimary) :
 		InstallApplicationEventHandler(switchEventHandler, 2, switchEventTypes,
 									   this, &m_switchEventHandlerRef);
 		DisposeEventHandlerUPP(switchEventHandler);
-
-		constructMouseButtonEventMap();
 
 		// watch for requests to sleep
 		EVENTQUEUE->adoptHandler(COSXScreen::getConfirmSleepEvent(),
@@ -369,26 +364,6 @@ COSXScreen::unregisterHotKey(UInt32 id)
 }
 
 void
-COSXScreen::constructMouseButtonEventMap()
-{
-	const CGEventType source[NumButtonIDs][3] = {
-		kCGEventLeftMouseUp,kCGEventLeftMouseDragged,kCGEventLeftMouseDown,
-		kCGEventOtherMouseUp,kCGEventOtherMouseDragged,kCGEventOtherMouseDown,
-		kCGEventRightMouseUp,kCGEventRightMouseDragged,kCGEventRightMouseDown,
-		kCGEventOtherMouseUp,kCGEventOtherMouseDragged,kCGEventOtherMouseDown,
-		kCGEventOtherMouseUp,kCGEventOtherMouseDragged,kCGEventOtherMouseDown};
-
-	for (UInt16 button = 0; button < NumButtonIDs; button++) {
-		MouseButtonEventMapType new_map;
-		for (UInt16 state = (UInt32) kMouseButtonUp; state < kMouseButtonStateMax; state++) {
-			CGEventType curEvent = source[button][state];
-			new_map[state] = curEvent;
-		}
-		MouseButtonEventMap[button] = new_map;
-	}
-}
-
-void
 COSXScreen::postMouseEvent(CGPoint& pos) const
 {
 	// check if cursor position is valid on the client display configuration
@@ -420,30 +395,41 @@ COSXScreen::postMouseEvent(CGPoint& pos) const
 			}
 		}
 	}
-	
-	CGEventType type = kCGEventMouseMoved;
-
-	SInt8 button = m_buttonState.getFirstButtonDown();
-	if (button != -1) {
-		MouseButtonEventMapType thisButtonType = MouseButtonEventMap[button];
-		type = thisButtonType[kMouseButtonDragged];
-	}
-
-	CGEventRef event = CGEventCreateMouseEvent(NULL, type, pos, button);
-	CGEventPost(kCGHIDEventTap, event);
-	
-	CFRelease(event);
+ 	
+	// synthesize event.  CGPostMouseEvent is a particularly good
+	// example of a bad API.  we have to shadow the mouse state to
+	// use this API and if we want to support more buttons we have
+	// to recompile.
+	//
+	// the order of buttons on the mac is:
+	// 1 - Left
+	// 2 - Right
+	// 3 - Middle
+	// Whatever the USB device defined.
+	//
+	// It is a bit weird that the behaviour of buttons over 3 are dependent
+	// on currently plugged in USB devices.
+	CGPostMouseEvent(pos, true, sizeof(m_buttons) / sizeof(m_buttons[0]),
+				m_buttons[0],
+				m_buttons[2],
+				m_buttons[1],
+				m_buttons[3],
+				m_buttons[4]);
 }
+
 
 void
 COSXScreen::fakeMouseButton(ButtonID id, bool press) const
 {
-	// Buttons are indexed from one, but the button down array is indexed from zero
+	// get button index
 	UInt32 index = id - kButtonLeft;
-	if (index >= NumButtonIDs) {
+	if (index >= sizeof(m_buttons) / sizeof(m_buttons[0])) {
 		return;
 	}
-	
+
+	// update state
+	m_buttons[index] = press;
+
 	CGPoint pos;
 	if (!m_cursorPosValid) {
 		SInt32 x, y;
@@ -451,36 +437,7 @@ COSXScreen::fakeMouseButton(ButtonID id, bool press) const
 	}
 	pos.x = m_xCursor;
 	pos.y = m_yCursor;
-	
-	// synthesize event.  CGEventCreateMouseEvent creates a retained mouse
-	// event, which must also be posted and released. Note this is
-	// similar to the use of CGEventRef in postMouseEvent above.
-	// One of the arguments changes based on whether a button is being
-	// pressed or released, pressed corresponding to when "press" is true.
-	CGEventRef event;
-	
-	// the switch statement handles which button was pressed.  the left
-	// and right mouse buttons must be handled separately from any
-	// other buttons
-	
-	CGEventType type;
-	MouseButtonState state;
-	if (press) { 
-		state = kMouseButtonDown;
-	} else {
-		state = kMouseButtonUp;
-	}
-
-	MouseButtonEventMapType thisButtonMap = MouseButtonEventMap[index];
-	type = thisButtonMap[state];
-
-	event = CGEventCreateMouseEvent(NULL, type, pos, index);
-
-	m_buttonState.set(index, state);
-
-	CGEventPost(kCGHIDEventTap, event);
-	
-	CFRelease(event);
+	postMouseEvent(pos);
 }
 
 void
@@ -526,17 +483,8 @@ void
 COSXScreen::fakeMouseWheel(SInt32 xDelta, SInt32 yDelta) const
 {
 	if (xDelta != 0 || yDelta != 0) {
-		// create a scroll event, post it and release it.  not sure if kCGScrollEventUnitLine
-		// is the right choice here over kCGScrollEventUnitPixel
-		CGEventRef scrollEvent = CGEventCreateScrollWheelEvent(NULL,
-															   kCGScrollEventUnitLine,
-															   2,
-															   mapScrollWheelFromSynergy(yDelta),
-															   -mapScrollWheelFromSynergy(xDelta));
-		
-		CGEventPost(kCGHIDEventTap, scrollEvent);
-		
-		CFRelease(scrollEvent);
+		CGPostScrollWheelEvent(2, mapScrollWheelFromSynergy(yDelta),
+								-mapScrollWheelFromSynergy(xDelta));
 	}
 }
 
@@ -661,7 +609,9 @@ COSXScreen::enter()
 	}
 	else {
 		// reset buttons
-		m_buttonState.reset();
+		for (UInt32 i = 0; i < sizeof(m_buttons) / sizeof(m_buttons[0]); ++i) {
+			m_buttons[i] = false;
+		}
 
 		// avoid suppression of local hardware events
 		// stkamp@users.sourceforge.net
@@ -718,22 +668,22 @@ COSXScreen::leave()
 bool
 COSXScreen::setClipboard(ClipboardID, const IClipboard* src)
 {
-	if(src != NULL) {
-		LOG((CLOG_DEBUG "setting clipboard"));
-		CClipboard::copy(&m_pasteboard, src);	
-	}	
-	return true;
+    if(src != NULL) {
+        LOG((CLOG_DEBUG "setting clipboard"));
+        CClipboard::copy(&m_pasteboard, src);    
+    }    
+    return true;
 }
 
 void
 COSXScreen::checkClipboards()
 {
-	LOG((CLOG_DEBUG1 "checking clipboard"));
-	if (m_pasteboard.synchronize()) {
-		LOG((CLOG_DEBUG "clipboard changed"));
-		sendClipboardEvent(getClipboardGrabbedEvent(), kClipboardClipboard);
-		sendClipboardEvent(getClipboardGrabbedEvent(), kClipboardSelection);
-	}
+    LOG((CLOG_DEBUG1 "checking clipboard"));
+    if (m_pasteboard.synchronize()) {
+        LOG((CLOG_DEBUG "clipboard changed"));
+        sendClipboardEvent(getClipboardGrabbedEvent(), kClipboardClipboard);
+        sendClipboardEvent(getClipboardGrabbedEvent(), kClipboardSelection);
+    }
 }
 
 void
@@ -1002,7 +952,7 @@ COSXScreen::displayReconfigurationCallback(CGDirectDisplayID displayID, CGDispla
 	LOG((CLOG_DEBUG1 "event: display was reconfigured: %x %x %x", flags, mask, flags & mask));
 
 	if (flags & mask) { /* Something actually did change */
-		
+        
 		LOG((CLOG_DEBUG1 "event: screen changed shape; refreshing dimensions"));
 		screen->updateScreenShape(displayID, flags);
 	}
@@ -1234,7 +1184,7 @@ COSXScreen::enableDragTimer(bool enable)
 		EVENTQUEUE->adoptHandler(CEvent::kTimer, m_dragTimer,
 							new TMethodEventJob<COSXScreen>(this,
 								&COSXScreen::handleDrag));
-		TrackMouseLocationWithOptions(NULL, 0, 0, &m_dragLastPoint, &modifiers, &res);
+    TrackMouseLocationWithOptions(NULL, 0, 0, &m_dragLastPoint, &modifiers, &res);
 	}
 	else if (!enable && m_dragTimer != NULL) {
 		EVENTQUEUE->removeHandler(CEvent::kTimer, m_dragTimer);
@@ -1262,8 +1212,9 @@ void
 COSXScreen::updateButtons()
 {
 	UInt32 buttons = GetCurrentButtonState();
-
-	m_buttonState.overwrite(buttons);
+	for (size_t i = 0; i < sizeof(m_buttons) / sizeof(m_buttons[0]); ++i) {
+		m_buttons[i] = ((buttons & (1u << i)) != 0);
+	}
 }
 
 IKeyState*
@@ -1275,7 +1226,7 @@ COSXScreen::getKeyState() const
 void
 COSXScreen::updateScreenShape(const CGDirectDisplayID, const CGDisplayChangeSummaryFlags flags)
 {
-	
+    
 	// get info for each display
 	CGDisplayCount displayCount = 0;
 
@@ -1318,9 +1269,9 @@ COSXScreen::updateScreenShape(const CGDirectDisplayID, const CGDisplayChangeSumm
   m_yCenter = (rect.origin.y + rect.size.height) / 2;
 
 	delete[] displays;
-	if (m_isPrimary && !m_isOnScreen) {
-		sendEvent(getShapeChangedEvent());
-	}
+    if (m_isPrimary && !m_isOnScreen) {
+        sendEvent(getShapeChangedEvent());
+    }
 
 	LOG((CLOG_DEBUG "screen shape: %d,%d %dx%d on %u %s", m_x, m_y, m_w, m_h, displayCount, (displayCount == 1) ? "display" : "displays"));
 }
@@ -1714,48 +1665,4 @@ COSXScreen::handleCGInputEvent(CGEventTapProxy proxy,
 	} else {
 		return NULL;
 	}
-}
-
-void
-COSXScreen::CMouseButtonState::set(UInt32 button, MouseButtonState state) 
-{
-	bool newState = (state == kMouseButtonDown);
-	m_buttons.set(button, newState);
-}
-
-bool
-COSXScreen::CMouseButtonState::any() 
-{
-	return m_buttons.any();
-}
-
-void
-COSXScreen::CMouseButtonState::reset() 
-{
-	m_buttons.reset();
-}
-
-void
-COSXScreen::CMouseButtonState::overwrite(UInt32 buttons) 
-{
-	m_buttons = std::bitset<NumButtonIDs>(buttons);
-}
-
-bool
-COSXScreen::CMouseButtonState::test(UInt32 button) const 
-{
-	return m_buttons.test(button);
-}
-
-SInt8
-COSXScreen::CMouseButtonState::getFirstButtonDown() const 
-{
-	if (m_buttons.any()) {
-		for (unsigned short button = 0; button < m_buttons.size(); button++) {
-			if (m_buttons.test(button)) {
-				return button;
-			}
-		}
-	}
-	return -1;
 }

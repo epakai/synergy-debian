@@ -738,15 +738,6 @@ CConfig::readSectionOptions(CConfigReadContext& s)
 		else if (name == "switchDoubleTap") {
 			addOption("", kOptionScreenSwitchTwoTap, s.parseInt(value));
 		}
-		else if (name == "switchNeedsShift") {
-			addOption("", kOptionScreenSwitchNeedsShift, s.parseBoolean(value));
-		}
-		else if (name == "switchNeedsControl") {
-			addOption("", kOptionScreenSwitchNeedsControl, s.parseBoolean(value));
-		}
-		else if (name == "switchNeedsAlt") {
-			addOption("", kOptionScreenSwitchNeedsAlt, s.parseBoolean(value));
-		}
 		else if (name == "screenSaverSync") {
 			addOption("", kOptionScreenSaverSync, s.parseBoolean(value));
 		}
@@ -1336,15 +1327,6 @@ CConfig::getOptionName(OptionID id)
 	if (id == kOptionScreenSwitchTwoTap) {
 		return "switchDoubleTap";
 	}
-	if (id == kOptionScreenSwitchNeedsShift) {
-		return "switchNeedsShift";
-	}
-	if (id == kOptionScreenSwitchNeedsControl) {
-		return "switchNeedsControl";
-	}
-	if (id == kOptionScreenSwitchNeedsAlt) {
-		return "switchNeedsAlt";
-	}
 	if (id == kOptionScreenSaverSync) {
 		return "screenSaverSync";
 	}
@@ -1369,9 +1351,6 @@ CConfig::getOptionValue(OptionID id, OptionValue value)
 	if (id == kOptionHalfDuplexCapsLock ||
 		id == kOptionHalfDuplexNumLock ||
 		id == kOptionHalfDuplexScrollLock ||
-		id == kOptionScreenSwitchNeedsShift ||
-		id == kOptionScreenSwitchNeedsControl ||
-		id == kOptionScreenSwitchNeedsAlt ||
 		id == kOptionScreenSaverSync ||
 		id == kOptionXTestXineramaUnaware ||
 		id == kOptionRelativeMouseMoves ||
