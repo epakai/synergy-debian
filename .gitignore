@@ -13,7 +13,3 @@
 /tool
 /config.h
 /tags
-
-#doxygen
-/doc/doxygen
-/doc/doxygen.cfg
