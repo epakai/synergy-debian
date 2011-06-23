@@ -35,6 +35,4 @@ static const ButtonID	kButtonRight  = 3;
 static const ButtonID	kButtonExtra0 = 4;
 //@}
 
-static const UInt8      NumButtonIDs  = 5;
-
 #endif

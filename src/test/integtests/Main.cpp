@@ -19,6 +19,7 @@
 #include <gtest/gtest.h>
 #include "CArch.h"
 #include "CLog.h"
+#include "LogOutputters.h"
 
 #if SYSAPI_WIN32
 #include "CArchMiscWindows.h"
@@ -57,12 +58,14 @@ main(int argc, char **argv)
 	}
 #endif
 
-#if SYSAPI_WIN32
-	// record window instance for tray icon, etc
-	CArchMiscWindows::setInstanceWin32(GetModuleHandle(NULL));
-#endif
-
 	CArch arch;
+
+#if SYSAPI_WIN32
+	// only add std output logger for windows (unix
+	// already outputs to standard streams).
+	CStdLogOutputter stdLogOutputter;
+	CLOG->insert(&stdLogOutputter, true);
+#endif
 
 	CLOG->setFilter(kDEBUG2);
 

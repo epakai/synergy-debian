@@ -16,7 +16,52 @@
  */
 
 #include "CArchConsoleUnix.h"
+#include <cstdio>
+#include <stdio.h>
 
-CArchConsoleUnix::CArchConsoleUnix() { }
+//
+// CArchConsoleUnix
+//
 
-CArchConsoleUnix::~CArchConsoleUnix() { }
+CArchConsoleUnix::CArchConsoleUnix(void*)
+{
+	// do nothing
+}
+
+CArchConsoleUnix::~CArchConsoleUnix()
+{
+	// do nothing
+}
+
+void
+CArchConsoleUnix::openConsole(const char*)
+{
+	// do nothing
+}
+
+void
+CArchConsoleUnix::closeConsole()
+{
+	// do nothing
+}
+
+void
+CArchConsoleUnix::showConsole(bool)
+{
+	// do nothing
+}
+
+void
+CArchConsoleUnix::writeConsole(ELevel level, const char* str)
+{
+	if ((level >= kFATAL) && (level <= kWARNING))
+		fprintf(stderr, "%s", str);
+	else
+		fprintf(stdout, "%s", str);
+}
+
+const char*
+CArchConsoleUnix::getNewlineForConsole()
+{
+	return "\n";
+}

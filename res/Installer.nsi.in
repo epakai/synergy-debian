@@ -15,10 +15,10 @@
 !define publisherOld "The Synergy+ Project"
 !define helpUrl "http://synergy-foss.org/support"
 !define vcRedistFile "vcredist_${arch}.exe"
-!define startMenuApp "qsynergy.exe"
+!define startMenuApp "launcher.exe"
 !define binDir "..\bin"
 !define uninstall "uninstall.exe"
-!define icon "..\src\gui\res\win\QSynergy.ico"
+!define icon "..\src\cmd\launcher\synergy.ico"
 !define controlPanelReg "SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall"
 
 !define MUI_ICON ${icon}
@@ -47,12 +47,6 @@ InstallDirRegKey HKEY_LOCAL_MACHINE "SOFTWARE\${product}" ""
   Delete "${dir}\synergys.exe"
   Delete "${dir}\launcher.exe"
   Delete "${dir}\synrgyhk.dll"
-  Delete "${dir}\libgcc_s_dw2-1.dll"
-  Delete "${dir}\mingwm10.dll"
-  Delete "${dir}\qsynergy.exe"
-  Delete "${dir}\QtCore4.dll"
-  Delete "${dir}\QtGui4.dll"
-  Delete "${dir}\QtNetwork4.dll"
   Delete "${dir}\Uninstall.exe"
   Delete "${dir}\uninstall.exe"
   RMDir "${dir}"
@@ -65,7 +59,6 @@ Section
   SetOutPath "$INSTDIR"
 
   ; force kill all synergy processes
-  nsExec::Exec "taskkill /f /im qsynergy.exe"
   nsExec::Exec "taskkill /f /im launcher.exe"
   nsExec::Exec "taskkill /f /im synergys.exe"
   nsExec::Exec "taskkill /f /im synergyc.exe"
@@ -120,13 +113,7 @@ SectionEnd
 
 Section "Graphical User Interface" gui
 
-  ; gui and qt libs
-  File "${binDir}\Release\qsynergy.exe"
-  File "${qtDir}\qt\bin\libgcc_s_dw2-1.dll"
-  File "${qtDir}\qt\bin\mingwm10.dll"
-  File "${qtDir}\qt\bin\QtGui4.dll"
-  File "${qtDir}\qt\bin\QtCore4.dll"
-  File "${qtDir}\qt\bin\QtNetwork4.dll"
+  File "${binDir}\Release\launcher.exe"
 
   ; gui start menu shortcut
   SetShellVarContext all
@@ -148,7 +135,6 @@ Section Uninstall
   SetShellVarContext all
 
   ; force kill all synergy processes
-  nsExec::Exec "taskkill /f /im qsynergy.exe"
   nsExec::Exec "taskkill /f /im launcher.exe"
   nsExec::Exec "taskkill /f /im synergys.exe"
   nsExec::Exec "taskkill /f /im synergyc.exe"

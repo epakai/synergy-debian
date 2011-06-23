@@ -18,20 +18,19 @@
 #include <gtest/gtest.h>
 #include "CArch.h"
 #include "CLog.h"
-
-#if SYSAPI_WIN32
-#include "CArchMiscWindows.h"
-#endif
+#include "LogOutputters.h"
 
 int
 main(int argc, char **argv)
 {
-#if SYSAPI_WIN32
-	// HACK: shouldn't be needed, but logging fails without this.
-	CArchMiscWindows::setInstanceWin32(GetModuleHandle(NULL));
-#endif
-
 	CArch arch;
+
+#if SYSAPI_WIN32
+	// only add std output logger for windows (unix
+	// already outputs to standard streams).
+	CStdLogOutputter stdLogOutputter;
+	CLOG->insert(&stdLogOutputter, true);
+#endif
 
 	CLOG->setFilter(kDEBUG2);
 

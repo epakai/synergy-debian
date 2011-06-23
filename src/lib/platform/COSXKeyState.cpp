@@ -54,7 +54,6 @@ static const CKeyEntry	s_controlKeys[] = {
 	{ kKeyEnd,			119 },
 	{ kKeyPageUp,		116 },
 	{ kKeyPageDown,		121 },
-	{ kKeyInsert,		114 },
 
 	// function keys
 	{ kKeyF1,			122 },
@@ -299,6 +298,22 @@ COSXKeyState::mapKeyFromEvent(CKeyIDs& ids,
 #endif
 
 	if (layoutValid) {
+
+		// choose action
+		UInt16 action;
+		switch (eventKind) {
+		case kEventRawKeyDown:
+			action = kUCKeyActionDown;
+			break;
+
+		case kEventRawKeyRepeat:
+			action = kUCKeyActionAutoKey;
+			break;
+
+		default:
+			return 0;
+		}
+
 		// translate key
 		UniCharCount count;
 		UniChar chars[2];

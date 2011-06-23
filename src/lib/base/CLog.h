@@ -22,12 +22,11 @@
 #include "IArchMultithread.h"
 #include "stdlist.h"
 #include <stdarg.h>
-#include "CArch.h"
+#include "ELevel.h"
 
 #define CLOG (CLog::getInstance())
 
 class ILogOutputter;
-class CThread;
 
 //! Logging facility
 /*!
@@ -99,28 +98,20 @@ public:
 	neither the file nor the line are printed.
 	*/
 	void				print(const char* file, int line,
-							const char* format, ...);
+							const char* format, ...) const;
 
 	//! Get the minimum priority level.
 	int					getFilter() const;
 
-	//! Get the filter name of the current filter level.
-	const char*			getFilterName() const;
-
-	//! Get the filter name of a specified filter level.
-	const char*			getFilterName(int level) const;
-
 	//! Get the singleton instance of the log
 	static CLog*		getInstance();
 
-	//! Get the console filter level (messages above this are not sent to console).
-	int					getConsoleMaxLevel() const { return kDEBUG1; }
 	//@}
 
 private:
 	CLog();
 
-	void				output(ELevel priority, char* msg);
+	void				output(int priority, char* msg) const;
 
 private:
 	typedef std::list<ILogOutputter*> COutputterList;
@@ -143,7 +134,7 @@ LOG((CLOG_XXX "%d and %d are %s", x, y, x == y ? "equal" : "not equal"));
 \endcode
 In particular, notice the double open and close parentheses.  Also note
 that there is no comma after the \c CLOG_XXX.  The \c XXX should be
-replaced by one of enumerants in \c CLog::ELevel without the leading
+replaced by one of enumerants in \c ELevel without the leading
 \c k.  For example, \c CLOG_INFO.  The special \c CLOG_PRINT level will
 not be filtered and is never prefixed by the filename and line number.
 
@@ -162,7 +153,7 @@ LOGC(x == y, (CLOG_XXX "%d and %d are equal", x, y));
 \endcode
 In particular, notice the parentheses around everything after the boolean
 expression.    Also note that there is no comma after the \c CLOG_XXX.
-The \c XXX should be replaced by one of enumerants in \c CLog::ELevel
+The \c XXX should be replaced by one of enumerants in \c ELevel
 without the leading \c k.  For example, \c CLOG_INFO.  The special
 \c CLOG_PRINT level will not be filtered and is never prefixed by the
 filename and line number.
@@ -187,13 +178,8 @@ otherwise it expands to a call that doesn't.
 #define CLOG_TRACE		__FILE__, __LINE__,
 #endif
 
-// the CLOG_* defines are line and file plus %z and an octal number (060=0, 
-// 071=9), but the limitation is that once we run out of numbers at either 
-// end, then we resort to using non-numerical chars. this still works (since 
-// to deduce the number we subtract octal \060, so '/' is -1, and ':' is 10
-
-#define CLOG_PRINT		CLOG_TRACE "%z\057" // char is '/'
-#define CLOG_CRIT		CLOG_TRACE "%z\060" // char is '0'
+#define CLOG_PRINT		CLOG_TRACE "%z\057"
+#define CLOG_CRIT		CLOG_TRACE "%z\060"
 #define CLOG_ERR		CLOG_TRACE "%z\061"
 #define CLOG_WARN		CLOG_TRACE "%z\062"
 #define CLOG_NOTE		CLOG_TRACE "%z\063"
@@ -201,8 +187,5 @@ otherwise it expands to a call that doesn't.
 #define CLOG_DEBUG		CLOG_TRACE "%z\065"
 #define CLOG_DEBUG1		CLOG_TRACE "%z\066"
 #define CLOG_DEBUG2		CLOG_TRACE "%z\067"
-#define CLOG_DEBUG3		CLOG_TRACE "%z\070"
-#define CLOG_DEBUG4		CLOG_TRACE "%z\071" // char is '9'
-#define CLOG_DEBUG5		CLOG_TRACE "%z\072" // char is ':'
 
 #endif

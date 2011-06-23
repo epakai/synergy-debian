@@ -17,9 +17,10 @@
 
 #include "LogOutputters.h"
 #include "CArch.h"
-#include "TMethodJob.h"
 
 #include <fstream>
+#include <iostream>
+
 //
 // CStopLogOutputter
 //
@@ -58,6 +59,12 @@ CStopLogOutputter::write(ELevel, const char*)
 	return false;
 }
 
+const char*
+CStopLogOutputter::getNewline() const
+{
+	return "";
+}
+
 
 //
 // CConsoleLogOutputter
@@ -65,10 +72,12 @@ CStopLogOutputter::write(ELevel, const char*)
 
 CConsoleLogOutputter::CConsoleLogOutputter()
 {
+	// do nothing
 }
 
 CConsoleLogOutputter::~CConsoleLogOutputter()
 {
+	// do nothing
 }
 
 void
@@ -96,10 +105,10 @@ CConsoleLogOutputter::write(ELevel level, const char* msg)
 	return true;
 }
 
-void
-CConsoleLogOutputter::flush()
+const char*
+CConsoleLogOutputter::getNewline() const
 {
-
+	return ARCH->getNewlineForConsole();
 }
 
 
@@ -141,6 +150,13 @@ CSystemLogOutputter::write(ELevel level, const char* msg)
 	ARCH->writeLog(level, msg);
 	return true;
 }
+
+const char*
+CSystemLogOutputter::getNewline() const
+{
+	return "";
+}
+
 
 //
 // CSystemLogger
@@ -226,30 +242,47 @@ CBufferedLogOutputter::write(ELevel, const char* message)
 	return true;
 }
 
+const char*
+CBufferedLogOutputter::getNewline() const
+{
+	return "";
+}
+
 
 //
 // CFileLogOutputter
 //
 
-CFileLogOutputter::CFileLogOutputter(const char* logFile)
+CFileLogOutputter::CFileLogOutputter(const char * logFile)
 {
 	assert(logFile != NULL);
-	m_fileName = logFile;
+
+	m_handle.open(logFile, std::fstream::app);
+	// open file handle
 }
 
 CFileLogOutputter::~CFileLogOutputter()
 {
+	// close file handle
+	if (m_handle.is_open())
+		m_handle.close();
+}
+
+const char*
+CFileLogOutputter::getNewline() const
+{
+	return "\n";
 }
 
 bool
 CFileLogOutputter::write(ELevel level, const char *message)
 {
-	std::ofstream m_handle;
-	m_handle.open(m_fileName.c_str(), std::fstream::app);
 	if (m_handle.is_open() && m_handle.fail() != true) {
-		m_handle << message << std::endl;
+		m_handle << message;
+		
+		// write buffer to file
+		m_handle.flush();
 	}
-	m_handle.close();
 
 	return true;
 }
@@ -262,3 +295,43 @@ CFileLogOutputter::close() {}
 
 void
 CFileLogOutputter::show(bool showIfEmpty) {}
+
+CStdLogOutputter::CStdLogOutputter()
+{
+}
+
+CStdLogOutputter::~CStdLogOutputter()
+{
+}
+
+bool
+CStdLogOutputter::write(ELevel level, const char* message)
+{
+	if ((level >= kFATAL) && (level <= kWARNING))
+		std::cerr << message << std::endl;
+	else
+		std::cout << message << std::endl;
+
+	return true;
+}
+
+void
+CStdLogOutputter::close()
+{
+}
+
+void
+CStdLogOutputter::open(const char* title)
+{
+}
+
+void
+CStdLogOutputter::show(bool showIfEmpty)
+{
+}
+
+const char*
+CStdLogOutputter::getNewline() const
+{
+	return "";
+}

@@ -14,18 +14,14 @@
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 set(src
-	CArchAppUtil.cpp
 	CArch.cpp
 	CArchDaemonNone.cpp
 	XArch.cpp
-	CArchConsoleStd.cpp
 )
 
 if (WIN32)
 
 	set(inc
-		CArchAppUtil.h
-		CArchAppUtilWindows.h
 		CArchConsoleWindows.h
 		CArchDaemonWindows.h
 		CArchFileWindows.h
@@ -38,14 +34,11 @@ if (WIN32)
 		CArchSystemWindows.h
 		CArchTaskBarWindows.h
 		CArchTimeWindows.h
-		CArchConsoleStd.h
-		IArchAppUtil.h
 		XArchWindows.h
 	)
 
 	list(APPEND src
 		${inc}
-		CArchAppUtilWindows.cpp
 		CArchConsoleWindows.cpp
 		CArchDaemonWindows.cpp
 		CArchFileWindows.cpp
@@ -64,7 +57,6 @@ if (WIN32)
 elseif (UNIX)
 
 	list(APPEND src
-		CArchAppUtilUnix.cpp
 		CArchConsoleUnix.cpp
 		CArchDaemonUnix.cpp
 		CArchFileUnix.cpp

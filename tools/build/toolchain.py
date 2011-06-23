@@ -50,7 +50,6 @@ class InternalCommands:
 	macZipFiles = [
 		'../../bin/synergyc',
 		'../../bin/synergys',
-		'../../bin/QSynergy.app',
 		'../../doc/synergy.conf.example',
 		'../../doc/MacReadme.txt']
 

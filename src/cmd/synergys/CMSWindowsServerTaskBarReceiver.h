@@ -36,7 +36,6 @@ public:
 	virtual void		runMenu(int x, int y);
 	virtual void		primaryAction();
 	virtual const Icon	getIcon() const;
-	void cleanup();
 
 protected:
 	void				copyLog() const;

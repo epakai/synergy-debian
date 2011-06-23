@@ -15,8 +15,8 @@
 
 # Version number for Synergy
 set(VERSION_MAJOR 1)
-set(VERSION_MINOR 5)
-set(VERSION_REV 0)
+set(VERSION_MINOR 3)
+set(VERSION_REV 7)
 set(VERSION "${VERSION_MAJOR}.${VERSION_MINOR}.${VERSION_REV}")
 
 # The check for 2.6 may be too strict (consider lowering).
@@ -299,19 +299,6 @@ if (CONF_CPACK)
 	if (UNIX)
 		if (APPLE)
 			message(FATAL_ERROR "CPack support for Apple has been removed.")
-		else ()
-			install(FILES bin/qsynergy
-				DESTINATION bin
-				PERMISSIONS
-				OWNER_READ OWNER_WRITE OWNER_EXECUTE
-				GROUP_READ GROUP_EXECUTE
-				WORLD_READ WORLD_EXECUTE)
-
-			# install gnome menu item
-			install(FILES res/synergy.desktop
-				DESTINATION share/applications)
-			install(FILES res/synergy.ico
-				DESTINATION share/icons)
 		endif()
 	endif()
 

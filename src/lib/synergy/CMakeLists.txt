@@ -14,11 +14,6 @@
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 set(inc
-	CClientTaskBarReceiver.h
-	CServerTaskBarReceiver.h
-	CApp.h
-	CClientApp.h
-	CServerApp.h
 	CClipboard.h
 	CKeyMap.h
 	CKeyState.h
@@ -44,11 +39,6 @@ set(inc
 )
 
 set(src
-	CClientTaskBarReceiver.cpp
-	CServerTaskBarReceiver.cpp
-	CApp.cpp
-	CClientApp.cpp
-	CServerApp.cpp
 	CClipboard.cpp
 	CKeyMap.cpp
 	CKeyState.cpp

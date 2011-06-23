@@ -60,7 +60,14 @@ public:
 	/*!
 	Writes the given string to the console, opening it if necessary.
 	*/
-	virtual void		writeConsole(ELevel, const char*) = 0;
+	virtual void		writeConsole(ELevel level, const char*) = 0;
+
+	//! Returns the newline sequence for the console
+	/*!
+	Different consoles use different character sequences for newlines.
+	This method returns the appropriate newline sequence for the console.
+	*/
+	virtual const char*	getNewlineForConsole() = 0;
 
 	//@}
 };

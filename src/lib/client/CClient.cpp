@@ -393,10 +393,10 @@ CClient::sendEvent(CEvent::Type type, void* data)
 void
 CClient::sendConnectionFailedEvent(const char* msg)
 {
-	CFailInfo* info = new CFailInfo(msg);
-	info->m_retry = true;
-	CEvent event(getConnectionFailedEvent(), getEventTarget(), info, CEvent::kDontFreeData);
-	EVENTQUEUE->addEvent(event);
+	CFailInfo* info = (CFailInfo*)malloc(sizeof(CFailInfo) + strlen(msg));
+	info->m_retry   = true;
+	strcpy(info->m_what, msg);
+	sendEvent(getConnectionFailedEvent(), info);
 }
 
 void
@@ -552,8 +552,7 @@ CClient::handleConnectionFailed(const CEvent& event, void*)
 	delete m_stream;
 	m_stream = NULL;
 	LOG((CLOG_DEBUG1 "connection failed"));
-	sendConnectionFailedEvent(info->m_what.c_str());
-	delete info;
+	sendConnectionFailedEvent(info->m_what);
 }
 
 void

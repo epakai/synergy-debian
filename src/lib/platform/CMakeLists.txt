@@ -28,7 +28,6 @@ if (WIN32)
 		CMSWindowsScreen.h
 		CMSWindowsScreenSaver.h
 		CMSWindowsUtil.h
-		CMSWindowsRelauncher.h
 		CMSWindowsHookLibraryLoader.h
 		IMSWindowsClipboardFacade.h
 	)
@@ -48,7 +47,6 @@ if (WIN32)
 		CMSWindowsScreen.cpp
 		CMSWindowsScreenSaver.cpp
 		CMSWindowsUtil.cpp
-		CMSWindowsRelauncher.cpp
 		CMSWindowsHookLibraryLoader.cpp
 	)
 	

@@ -40,7 +40,7 @@ protected:
 		m_hookLibrary = m_hookLibraryLoader.openHookLibrary("synrgyhk");
 		m_screensaver = new CMSWindowsScreenSaver();
 		m_desks = new CMSWindowsDesks(
-			true, false, m_hookLibrary, m_screensaver,
+			true, m_hookLibrary, m_screensaver,
 			new TMethodJob<CMSWindowsKeyStateTests>(
 				this, &CMSWindowsKeyStateTests::updateKeysCB));
 	}
