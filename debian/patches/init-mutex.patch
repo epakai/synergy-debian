@@ -1,0 +1,45 @@
+Description: Mutex init fix
+ This patch initializes a mutex properly before it's used, preventing a
+ segfault in synergy 1.3.8.  A slightly different version of this patch
+ has been applied in the 1.4.x series.
+Bug: http://synergy-foss.org/spit/issues/details/3017/
+Origin: http://synergy-foss.org/spit/files/111225172920_dagdiff
+Forwarded: not-needed
+Last-Update: 2012-07-07
+
+--- a/src/lib/arch/CArch.cpp
++++ b/src/lib/arch/CArch.cpp
+@@ -123,6 +123,7 @@
+ 	m_log     = new ARCH_LOG;
+ 	m_net     = new ARCH_NETWORK;
+ 	m_sleep   = new ARCH_SLEEP;
++	initArchString();
+ 	m_string  = new ARCH_STRING;
+ 	m_time    = new ARCH_TIME;
+ 	m_console = new ARCH_CONSOLE(args);
+--- a/src/lib/arch/IArchString.cpp
++++ b/src/lib/arch/IArchString.cpp
+@@ -36,6 +36,13 @@
+ 	}
+ }
+ 
++void
++IArchString::initArchString()
++{
++	if (s_mutex == NULL) 
++		s_mutex = ARCH->newMutex();
++}
++
+ int
+ IArchString::convStringWCToMB(char* dst,
+ 				const wchar_t* src, UInt32 n, bool* errors)
+--- a/src/lib/arch/IArchString.h
++++ b/src/lib/arch/IArchString.h
+@@ -30,6 +30,7 @@
+ class IArchString : public IInterface {
+ public:
+ 	virtual ~IArchString();
++	void initArchString();
+ 
+ 	//! Wide character encodings
+ 	/*!
