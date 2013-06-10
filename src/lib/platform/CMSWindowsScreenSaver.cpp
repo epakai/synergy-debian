@@ -1,6 +1,7 @@
 /*
  * synergy -- mouse and keyboard sharing utility
- * Copyright (C) 2002 Chris Schoeneman, Nick Bolton, Sorin Sbarnea
+ * Copyright (C) 2012 Bolton Software Ltd.
+ * Copyright (C) 2002 Chris Schoeneman
  * 
  * This package is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -298,7 +299,7 @@ CMSWindowsScreenSaver::killScreenSaverFunc(HWND hwnd, LPARAM arg)
 {
 	if (IsWindowVisible(hwnd)) {
 		HINSTANCE instance = (HINSTANCE)GetWindowLongPtr(hwnd, GWLP_HINSTANCE);
-		if (instance != CMSWindowsScreen::getInstance()) {
+		if (instance != CMSWindowsScreen::getWindowInstance()) {
 			PostMessage(hwnd, WM_CLOSE, 0, 0);
 			*reinterpret_cast<bool*>(arg) = true;
 		}

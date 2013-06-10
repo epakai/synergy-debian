@@ -1,5 +1,6 @@
 # synergy -- mouse and keyboard sharing utility
-# Copyright (C) 2009 Chris Schoeneman, Nick Bolton, Sorin Sbarnea
+# Copyright (C) 2012 Bolton Software Ltd.
+# Copyright (C) 2009 Nick Bolton
 # 
 # This package is free software; you can redistribute it and/or
 # modify it under the terms of the GNU General Public License
@@ -18,6 +19,7 @@ add_subdirectory(base)
 add_subdirectory(client)
 add_subdirectory(common)
 add_subdirectory(io)
+add_subdirectory(ipc)
 add_subdirectory(mt)
 add_subdirectory(net)
 add_subdirectory(platform)

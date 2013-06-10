@@ -1,6 +1,7 @@
 /*
  * synergy -- mouse and keyboard sharing utility
- * Copyright (C) 2004 Chris Schoeneman, Nick Bolton, Sorin Sbarnea
+ * Copyright (C) 2012 Bolton Software Ltd.
+ * Copyright (C) 2004 Chris Schoeneman
  * 
  * This package is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -37,6 +38,7 @@ public:
 	virtual ~CEventQueue();
 
 	// IEventQueue overrides
+	virtual void		loop();
 	virtual void		adoptBuffer(IEventQueueBuffer*);
 	virtual bool		getEvent(CEvent& event, double timeout = -1.0);
 	virtual bool		dispatchEvent(const CEvent& event);
@@ -57,6 +59,8 @@ public:
 	virtual bool		isEmpty() const;
 	virtual IEventJob*	getHandler(CEvent::Type type, void* target) const;
 	virtual const char*	getTypeName(CEvent::Type type);
+	virtual CEvent::Type
+						getRegisteredType(const CString& name) const;
 
 private:
 	UInt32				saveEvent(const CEvent& event);
@@ -97,6 +101,7 @@ private:
 	typedef std::map<UInt32, CEvent> CEventTable;
 	typedef std::vector<UInt32> CEventIDList;
 	typedef std::map<CEvent::Type, const char*> CTypeMap;
+	typedef std::map<CString, CEvent::Type> CNameMap;
 	typedef std::map<CEvent::Type, IEventJob*> CTypeHandlerTable;
 	typedef std::map<void*, CTypeHandlerTable> CHandlerTable;
 
@@ -105,6 +110,7 @@ private:
 	// registered events
 	CEvent::Type		m_nextType;
 	CTypeMap			m_typeMap;
+	CNameMap			m_nameMap;
 
 	// buffer of events
 	IEventQueueBuffer*	m_buffer;

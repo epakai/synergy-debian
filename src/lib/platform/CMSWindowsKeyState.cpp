@@ -1,6 +1,7 @@
 /*
  * synergy -- mouse and keyboard sharing utility
- * Copyright (C) 2003 Chris Schoeneman, Nick Bolton, Sorin Sbarnea
+ * Copyright (C) 2012 Bolton Software Ltd.
+ * Copyright (C) 2003 Chris Schoeneman
  * 
  * This package is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -813,8 +814,16 @@ CMSWindowsKeyState::fakeCtrlAltDel()
 		// current thread must be on that desktop to do the broadcast
 		// and we can't switch just any thread because some own windows
 		// or hooks.  so start a new thread to do the real work.
+		HANDLE hEvtSendSas = OpenEvent( EVENT_MODIFY_STATE, FALSE, "Global\\SendSAS" );
+		if ( hEvtSendSas ) {
+			LOG((CLOG_DEBUG "found the SendSAS event - signaling my launcher to simulate ctrl+alt+del"));
+			SetEvent( hEvtSendSas );
+			CloseHandle( hEvtSendSas );
+		}
+		else {
 		CThread cad(new CFunctionJob(&CMSWindowsKeyState::ctrlAltDelThread));
 		cad.wait();
+	}
 	}
 	else {
 		// simulate ctrl+alt+del
@@ -952,7 +961,18 @@ CMSWindowsKeyState::getKeyMap(CKeyMap& keyMap)
 			// deal with certain virtual keys specially
 			switch (vk) {
 			case VK_SHIFT:
-				vk = VK_LSHIFT;
+				// this is important for sending the correct modifier to the 
+				// client, a patch from bug #242 (right shift broken for ms
+				// remote desktop) removed this to just use left shift, which
+				// caused bug #2799 (right shift broken for osx).
+				// we must not repeat this same mistake and must fix platform
+				// specific bugs in code that only affects that platform.
+				if (MapVirtualKey(VK_RSHIFT, 0) == i) {
+					vk = VK_RSHIFT;
+				}
+				else {
+					vk = VK_LSHIFT;
+				}
 				break;
 
 			case VK_CONTROL:
@@ -1442,8 +1462,10 @@ CMSWindowsKeyState::getIDForKey(CKeyMap::KeyItem& item,
 		return id;
 
 	case 2:
-		// left over dead key in buffer;  oops.
-		return getIDForKey(item, button, virtualKey, keyState, hkl);
+		// left over dead key in buffer. this used to recurse,
+		// but apparently this causes a stack overflow, so just
+		// return no key instead.
+		return kKeyNone;
 	}
 }
 

@@ -1,6 +1,7 @@
 /*
  * synergy -- mouse and keyboard sharing utility
- * Copyright (C) 2011 Chris Schoeneman, Nick Bolton, Sorin Sbarnea
+ * Copyright (C) 2012 Bolton Software Ltd.
+ * Copyright (C) 2011 Chris Schoeneman
  * 
  * This package is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -39,7 +40,7 @@ CMSWindowsHookLibraryLoader::openHookLibrary(const char* name)
 	// load the hook library
 	HINSTANCE hookLibrary = LoadLibrary(name);
 	if (hookLibrary == NULL) {
-		LOG((CLOG_ERR "Failed to load hook library;  %s.dll is missing", name));
+		LOG((CLOG_ERR "failed to load hook library, %s.dll is missing or invalid", name));
 		throw XScreenOpenFailure();
 	}
 
@@ -54,13 +55,14 @@ CMSWindowsHookLibraryLoader::openHookLibrary(const char* name)
 		m_setMode              == NULL ||
 		m_init                 == NULL ||
 		m_cleanup              == NULL) {
-			LOG((CLOG_ERR "Invalid hook library;  use a newer %s.dll", name));
+			LOG((CLOG_ERR "invalid hook library, use a newer %s.dll", name));
 			throw XScreenOpenFailure();
 	}
 
 	// initialize hook library
 	if (m_init(GetCurrentThreadId()) == 0) {
-		LOG((CLOG_ERR "Cannot initialize hook library;  is synergy already running?"));
+		LOG((CLOG_ERR "failed to init %s.dll, another program may be using it", name));
+		LOG((CLOG_INFO "restarting your computer may solve this error"));
 		throw XScreenOpenFailure();
 	}
 

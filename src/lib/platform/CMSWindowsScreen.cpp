@@ -1,6 +1,7 @@
 /*
  * synergy -- mouse and keyboard sharing utility
- * Copyright (C) 2002 Chris Schoeneman, Nick Bolton, Sorin Sbarnea
+ * Copyright (C) 2012 Bolton Software Ltd.
+ * Copyright (C) 2002 Chris Schoeneman
  * 
  * This package is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -77,11 +78,16 @@
 // CMSWindowsScreen
 //
 
-HINSTANCE				CMSWindowsScreen::s_instance = NULL;
+HINSTANCE				CMSWindowsScreen::s_windowInstance = NULL;
 CMSWindowsScreen*		CMSWindowsScreen::s_screen   = NULL;
 
-CMSWindowsScreen::CMSWindowsScreen(bool isPrimary) :
+CMSWindowsScreen::CMSWindowsScreen(
+	bool isPrimary,
+	bool noHooks,
+	const CGameDeviceInfo& gameDeviceInfo,
+	bool stopOnDeskSwitch) :
 	m_isPrimary(isPrimary),
+	m_noHooks(noHooks),
 	m_is95Family(CArchMiscWindows::isWindows95Family()),
 	m_isOnScreen(m_isPrimary),
 	m_class(0),
@@ -105,21 +111,26 @@ CMSWindowsScreen::CMSWindowsScreen(bool isPrimary) :
 	m_hookLibrary(NULL),
 	m_keyState(NULL),
 	m_hasMouse(GetSystemMetrics(SM_MOUSEPRESENT) != 0),
-	m_showingMouse(false)
+	m_showingMouse(false),
+	m_gameDeviceInfo(gameDeviceInfo),
+	m_gameDevice(NULL)
 {
-	assert(s_instance != NULL);
+	assert(s_windowInstance != NULL);
 	assert(s_screen   == NULL);
 
 	s_screen = this;
 	try {
-		if (m_isPrimary) {
+		if (m_isPrimary && !m_noHooks) {
 			m_hookLibrary = openHookLibrary("synrgyhk");
 		}
 		m_screensaver = new CMSWindowsScreenSaver();
-		m_desks       = new CMSWindowsDesks(m_isPrimary,
+		m_desks       = new CMSWindowsDesks(
+							m_isPrimary, m_noHooks,
 							m_hookLibrary, m_screensaver,
+							*EVENTQUEUE,
 							new TMethodJob<CMSWindowsScreen>(this,
-								&CMSWindowsScreen::updateKeysCB));
+								&CMSWindowsScreen::updateKeysCB),
+							stopOnDeskSwitch);
 		m_keyState    = new CMSWindowsKeyState(m_desks, getEventTarget());
 		updateScreenShape();
 		m_class       = createWindowClass();
@@ -134,7 +145,10 @@ CMSWindowsScreen::CMSWindowsScreen(bool isPrimary) :
 		delete m_screensaver;
 		destroyWindow(m_window);
 		destroyClass(m_class);
-		closeHookLibrary(m_hookLibrary);
+
+		if (m_hookLibrary != NULL)
+			closeHookLibrary(m_hookLibrary);
+
 		s_screen = NULL;
 		throw;
 	}
@@ -146,6 +160,25 @@ CMSWindowsScreen::CMSWindowsScreen(bool isPrimary) :
 
 	// install the platform event queue
 	EVENTQUEUE->adoptBuffer(new CMSWindowsEventQueueBuffer);
+
+	if ((gameDeviceInfo.m_mode == CGameDeviceInfo::kGameModeXInput) &&
+		(gameDeviceInfo.m_poll != CGameDeviceInfo::kGamePollDynamic))
+		LOG((CLOG_WARN "only dynamic polling is supported with xnput."));
+
+	if ((gameDeviceInfo.m_mode == CGameDeviceInfo::kGameModeJoyInfoEx) &&
+		(gameDeviceInfo.m_poll != CGameDeviceInfo::kGamePollStatic))
+		LOG((CLOG_WARN "only static polling is supported with joyinfoex."));
+
+	if (m_gameDeviceInfo.m_mode == CGameDeviceInfo::kGameModeXInput) {
+#if GAME_DEVICE_SUPPORT
+		m_gameDevice = new CMSWindowsXInput(this, gameDeviceInfo);
+#else if _AMD64_
+		LOG((CLOG_WARN "xinput game device mode not supported for 64-bit."));
+#endif
+	}
+	else {
+		m_gameDevice = new CEventGameDevice(getEventTarget());
+	}
 }
 
 CMSWindowsScreen::~CMSWindowsScreen()
@@ -160,23 +193,29 @@ CMSWindowsScreen::~CMSWindowsScreen()
 	delete m_screensaver;
 	destroyWindow(m_window);
 	destroyClass(m_class);
-	closeHookLibrary(m_hookLibrary);
+
+	if (m_gameDevice != NULL)
+		delete m_gameDevice;
+
+	if (m_hookLibrary != NULL)
+		closeHookLibrary(m_hookLibrary);
+
 	s_screen = NULL;
 }
 
 void
-CMSWindowsScreen::init(HINSTANCE instance)
+CMSWindowsScreen::init(HINSTANCE windowInstance)
 {
-	assert(s_instance == NULL);
-	assert(instance   != NULL);
+	assert(s_windowInstance == NULL);
+	assert(windowInstance   != NULL);
 
-	s_instance = instance;
+	s_windowInstance = windowInstance;
 }
 
 HINSTANCE
-CMSWindowsScreen::getInstance()
+CMSWindowsScreen::getWindowInstance()
 {
-	return s_instance;
+	return s_windowInstance;
 }
 
 void
@@ -197,11 +236,13 @@ CMSWindowsScreen::enable()
 	m_desks->enable();
 
 	if (m_isPrimary) {
-		// set jump zones
-		m_hookLibraryLoader.m_setZone(m_x, m_y, m_w, m_h, getJumpZoneSize());
+		if (m_hookLibrary != NULL) {
+			// set jump zones
+			m_hookLibraryLoader.m_setZone(m_x, m_y, m_w, m_h, getJumpZoneSize());
 
-		// watch jump zones
-		m_hookLibraryLoader.m_setMode(kHOOK_WATCH_JUMP_ZONE);
+			// watch jump zones
+			m_hookLibraryLoader.m_setMode(kHOOK_WATCH_JUMP_ZONE);
+		}
 	}
 	else {
 		// prevent the system from entering power saving modes.  if
@@ -218,8 +259,10 @@ CMSWindowsScreen::disable()
 	m_desks->disable();
 
 	if (m_isPrimary) {
-		// disable hooks
-		m_hookLibraryLoader.m_setMode(kHOOK_DISABLE);
+		if (m_hookLibrary != NULL) {
+			// disable hooks
+			m_hookLibraryLoader.m_setMode(kHOOK_DISABLE);
+		}
 
 		// enable special key sequences on win95 family
 		enableSpecialKeys(true);
@@ -256,8 +299,10 @@ CMSWindowsScreen::enter()
 		// enable special key sequences on win95 family
 		enableSpecialKeys(true);
 
-		// watch jump zones
-		m_hookLibraryLoader.m_setMode(kHOOK_WATCH_JUMP_ZONE);
+		if (m_hookLibrary != NULL) {
+			// watch jump zones
+			m_hookLibraryLoader.m_setMode(kHOOK_WATCH_JUMP_ZONE);
+		}
 
 		// all messages prior to now are invalid
 		nextMark();
@@ -309,8 +354,10 @@ CMSWindowsScreen::leave()
 		// reflected in the internal keyboard state.
 		m_keyState->saveModifiers();
 
-		// capture events
-		m_hookLibraryLoader.m_setMode(kHOOK_RELAY_EVENTS);
+		if (m_hookLibrary != NULL) {
+			// capture events
+			m_hookLibraryLoader.m_setMode(kHOOK_RELAY_EVENTS);
+		}
 	}
 
 	// now off screen
@@ -464,7 +511,9 @@ CMSWindowsScreen::reconfigure(UInt32 activeSides)
 	assert(m_isPrimary);
 
 	LOG((CLOG_DEBUG "active sides: %x", activeSides));
-	m_hookLibraryLoader.m_setSides(activeSides);
+
+	if (m_hookLibrary != NULL)
+		m_hookLibraryLoader.m_setSides(activeSides);
 }
 
 void
@@ -489,7 +538,7 @@ void CMSWindowsScreen::saveMousePosition(SInt32 x, SInt32 y) {
 	m_xCursor = x;
 	m_yCursor = y;
 
-	LOG((CLOG_DEBUG2 "saved mouse position for next delta: %+d,%+d", x,y));
+	LOG((CLOG_DEBUG5 "saved mouse position for next delta: %+d,%+d", x,y));
 }
 
 UInt32
@@ -498,7 +547,9 @@ CMSWindowsScreen::registerHotKey(KeyID key, KeyModifierMask mask)
 	// only allow certain modifiers
 	if ((mask & ~(KeyModifierShift | KeyModifierControl |
 				  KeyModifierAlt   | KeyModifierSuper)) != 0) {
-		LOG((CLOG_WARN "could not map hotkey id=%04x mask=%04x", key, mask));
+		// this should be a warning, but this can confuse users,
+		// as this warning happens almost always.
+		LOG((CLOG_DEBUG "could not map hotkey id=%04x mask=%04x", key, mask));
 		return 0;
 	}
 
@@ -524,7 +575,9 @@ CMSWindowsScreen::registerHotKey(KeyID key, KeyModifierMask mask)
 	UINT vk = m_keyState->mapKeyToVirtualKey(key);
 	if (key != kKeyNone && vk == 0) {
 		// can't map key
-		LOG((CLOG_WARN "could not map hotkey id=%04x mask=%04x", key, mask));
+		// this should be a warning, but this can confuse users,
+		// as this warning happens almost always.
+		LOG((CLOG_DEBUG "could not map hotkey id=%04x mask=%04x", key, mask));
 		return 0;
 	}
 
@@ -653,7 +706,19 @@ CMSWindowsScreen::getCursorCenter(SInt32& x, SInt32& y) const
 }
 
 void
-CMSWindowsScreen::fakeMouseButton(ButtonID id, bool press) const
+CMSWindowsScreen::gameDeviceTimingResp(UInt16 freq)
+{
+	m_gameDevice->gameDeviceTimingResp(freq);
+}
+
+void
+CMSWindowsScreen::gameDeviceFeedback(GameDeviceID id, UInt16 m1, UInt16 m2)
+{
+	m_gameDevice->gameDeviceFeedback(id, m1, m2);
+}
+
+void
+CMSWindowsScreen::fakeMouseButton(ButtonID id, bool press)
 {
 	m_desks->fakeMouseButton(id, press);
 }
@@ -674,6 +739,34 @@ void
 CMSWindowsScreen::fakeMouseWheel(SInt32 xDelta, SInt32 yDelta) const
 {
 	m_desks->fakeMouseWheel(xDelta, yDelta);
+}
+
+void
+CMSWindowsScreen::fakeGameDeviceButtons(GameDeviceID id, GameDeviceButton buttons) const
+{
+	LOG((CLOG_DEBUG "fake game device buttons id=%d buttons=%d", id, buttons));
+	m_gameDevice->fakeGameDeviceButtons(id, buttons);
+}
+
+void
+CMSWindowsScreen::fakeGameDeviceSticks(GameDeviceID id, SInt16 x1, SInt16 y1, SInt16 x2, SInt16 y2) const
+{
+	LOG((CLOG_DEBUG "fake game device sticks id=%d s1=%+d,%+d s2=%+d,%+d", id, x1, y1, x2, y2));
+	m_gameDevice->fakeGameDeviceSticks(id, x1, y1, x2, y2);
+}
+
+void
+CMSWindowsScreen::fakeGameDeviceTriggers(GameDeviceID id, UInt8 t1, UInt8 t2) const
+{
+	LOG((CLOG_DEBUG "fake game device triggers id=%d t1=%d t2=%d", id, t1, t2));
+	m_gameDevice->fakeGameDeviceTriggers(id, t1, t2);
+}
+
+void
+CMSWindowsScreen::queueGameDeviceTimingReq() const
+{
+	LOG((CLOG_DEBUG "queue game device timing request"));
+	m_gameDevice->queueGameDeviceTimingReq();
 }
 
 void
@@ -735,11 +828,12 @@ CMSWindowsScreen::createBlankCursor() const
 	// create a transparent cursor
 	int cw = GetSystemMetrics(SM_CXCURSOR);
 	int ch = GetSystemMetrics(SM_CYCURSOR);
+
 	UInt8* cursorAND = new UInt8[ch * ((cw + 31) >> 2)];
 	UInt8* cursorXOR = new UInt8[ch * ((cw + 31) >> 2)];
 	memset(cursorAND, 0xff, ch * ((cw + 31) >> 2));
 	memset(cursorXOR, 0x00, ch * ((cw + 31) >> 2));
-	HCURSOR c = CreateCursor(s_instance, 0, 0, cw, ch, cursorAND, cursorXOR);
+	HCURSOR c = CreateCursor(s_windowInstance, 0, 0, cw, ch, cursorAND, cursorXOR);
 	delete[] cursorXOR;
 	delete[] cursorAND;
 	return c;
@@ -762,7 +856,7 @@ CMSWindowsScreen::createWindowClass() const
 	classInfo.lpfnWndProc   = &CMSWindowsScreen::wndProc;
 	classInfo.cbClsExtra    = 0;
 	classInfo.cbWndExtra    = 0;
-	classInfo.hInstance     = s_instance;
+	classInfo.hInstance     = s_windowInstance;
 	classInfo.hIcon         = NULL;
 	classInfo.hCursor       = NULL;
 	classInfo.hbrBackground = NULL;
@@ -776,7 +870,7 @@ void
 CMSWindowsScreen::destroyClass(ATOM windowClass) const
 {
 	if (windowClass != 0) {
-		UnregisterClass(reinterpret_cast<LPCTSTR>(windowClass), s_instance);
+		UnregisterClass(reinterpret_cast<LPCTSTR>(windowClass), s_windowInstance);
 	}
 }
 
@@ -791,7 +885,7 @@ CMSWindowsScreen::createWindow(ATOM windowClass, const char* name) const
 								WS_POPUP,
 								0, 0, 1, 1,
 								NULL, NULL,
-								s_instance,
+								s_windowInstance,
 								NULL);
 	if (window == NULL) {
 		LOG((CLOG_ERR "failed to create window: %d", GetLastError()));
@@ -888,7 +982,7 @@ bool
 CMSWindowsScreen::onPreDispatchPrimary(HWND,
 				UINT message, WPARAM wParam, LPARAM lParam)
 {
-	LOG((CLOG_DEBUG2 "handling pre-dispatch primary"));
+	LOG((CLOG_DEBUG5 "handling pre-dispatch primary"));
 
 	// handle event
 	switch (message) {
@@ -1270,8 +1364,8 @@ CMSWindowsScreen::onMouseMove(SInt32 mx, SInt32 my)
 	SInt32 x = mx - m_xCursor;
 	SInt32 y = my - m_yCursor;
 
-	LOG((CLOG_DEBUG2
-		"handling mouse move; delta motion calc: %+d=(%+d - %+d),%+d=(%+d - %+d)",
+	LOG((CLOG_DEBUG3
+		"mouse move - motion delta: %+d=(%+d - %+d),%+d=(%+d - %+d)",
 		x, mx, m_xCursor, y, my, m_yCursor));
 
 	// ignore if the mouse didn't move or if message posted prior
@@ -1296,7 +1390,7 @@ CMSWindowsScreen::onMouseMove(SInt32 mx, SInt32 my)
 		// center on the server screen. if we don't do this, then the mouse 
 		// will always try to return to the original entry point on the 
 		// secondary screen.
-		LOG((CLOG_DEBUG2 "warping server cursor to center: %+d,%+d", m_xCenter, m_yCenter));
+		LOG((CLOG_DEBUG5 "warping server cursor to center: %+d,%+d", m_xCenter, m_yCenter));
 		warpCursorNoFlush(m_xCenter, m_yCenter);
 		
 		// examine the motion.  if it's about the distance
@@ -1747,7 +1841,6 @@ CMSWindowsScreen::wndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam)
 
 	return result;
 }
-
 
 //
 // CMSWindowsScreen::CHotKeyItem

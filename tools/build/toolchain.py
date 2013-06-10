@@ -1,5 +1,6 @@
 # synergy -- mouse and keyboard sharing utility
-# Copyright (C) 2009 Chris Schoeneman, Nick Bolton, Sorin Sbarnea
+# Copyright (C) 2012 Bolton Software Ltd.
+# Copyright (C) 2009 Nick Bolton
 # 
 # This package is free software; you can redistribute it and/or
 # modify it under the terms of the GNU General Public License
@@ -15,7 +16,7 @@
 
 # TODO: split this file up, it's too long!
 
-import sys, os, ConfigParser, shutil, re, ftputil
+import sys, os, ConfigParser, shutil, re, ftputil, zipfile
 from generators import Generator, EclipseGenerator, MakefilesGenerator
 
 if sys.version_info >= (2, 4):
@@ -39,19 +40,14 @@ class InternalCommands:
 	cmake_dir = 'res'
 	gui_dir = 'src/gui'
 	doc_dir = 'doc'
+	toolsDir = 'tools'
 
 	sln_filename = '%s.sln' % project
 	xcodeproj_filename = '%s.xcodeproj' % project
 	configDir = 'build'
 	configFilename = '%s/%s.cfg' % (configDir, this_cmd)
-	qtpro_filename = 'qsynergy.pro'
+	qtpro_filename = 'gui.pro'
 	doxygen_filename = 'doxygen.cfg'
-	
-	macZipFiles = [
-		'../../bin/synergyc',
-		'../../bin/synergys',
-		'../../doc/synergy.conf.example',
-		'../../doc/MacReadme.txt']
 
 	cmake_url = 'http://www.cmake.org/cmake/resources/software.html'
 
@@ -66,6 +62,18 @@ class InternalCommands:
 	
 	# by default, don't compile the gui
 	enable_make_gui = False
+  
+	# by default, do not compile with game device support.
+	gameDevice = False
+	
+	# by default, do not compile with vnc support.
+	vncSupport = False
+	
+	# by default, let cmake decide
+	macSdk = None
+	
+	# cryptoPP dir with version number
+	cryptoPPDir = 'cryptopp562'
 
 	win32_generators = {
 		1 : Generator('Visual Studio 10'),
@@ -122,7 +130,7 @@ class InternalCommands:
 			'Example: %s build -g 3'
 			) % (app, app)
 
-	def configureAll(self, targets):
+	def configureAll(self, targets, extraArgs=''):
 
 		# if no mode specified, use default
 		if len(targets) == 0:
@@ -130,6 +138,22 @@ class InternalCommands:
 
 		for target in targets:
 			self.configure(target)
+
+	def checkCryptoPP(self):
+    
+		dir = self.toolsDir + '/' + self.cryptoPPDir
+		if (os.path.isdir(dir)):
+			return
+		
+		zipFilename = dir + '.zip'
+		if (not os.path.exists(zipFilename)):
+			raise Exception('Crypto++ zip not found at: ' + zipFilename)
+		
+		if not os.path.exists(dir):
+				os.mkdir(dir)
+		
+		zip = zipfile.ZipFile(zipFilename)
+		zip.extractall(dir)
 
 	def configure(self, target='', extraArgs=''):
 		
@@ -141,14 +165,14 @@ class InternalCommands:
 		
 		# ensure that we have access to cmake
 		_cmake_cmd = self.persist_cmake()
-
+    
 		# now that we know we've got the latest setup, we can ask the config
 		# file for the generator (but again, we only fall back to this if not 
 		# specified as arg).
 		generator = self.getGenerator()
 		
 		if generator != self.findGeneratorFromConfig():
-		        print('Generator changed, running setup.')
+			print('Generator changed, running setup.')
 			self.setup(target)
 
 		if generator.cmakeName != '':
@@ -163,8 +187,35 @@ class InternalCommands:
 		if generator.cmakeName.find('Unix Makefiles') != -1:
 			cmake_args += ' -DCMAKE_BUILD_TYPE=' + target.capitalize()
 		
+		if self.gameDevice:
+			cmake_args += " -DGAME_DEVICE_SUPPORT:BOOL=TRUE"
+		else:
+			cmake_args += " -DGAME_DEVICE_SUPPORT:BOOL=FALSE"
+		
+		if self.vncSupport:
+			cmake_args += " -DVNC_SUPPORT:BOOL=TRUE"
+		else:
+			cmake_args += " -DVNC_SUPPORT:BOOL=FALSE"
+		
+		if self.macSdk:
+			path = "/Developer/SDKs/MacOSX" + self.macSdk + ".sdk/"
+			cmake_args += " -DCMAKE_OSX_SYSROOT=" + path
+			cmake_args += " -DCMAKE_OSX_DEPLOYMENT_TARGET=" + self.macSdk
+			os.environ["MACOSX_DEPLOYMENT_TARGET"] = self.macSdk
+
+			# store the sdk version for the build command
+			config = self.getConfig()
+			config.set('cmake', 'mac_sdk', self.macSdk)
+			self.write_config(config)
+		elif sys.platform == "darwin":
+			# seems that this is now needed on 10.8
+			raise Exception("Arg missing: --mac-sdk <version>");
+		
 		# if not visual studio, use parent dir
 		sourceDir = generator.getSourceDir()
+
+		# ensure that the cryptopp source exists
+		self.checkCryptoPP()
 		
 		if extraArgs != '':
 			cmake_args += ' ' + extraArgs
@@ -179,6 +230,9 @@ class InternalCommands:
 
 		self.restore_chdir()
 
+		if generator.cmakeName.find('Eclipse') != -1:
+			self.fixCmakeEclipseBug()
+
 		if err != 0:
 			raise Exception('CMake encountered error: ' + str(err))
 		
@@ -188,7 +242,17 @@ class InternalCommands:
 			# make sure we have qmake
 			self.persist_qmake()
 			
-			qmake_cmd_string = self.qmake_cmd + ' ' + self.qtpro_filename
+			qmake_cmd_string = self.qmake_cmd + " " + self.qtpro_filename + " -r"
+
+			if sys.platform == "darwin":
+				# create makefiles on mac (not xcode).
+				qmake_cmd_string += " -spec macx-g++"
+				
+				(major, minor) = self.getMacVersion()
+				if major == 10 and minor <= 4:
+					# 10.4: universal (intel and power pc)
+					qmake_cmd_string += ' CONFIG+="ppc i386"'
+
 			print "QMake command: " + qmake_cmd_string
 			
 			# run qmake from the gui dir
@@ -200,6 +264,19 @@ class InternalCommands:
 				raise Exception('QMake encountered error: ' + str(err))
 		
 		self.setConfRun(target)
+
+	# http://tinyurl.com/cs2rxxb
+	def fixCmakeEclipseBug(self):
+		print "Fixing CMake Eclipse bugs..."
+
+		file = open('.project', 'r+')
+		content = file.read()
+		pattern = re.compile('\s+<linkedResources>.+</linkedResources>', re.S)
+		content = pattern.sub('', content)
+		file.seek(0)
+		file.write(content)
+		file.truncate()
+		file.close()
 
 	def persist_cmake(self):
 		# even though we're running `cmake --version`, we're only doing this for the 0 return
@@ -275,12 +352,15 @@ class InternalCommands:
 
 		generator = self.getGeneratorFromConfig().cmakeName
 		
+		config = self.getConfig()
+		if config.has_option("cmake", "mac_sdk"):
+			macSdk = config.get("cmake", "mac_sdk")
+			os.environ["MACOSX_DEPLOYMENT_TARGET"] = macSdk
+
 		if generator.find('Unix Makefiles') != -1:
 			for target in targets:
-				self.ensureConfHasRun(target, skipConfig)
 				self.runBuildCommand(self.make_cmd, target)
 		else:
-			self.ensureConfHasRun('all', skipConfig)
 			for target in targets:
 				if generator.startswith('Visual Studio'):
 					self.run_vcbuild(generator, target)
@@ -293,6 +373,41 @@ class InternalCommands:
 		# allow user to skip qui compile
 		if self.enable_make_gui:
 			self.make_gui(targets)
+	
+	def signmac(self, identity):
+		self.try_chdir("bin")
+		err = os.system(
+			'codesign -fs "' + identity + '" Synergy.app')
+		self.restore_chdir()
+	
+	def signwin(self, pfx, pwdFile, dist):
+		generator = self.getGeneratorFromConfig().cmakeName
+		if not generator.startswith('Visual Studio'):
+			raise Exception('only windows is supported')
+		
+		f = open(pwdFile)
+		lines = f.readlines()
+		f.close()
+		pwd = lines[0]
+		
+		if (dist):
+			self.signFile(pfx, pwd, 'bin', self.dist_name('win'))
+		else:
+			self.signFile(pfx, pwd, 'bin/Release', 'synergy.exe')
+			self.signFile(pfx, pwd, 'bin/Release', 'synergyc.exe')
+			self.signFile(pfx, pwd, 'bin/Release', 'synergys.exe')
+			self.signFile(pfx, pwd, 'bin/Release', 'synergyd.exe')
+			self.signFile(pfx, pwd, 'bin/Release', 'synrgyhk.dll')
+	
+	def signFile(self, pfx, pwd, dir, file):
+		self.try_chdir(dir)
+		err = os.system(
+			'signtool sign'
+			' /f ' + pfx +
+			' /p ' + pwd +
+			' /t http://timestamp.verisign.com/scripts/timstamp.dll ' +
+			file)
+		self.restore_chdir()
 	
 	def runBuildCommand(self, cmd, target):
 	
@@ -352,17 +467,13 @@ class InternalCommands:
 	def make_gui(self, targets):
 		if sys.platform == 'win32':
 			gui_make_cmd = self.w32_make_cmd
-		elif sys.platform in ['linux2', 'sunos5', 'freebsd7']:
-			gui_make_cmd = self.make_cmd
-		elif sys.platform == 'darwin':
-			gui_make_cmd = self.xcodebuild_cmd
+		elif sys.platform in ['linux2', 'sunos5', 'freebsd7', 'darwin']:
+			gui_make_cmd = self.make_cmd + " -w"
 		else:
 			raise Exception('Unsupported platform: ' + sys.platform)
 		
 		print 'Make GUI command: ' + gui_make_cmd
 		
-		# HACK: don't know how to build in either debug or release on unix; 
-		# always builds release!
 		if sys.platform == 'win32':
 			for target in targets:
 				self.try_chdir(self.gui_dir)
@@ -372,15 +483,38 @@ class InternalCommands:
 				if err != 0:
 					raise Exception(gui_make_cmd + ' failed with error: ' + str(err))
 		else:
-			if sys.platform == 'darwin':
-				make_dir = self.gui_dir + '/QSynergy.xcodeproj'
-			else:
-				make_dir = self.gui_dir
-
-			self.try_chdir(make_dir)
+			self.try_chdir(self.gui_dir)
 			err = os.system(gui_make_cmd)
 			self.restore_chdir()
+
+			if err != 0:
+				raise Exception(gui_make_cmd + ' failed with error: ' + str(err))
+
+			if sys.platform == 'darwin':
+				self.macPostMakeGui()
 	
+	def macPostMakeGui(self):
+
+		dir = self.getGenerator().binDir
+
+		# copy synergy[cs] binaries into the bundle, since the gui
+		# now looks for the binaries in the current app dir.
+		shutil.copy(dir + "/synergyc",
+			dir + "/Synergy.app/Contents/MacOS/")
+		shutil.copy(dir + "/synergys",
+			dir + "/Synergy.app/Contents/MacOS/")
+
+		# use qt to copy libs to bundle so no dependencies are needed. do not create a
+		# dmg at this point, since we need to sign it first, and then create our own
+		# after signing (so that qt does not affect the signed app bundle).
+		bin = "macdeployqt Synergy.app -verbose=2"
+		self.try_chdir(dir)
+		err = os.system(bin)
+		self.restore_chdir()
+
+		if err != 0:
+			raise Exception(bin + " failed with error: " + str(err))
+		
 	def open(self):
 		generator = self.getGeneratorFromConfig().cmakeName
 		if generator.startswith('Visual Studio'):
@@ -447,9 +581,6 @@ class InternalCommands:
 		if type != 'win' and type != 'mac':
 			self.configure(unixTarget, '-DCONF_CPACK:BOOL=TRUE')
 
-		# make sure we have a release build to package
-		self.build([self.defaultTarget], skipConfig=True)
-
 		moveExt = ''
 
 		if type == None:
@@ -484,7 +615,7 @@ class InternalCommands:
 			
 		elif type == 'mac':
 			if sys.platform == 'darwin':
-				self.distMac(unixTarget)
+				self.distMac()
 			else:
 				package_unsupported = True
 			
@@ -531,47 +662,29 @@ class InternalCommands:
 		err = os.system('mv ' + source + ' ' + dest)
 		if err != 0:
 			raise Exception('Package failed: ' + str(err))
-
-	def distMac(self, unixTarget):
-		# nb: disabling package maker, as it doesn't
-		# work too well (screws with permissions and causes boot to fail).
-		#self.dist_run('cpack -G PackageMaker', unixTarget)
-
-		version = self.getVersionFromCmake()
-		zipFile = (self.project + '-' + version + '-' +
-				   self.getMacPackageName())
 		
-		binDir = self.getBinDir(unixTarget)
-		buildDir = self.getBuildDir(unixTarget)
+	def distMac(self):
+		dir = self.getGenerator().binDir
+		name = "Synergy"
+		dist = dir + "/" + name
+		
+		# ensure dist dir is clean
+		if os.path.exists(dist):
+			os.rmdir(dist)
+		
+		os.makedirs(dist)
+		shutil.copytree(dir + "/" + name + ".app", dist + "/" + name + ".app")
 
-		# nb: temporary fix (just distribute a zip)
-		self.try_chdir(buildDir)
-
-		try:
-			if os.path.exists(zipFile):
-				shutil.rmtree(zipFile)
-
-			os.makedirs(zipFile)
-
-			for f in self.macZipFiles:
-				if not os.path.exists(f):
-					raise Exception('File does not exist: ' + f)
-				elif os.path.isdir(f):
-					dirLastSplit = f.split('/')
-					dirLast = dirLastSplit[len(dirLastSplit) - 1]
-					shutil.copytree(f, zipFile + '/' + dirLast)
-				else:
-					shutil.copy2(f, zipFile + '/')
-
-			zipCmd = ('zip -r ../../' + binDir + '/' + zipFile + '.zip ' + zipFile);
-			
-			print 'Creating package: ' + zipCmd
-			err = os.system(zipCmd)
-			if err != 0:
-				raise Exception('Zip failed, code: ' + err)
-			
-		finally:
-			self.restore_chdir()
+		fileName = "%s-%s-%s.dmg" % (
+			self.project, 
+			self.getVersionFromCmake(),
+			self.getMacPackageName())
+		
+		cmd = "hdiutil create " + fileName + " -srcfolder ./" + name + "/ -ov"
+		
+		self.try_chdir(dir)
+		err = os.system(cmd)
+		self.restore_chdir()
 
 	def distNsis(self, vcRedistDir, qtDir):
 		
@@ -678,14 +791,13 @@ class InternalCommands:
 				platform = 'Windows-x86'
 			
 		elif type == 'mac':
-			#ext = 'dmg'
-			ext = 'zip'
+			ext = "dmg"
 			platform = self.getMacPackageName()
 		
 		if not platform:
 			raise Exception('Unable to detect package platform.')
 		
-		pattern = re.escape(self.project + '-') + '\d\.\d\.\d' + re.escape('-' + platform + '.' + ext)
+		pattern = re.escape(self.project + '-') + '\d+\.\d+\.\d+' + re.escape('-' + platform + '.' + ext)
 		
 		# only use release dir if not windows
 		target = ''
@@ -788,18 +900,7 @@ class InternalCommands:
 		# running setup
 		generator = self.get_generator_from_prompt()
 
-		if os.path.exists(self.configFilename):
-			config = ConfigParser.ConfigParser()
-			config.read(self.configFilename)
-		else:
-			config = ConfigParser.ConfigParser()
-
-		if not config.has_section('hm'):
-			config.add_section('hm')
-
-		if not config.has_section('cmake'):
-			config.add_section('cmake')
-		
+		config = self.getConfig()
 		config.set('hm', 'setup_version', self.setup_version)
 		
 		# store the generator so we don't need to ask again
@@ -813,6 +914,21 @@ class InternalCommands:
 		self.setConfRun('release', False)
 
 		print "Setup complete."
+
+	def getConfig(self):
+		if os.path.exists(self.configFilename):
+			config = ConfigParser.ConfigParser()
+			config.read(self.configFilename)
+		else:
+			config = ConfigParser.ConfigParser()
+
+		if not config.has_section('hm'):
+			config.add_section('hm')
+
+		if not config.has_section('cmake'):
+			config.add_section('cmake')
+
+		return config
 
 	def write_config(self, config, target=''):
 		if not os.path.isdir(self.configDir):
@@ -880,7 +996,7 @@ class InternalCommands:
 	def get_generators(self):
 		if sys.platform == 'win32':
 			return self.win32_generators
-		elif sys.platform in ['linux2', 'sunos5', 'freebsd7']:
+		elif sys.platform in ['linux2', 'sunos5', 'freebsd7', 'aix5']:
 			return self.unix_generators
 		elif sys.platform == 'darwin':
 			return self.darwin_generators
@@ -901,7 +1017,7 @@ class InternalCommands:
 
 		conf = self.findGeneratorFromConfig()
 		if conf:
-		    return conf
+			return conf
 		
 		raise Exception(
 			'Generator not specified, use -g arg ' + 
@@ -949,7 +1065,7 @@ class InternalCommands:
 		elif generator.startswith('Visual Studio 10'):
 			value,type = _winreg.QueryValueEx(key, '10.0')
 		else:
-			raise Exception('Cannot determin vcvarsall.bat location for: ' + generator)
+			raise Exception('Cannot determine vcvarsall.bat location for: ' + generator)
 		
 		# not sure why, but the value on 64-bit differs slightly to the original
 		if os_bits == '64bit':
@@ -1031,7 +1147,17 @@ class InternalCommands:
 		for k in keys:
 			print str(k) + ': ' + generators[k].cmakeName
 
-	def getMacPackageName(self):
+	def getMacVersion(self):
+		# if we've built with an older sdk, then use that as the
+		# os version for package names, etc.
+		config = self.getConfig()
+		if config.has_option("cmake", "mac_sdk"):
+			macSdk = config.get("cmake", "mac_sdk")
+			split = macSdk.split('.')
+			major = int(split[0])
+			minor = int(split[1])
+			return (major, minor)
+			
 		import commands
 		versions = commands.getoutput('/usr/bin/sw_vers')
 		result = re.search('ProductVersion:\t(\d+)\.(\d+)', versions)
@@ -1041,9 +1167,32 @@ class InternalCommands:
 			raise Exception(
 				'Could not find Mac OS X version in sw_vers output.')
 
+		major = int(result.group(1))
+		minor = int(result.group(2))
+		return (major, minor)
+
+	def getMacPackageName(self):
+
+		(major, minor) = self.getMacVersion()
+
+		if major == 10:
+			if minor <= 4:
+				# 10.4: intel and power pc
+				arch = "Universal"
+			elif minor <= 6:
+				# 10.5: 32-bit intel
+				arch = "i386"
+			else:
+				# 10.7: 64-bit intel (gui only)
+				arch = "x86_64"
+		else:
+			raise Exception("Mac OS major version unknown: " +
+					str(major))
+
 		# version is major and minor with no dots (e.g. 106)
-		return ('MacOSX' + str(result.group(1)) +
-				str(result.group(2)) + '-Universal');
+		version = str(major) + str(minor)
+
+		return "MacOSX%s-%s" % (version, arch)
 
 	def reset(self):
 		if os.path.exists('build'):
@@ -1052,6 +1201,8 @@ class InternalCommands:
 			shutil.rmtree('bin')
 		if os.path.exists('lib'):
 			shutil.rmtree('lib')
+		if os.path.exists('src/gui/tmp'):
+			shutil.rmtree('src/gui/tmp')
 
 # the command handler should be called only from hm.py (i.e. directly 
 # from the command prompt). the purpose of this class is so that we 
@@ -1085,6 +1236,12 @@ class CommandHandler:
 				self.vcRedistDir = a
 			elif o == '--qt-dir':
 				self.qtDir = a
+			elif o == '--game-device':
+				self.ic.gameDevice = True
+			elif o == '--vnc':
+				self.ic.vncSupport = True
+			elif o == '--mac-sdk':
+				self.ic.macSdk = a
 	
 	def about(self):
 		self.ic.about()
@@ -1168,3 +1325,31 @@ class CommandHandler:
 
 	def reset(self):
 		self.ic.reset()
+		
+	def signwin(self):
+		pfx = None
+		pwd = None
+		dist = False
+		for o, a in self.opts:
+			if o == '--pfx':
+				pfx = a
+			elif o == '--pwd':
+				pwd = a
+			elif o == '--dist':
+				dist = True
+		self.ic.signwin(pfx, pwd, dist)
+
+	def signmac(self):
+		idenity = None
+		for o, a in self.opts:
+			if o == '--identity':
+				identity = a
+		
+		# HACK: codesign fails intermittently. we need some sort of retry mechanism
+		# but i don't have time right now so just hammer the crap out of it and hope
+		# one attempt works.
+		self.ic.signmac(identity)
+		self.ic.signmac(identity)
+		self.ic.signmac(identity)
+		self.ic.signmac(identity)
+		self.ic.signmac(identity)

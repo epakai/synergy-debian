@@ -1,6 +1,7 @@
 /*
  * synergy -- mouse and keyboard sharing utility
- * Copyright (C) 2004 Chris Schoeneman, Nick Bolton, Sorin Sbarnea
+ * Copyright (C) 2012 Bolton Software Ltd.
+ * Copyright (C) 2004 Chris Schoeneman
  * 
  * This package is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -20,6 +21,12 @@
 
 #include "BasicTypes.h"
 #include "stdmap.h"
+
+class CEventData {
+public:
+	CEventData() { }
+	virtual ~CEventData() { }
+};
 
 //! Event
 /*!
@@ -45,13 +52,15 @@ public:
 
 	CEvent();
 
-	//! Create \c CEvent with data
+	//! Create \c CEvent with data (POD)
 	/*!
 	The \p type must have been registered using \c registerType().
 	The \p data must be POD (plain old data) allocated by malloc(),
 	which means it cannot have a constructor, destructor or be
-	composed of any types that do.  \p target is the intended
-	recipient of the event.  \p flags is any combination of \c Flags.
+	composed of any types that do. For non-POD (normal C++ objects
+	use \c setDataObject().
+	\p target is the intended recipient of the event.
+	\p flags is any combination of \c Flags.
 	*/
 	CEvent(Type type, void* target = NULL, void* data = NULL,
 							 Flags flags = kNone);
@@ -64,6 +73,13 @@ public:
 	Deletes event data for the given event (using free()).
 	*/
 	static void			deleteData(const CEvent&);
+	
+	//! Set data (non-POD)
+	/*!
+	Set non-POD (non plain old data), where delete is called when the event
+	is deleted, and the destructor is called.
+	*/
+	void				setDataObject(CEventData* dataObject);
 
 	//@}
 	//! @name accessors
@@ -81,11 +97,19 @@ public:
 	*/
 	void*				getTarget() const;
 
-	//! Get the event data
+	//! Get the event data (POD).
 	/*!
-	Returns the event data.
+	Returns the event data (POD).
 	*/
 	void*				getData() const;
+
+	//! Get the event data (non-POD)
+	/*!
+	Returns the event data (non-POD). The difference between this and
+	\c getData() is that when delete is called on this data, so non-POD
+	(non plain old data) dtor is called.
+	*/
+	CEventData*			getDataObject() const;
 
 	//! Get event flags
 	/*!
@@ -100,6 +124,7 @@ private:
 	void*				m_target;
 	void*				m_data;
 	Flags				m_flags;
+	CEventData*			m_dataObject;
 };
 
 #endif

@@ -1,6 +1,7 @@
 /*
  * synergy -- mouse and keyboard sharing utility
- * Copyright (C) 2006 Chris Schoeneman, Nick Bolton, Sorin Sbarnea
+ * Copyright (C) 2012 Bolton Software Ltd.
+ * Copyright (C) 2006 Chris Schoeneman
  * 
  * This package is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -27,8 +28,8 @@
 // CClientProxy1_3
 //
 
-CClientProxy1_3::CClientProxy1_3(const CString& name, IStream* stream) :
-	CClientProxy1_2(name, stream),
+CClientProxy1_3::CClientProxy1_3(const CString& name, synergy::IStream* stream, IEventQueue* eventQueue) :
+	CClientProxy1_2(name, stream, eventQueue),
 	m_keepAliveRate(kKeepAliveRate),
 	m_keepAliveTimer(NULL)
 {

@@ -1,6 +1,7 @@
 /*
  * synergy -- mouse and keyboard sharing utility
- * Copyright (C) 2002 Chris Schoeneman, Nick Bolton, Sorin Sbarnea
+ * Copyright (C) 2012 Bolton Software Ltd.
+ * Copyright (C) 2002 Chris Schoeneman
  * 
  * This package is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -28,12 +29,12 @@
 CEvent::Type			CClientProxy::s_readyEvent           = CEvent::kUnknown;
 CEvent::Type			CClientProxy::s_disconnectedEvent    = CEvent::kUnknown;
 CEvent::Type			CClientProxy::s_clipboardChangedEvent= CEvent::kUnknown;
+CEvent::Type			CClientProxy::s_gameDeviceTimingRecvEvent= CEvent::kUnknown;
 
-CClientProxy::CClientProxy(const CString& name, IStream* stream) :
+CClientProxy::CClientProxy(const CString& name, synergy::IStream* stream) :
 	CBaseClientProxy(name),
 	m_stream(stream)
 {
-	// do nothing
 }
 
 CClientProxy::~CClientProxy()
@@ -51,7 +52,7 @@ CClientProxy::close(const char* msg)
 	getStream()->flush();
 }
 
-IStream*
+synergy::IStream*
 CClientProxy::getStream() const
 {
 	return m_stream;
@@ -76,6 +77,13 @@ CClientProxy::getClipboardChangedEvent()
 {
 	return EVENTQUEUE->registerTypeOnce(s_clipboardChangedEvent,
 							"CClientProxy::clipboardChanged");
+}
+
+CEvent::Type
+CClientProxy::getGameDeviceTimingRespEvent()
+{
+	return EVENTQUEUE->registerTypeOnce(s_gameDeviceTimingRecvEvent,
+							"CClientProxy::gameDeviceTimingRecv");
 }
 
 void*

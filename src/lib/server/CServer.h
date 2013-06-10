@@ -1,6 +1,7 @@
 /*
  * synergy -- mouse and keyboard sharing utility
- * Copyright (C) 2002 Chris Schoeneman, Nick Bolton, Sorin Sbarnea
+ * Copyright (C) 2012 Bolton Software Ltd.
+ * Copyright (C) 2002 Chris Schoeneman
  * 
  * This package is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -28,17 +29,19 @@
 #include "stdmap.h"
 #include "stdset.h"
 #include "stdvector.h"
+#include "INode.h"
 
 class CBaseClientProxy;
 class CEventQueueTimer;
 class CPrimaryClient;
 class CInputFilter;
+class CScreen;
 
 //! Synergy server
 /*!
 This class implements the top-level server algorithms for synergy.
 */
-class CServer {
+class CServer : public INode {
 public:
 	//! Lock cursor to screen data
 	class CLockCursorToScreenInfo {
@@ -73,11 +76,10 @@ public:
 	//! Screen connected data
 	class CScreenConnectedInfo {
 	public:
-		static CScreenConnectedInfo* alloc(const CString& screen);
+		CScreenConnectedInfo(CString screen) : m_screen(screen) { }
 
 	public:
-		// this is a C-string;  this type is a variable size structure
-		char			m_screen[1];
+		CString			m_screen; // was char[1]
 	};
 
 	//! Keyboard broadcast data
@@ -99,8 +101,12 @@ public:
 	client (local screen) \p primaryClient.  The client retains
 	ownership of \p primaryClient.
 	*/
-	CServer(const CConfig& config, CPrimaryClient* primaryClient);
+	CServer(const CConfig& config, CPrimaryClient* primaryClient, CScreen* screen);
 	~CServer();
+	
+#ifdef TEST_ENV
+	CServer() { }
+#endif
 
 	//! @name manipulators
 	//@{
@@ -128,6 +134,12 @@ public:
 	The caller can also just destroy this object to force the disconnection.
 	*/
 	void				disconnect();
+
+	//! Notify of game device timing response
+	void				gameDeviceTimingResp(UInt16 freq);
+
+	//! Notify of game device feedback
+	void				gameDeviceFeedback(GameDeviceID id, UInt16 m1, UInt16 m2);
 
 	//@}
 	//! @name accessors
@@ -198,6 +210,13 @@ public:
 	event data is a \c CLockCursorToScreenInfo*.
 	*/
 	static CEvent::Type	getLockCursorToScreenEvent();
+
+	//! Get screen switched event type
+	/*!
+	Returns the screen switched event type.  This is raised when the
+	screen has been switched to a client.
+	*/
+	static CEvent::Type	getScreenSwitchedEvent();
 
 	//@}
 
@@ -322,6 +341,10 @@ private:
 	void				handleMotionPrimaryEvent(const CEvent&, void*);
 	void				handleMotionSecondaryEvent(const CEvent&, void*);
 	void				handleWheelEvent(const CEvent&, void*);
+	void				handleGameDeviceButtons(const CEvent&, void*);
+	void				handleGameDeviceSticks(const CEvent&, void*);
+	void				handleGameDeviceTriggers(const CEvent&, void*);
+	void				handleGameDeviceTimingReq(const CEvent&, void*);
 	void				handleScreensaverActivatedEvent(const CEvent&, void*);
 	void				handleScreensaverDeactivatedEvent(const CEvent&, void*);
 	void				handleSwitchWaitTimeout(const CEvent&, void*);
@@ -348,6 +371,10 @@ private:
 	bool				onMouseMovePrimary(SInt32 x, SInt32 y);
 	void				onMouseMoveSecondary(SInt32 dx, SInt32 dy);
 	void				onMouseWheel(SInt32 xDelta, SInt32 yDelta);
+	void				onGameDeviceButtons(GameDeviceID id, GameDeviceButton buttons);
+	void				onGameDeviceSticks(GameDeviceID id, SInt16 x1, SInt16 y1, SInt16 x2, SInt16 y2);
+	void				onGameDeviceTriggers(GameDeviceID id, UInt8 t1, UInt8 t2);
+	void				onGameDeviceTimingReq();
 
 	// add client to list and attach event handlers for client
 	bool				addClient(CBaseClientProxy*);
@@ -371,6 +398,9 @@ private:
 
 	// force the cursor off of \p client
 	void				forceLeaveClient(CBaseClientProxy* client);
+	
+public:
+	bool				m_mock;
 
 private:
 	class CClipboardInfo {
@@ -460,6 +490,9 @@ private:
 	// screen locking (former scroll lock)
 	bool				m_lockedToScreen;
 
+	// server screen
+	CScreen*			m_screen;
+
 	static CEvent::Type	s_errorEvent;
 	static CEvent::Type	s_connectedEvent;
 	static CEvent::Type	s_disconnectedEvent;
@@ -467,6 +500,7 @@ private:
 	static CEvent::Type	s_switchInDirection;
 	static CEvent::Type s_keyboardBroadcast;
 	static CEvent::Type s_lockCursorToScreen;
+	static CEvent::Type s_screenSwitched;
 };
 
 #endif

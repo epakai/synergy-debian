@@ -1,5 +1,6 @@
 # synergy -- mouse and keyboard sharing utility
-# Copyright (C) 2009 Chris Schoeneman, Nick Bolton, Sorin Sbarnea
+# Copyright (C) 2012 Bolton Software Ltd.
+# Copyright (C) 2009 Nick Bolton
 # 
 # This package is free software; you can redistribute it and/or
 # modify it under the terms of the GNU General Public License
@@ -15,12 +16,10 @@
 
 set(src
 	synergys.cpp
-	CServerTaskBarReceiver.cpp
 )
 
 if (WIN32)
 	list(APPEND src
-		CServerTaskBarReceiver.h
 		CMSWindowsServerTaskBarReceiver.cpp
 		CMSWindowsServerTaskBarReceiver.h
 		resource.h
@@ -42,6 +41,7 @@ set(inc
 	../../lib/base
 	../../lib/common
 	../../lib/io
+	../../lib/ipc
 	../../lib/mt
 	../../lib/net
 	../../lib/platform
@@ -55,10 +55,14 @@ if (UNIX)
 	)
 endif()
 
+if (VNC_SUPPORT)
+	list(APPEND libs vnc_server vnc_client)
+endif()
+
 include_directories(${inc})
-add_executable(synergys WIN32 ${src})
+add_executable(synergys ${src})
 target_link_libraries(synergys
-	arch base client common io mt net platform server synergy ${libs})
+	arch base client common io mt net ipc platform server synergy cryptopp ${libs})
 
 if (CONF_CPACK)
 	install(TARGETS

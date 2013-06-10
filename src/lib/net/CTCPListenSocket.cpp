@@ -1,6 +1,7 @@
 /*
  * synergy -- mouse and keyboard sharing utility
- * Copyright (C) 2002 Chris Schoeneman, Nick Bolton, Sorin Sbarnea
+ * Copyright (C) 2012 Bolton Software Ltd.
+ * Copyright (C) 2002 Chris Schoeneman
  * 
  * This package is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -104,9 +105,9 @@ CTCPListenSocket::getEventTarget() const
 IDataSocket*
 CTCPListenSocket::accept()
 {
+	IDataSocket* socket = NULL;
 	try {
-		IDataSocket* socket =
-			new CTCPSocket(ARCH->acceptSocket(m_socket, NULL));
+		socket = new CTCPSocket(ARCH->acceptSocket(m_socket, NULL));
 		if (socket != NULL) {
 			CSocketMultiplexer::getInstance()->addSocket(this,
 							new TSocketMultiplexerMethodJob<CTCPListenSocket>(
@@ -116,7 +117,16 @@ CTCPListenSocket::accept()
 		return socket;
 	}
 	catch (XArchNetwork&) {
+		if (socket != NULL) {
+			delete socket;
+		}
 		return NULL;
+	}
+	catch (std::exception &ex) {
+		if (socket != NULL) {
+			delete socket;
+		}
+		throw ex;
 	}
 }
 

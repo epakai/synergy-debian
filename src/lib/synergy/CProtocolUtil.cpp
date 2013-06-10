@@ -1,6 +1,7 @@
 /*
  * synergy -- mouse and keyboard sharing utility
- * Copyright (C) 2002 Chris Schoeneman, Nick Bolton, Sorin Sbarnea
+ * Copyright (C) 2012 Bolton Software Ltd.
+ * Copyright (C) 2002 Chris Schoeneman
  * 
  * This package is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -27,7 +28,7 @@
 //
 
 void
-CProtocolUtil::writef(IStream* stream, const char* fmt, ...)
+CProtocolUtil::writef(synergy::IStream* stream, const char* fmt, ...)
 {
 	assert(stream != NULL);
 	assert(fmt != NULL);
@@ -43,7 +44,7 @@ CProtocolUtil::writef(IStream* stream, const char* fmt, ...)
 }
 
 bool
-CProtocolUtil::readf(IStream* stream, const char* fmt, ...)
+CProtocolUtil::readf(synergy::IStream* stream, const char* fmt, ...)
 {
 	assert(stream != NULL);
 	assert(fmt != NULL);
@@ -64,7 +65,7 @@ CProtocolUtil::readf(IStream* stream, const char* fmt, ...)
 }
 
 void
-CProtocolUtil::vwritef(IStream* stream,
+CProtocolUtil::vwritef(synergy::IStream* stream,
 				const char* fmt, UInt32 size, va_list args)
 {
 	assert(stream != NULL);
@@ -93,7 +94,7 @@ CProtocolUtil::vwritef(IStream* stream,
 }
 
 void
-CProtocolUtil::vreadf(IStream* stream, const char* fmt, va_list args)
+CProtocolUtil::vreadf(synergy::IStream* stream, const char* fmt, va_list args)
 {
 	assert(stream != NULL);
 	assert(fmt != NULL);
@@ -507,7 +508,7 @@ CProtocolUtil::eatLength(const char** pfmt)
 }
 
 void
-CProtocolUtil::read(IStream* stream, void* vbuffer, UInt32 count)
+CProtocolUtil::read(synergy::IStream* stream, void* vbuffer, UInt32 count)
 {
 	assert(stream != NULL);
 	assert(vbuffer != NULL);

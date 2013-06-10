@@ -1,6 +1,7 @@
 /*
  * synergy -- mouse and keyboard sharing utility
- * Copyright (C) 2002 Chris Schoeneman, Nick Bolton, Sorin Sbarnea
+ * Copyright (C) 2012 Bolton Software Ltd.
+ * Copyright (C) 2002 Chris Schoeneman
  * 
  * This package is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -37,12 +38,5 @@ extern const char* kVersion;
 
 // application version
 extern const char* kAppVersion;
-
-// exit codes
-static const int kExitSuccess   = 0;  // successful completion
-static const int kExitFailed    = 1;  // general failure
-static const int kExitTerminated  = 2;  // killed by signal
-static const int kExitArgs      = 3;  // bad arguments
-static const int kExitConfig    = 4;  // cannot read configuration
 
 #endif

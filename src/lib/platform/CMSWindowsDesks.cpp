@@ -1,6 +1,7 @@
 /*
  * synergy -- mouse and keyboard sharing utility
- * Copyright (C) 2004 Chris Schoeneman, Nick Bolton, Sorin Sbarnea
+ * Copyright (C) 2012 Bolton Software Ltd.
+ * Copyright (C) 2004 Chris Schoeneman
  * 
  * This package is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -29,6 +30,7 @@
 #include "TMethodJob.h"
 #include "CArchMiscWindows.h"
 #include <malloc.h>
+#include "IEventQueue.h"
 
 // these are only defined when WINVER >= 0x0500
 #if !defined(SPI_GETMOUSESPEED)
@@ -89,9 +91,11 @@
 //
 
 CMSWindowsDesks::CMSWindowsDesks(
-				bool isPrimary, HINSTANCE hookLibrary,
-				const IScreenSaver* screensaver, IJob* updateKeys) :
+		bool isPrimary, bool noHooks, HINSTANCE hookLibrary,
+		const IScreenSaver* screensaver, IEventQueue& eventQueue,
+		IJob* updateKeys, bool stopOnDeskSwitch) :
 	m_isPrimary(isPrimary),
+	m_noHooks(noHooks),
 	m_is95Family(CArchMiscWindows::isWindows95Family()),
 	m_isModernFamily(CArchMiscWindows::isWindowsModern()),
 	m_isOnScreen(m_isPrimary),
@@ -106,9 +110,13 @@ CMSWindowsDesks::CMSWindowsDesks(
 	m_activeDeskName(),
 	m_mutex(),
 	m_deskReady(&m_mutex, false),
-	m_updateKeys(updateKeys)
+	m_updateKeys(updateKeys),
+	m_eventQueue(eventQueue),
+	m_stopOnDeskSwitch(stopOnDeskSwitch)
 {
-	queryHookLibrary(hookLibrary);
+	if (hookLibrary != NULL)
+		queryHookLibrary(hookLibrary);
+
 	m_cursor    = createBlankCursor();
 	m_deskClass = createDeskWindowClass(m_isPrimary);
 	m_keyLayout = GetKeyboardLayout(GetCurrentThreadId());
@@ -135,8 +143,8 @@ CMSWindowsDesks::enable()
 	// which desk is active and reinstalls the hooks as necessary.
 	// we wouldn't need this if windows notified us of a desktop
 	// change but as far as i can tell it doesn't.
-	m_timer = EVENTQUEUE->newTimer(0.2, NULL);
-	EVENTQUEUE->adoptHandler(CEvent::kTimer, m_timer,
+	m_timer = m_eventQueue.newTimer(0.2, NULL);
+	m_eventQueue.adoptHandler(CEvent::kTimer, m_timer,
 							new TMethodEventJob<CMSWindowsDesks>(
 								this, &CMSWindowsDesks::handleCheckDesk));
 
@@ -148,8 +156,8 @@ CMSWindowsDesks::disable()
 {
 	// remove timer
 	if (m_timer != NULL) {
-		EVENTQUEUE->removeHandler(CEvent::kTimer, m_timer);
-		EVENTQUEUE->deleteTimer(m_timer);
+		m_eventQueue.removeHandler(CEvent::kTimer, m_timer);
+		m_eventQueue.deleteTimer(m_timer);
 		m_timer = NULL;
 	}
 
@@ -183,7 +191,7 @@ CMSWindowsDesks::setOptions(const COptionsList& options)
 	for (UInt32 i = 0, n = (UInt32)options.size(); i < n; i += 2) {
 		if (options[i] == kOptionWin32KeepForeground) {
 			m_leaveForegroundOption = (options[i + 1] != 0);
-			LOG((CLOG_DEBUG1 "%s the foreground window", m_leaveForegroundOption ? "Don\'t grab" : "Grab"));
+			LOG((CLOG_DEBUG1 "%s the foreground window", m_leaveForegroundOption ? "don\'t grab" : "grab"));
 		}
 	}
 }
@@ -277,7 +285,7 @@ CMSWindowsDesks::fakeKeyEvent(
 }
 
 void
-CMSWindowsDesks::fakeMouseButton(ButtonID button, bool press) const
+CMSWindowsDesks::fakeMouseButton(ButtonID button, bool press)
 {
 	// the system will swap the meaning of left/right for us if
 	// the user has configured a left-handed mouse but we don't
@@ -364,7 +372,7 @@ void
 CMSWindowsDesks::queryHookLibrary(HINSTANCE hookLibrary)
 {
 	// look up functions
-	if (m_isPrimary) {
+	if (m_isPrimary && !m_noHooks) {
 		m_install   = (InstallFunc)GetProcAddress(hookLibrary, "install");
 		m_uninstall = (UninstallFunc)GetProcAddress(hookLibrary, "uninstall");
 		m_installScreensaver   =
@@ -399,7 +407,7 @@ CMSWindowsDesks::createBlankCursor() const
 	UInt8* cursorXOR = new UInt8[ch * ((cw + 31) >> 2)];
 	memset(cursorAND, 0xff, ch * ((cw + 31) >> 2));
 	memset(cursorXOR, 0x00, ch * ((cw + 31) >> 2));
-	HCURSOR c = CreateCursor(CMSWindowsScreen::getInstance(),
+	HCURSOR c = CreateCursor(CMSWindowsScreen::getWindowInstance(),
 							0, 0, cw, ch, cursorAND, cursorXOR);
 	delete[] cursorXOR;
 	delete[] cursorAND;
@@ -425,7 +433,7 @@ CMSWindowsDesks::createDeskWindowClass(bool isPrimary) const
 								&CMSWindowsDesks::secondaryDeskProc;
 	classInfo.cbClsExtra    = 0;
 	classInfo.cbWndExtra    = 0;
-	classInfo.hInstance     = CMSWindowsScreen::getInstance();
+	classInfo.hInstance     = CMSWindowsScreen::getWindowInstance();
 	classInfo.hIcon         = NULL;
 	classInfo.hCursor       = m_cursor;
 	classInfo.hbrBackground = NULL;
@@ -440,7 +448,7 @@ CMSWindowsDesks::destroyClass(ATOM windowClass) const
 {
 	if (windowClass != 0) {
 		UnregisterClass(reinterpret_cast<LPCTSTR>(windowClass),
-							CMSWindowsScreen::getInstance());
+							CMSWindowsScreen::getWindowInstance());
 	}
 }
 
@@ -455,7 +463,7 @@ CMSWindowsDesks::createWindow(ATOM windowClass, const char* name) const
 								WS_POPUP,
 								0, 0, 1, 1,
 								NULL, NULL,
-								CMSWindowsScreen::getInstance(),
+								CMSWindowsScreen::getWindowInstance(),
 								NULL);
 	if (window == NULL) {
 		LOG((CLOG_ERR "failed to create window: %d", GetLastError()));
@@ -739,7 +747,7 @@ CMSWindowsDesks::deskThread(void* vdesk)
 			continue;
 
 		case SYNERGY_MSG_SWITCH:
-			if (m_isPrimary) {
+			if (m_isPrimary && !m_noHooks) {
 				m_uninstall();
 				if (m_screensaverNotify) {
 					m_uninstallScreensaver();
@@ -819,11 +827,13 @@ CMSWindowsDesks::deskThread(void* vdesk)
 			break;
 
 		case SYNERGY_MSG_SCREENSAVER:
-			if (msg.wParam != 0) {
-				m_installScreensaver();
-			}
-			else {
-				m_uninstallScreensaver();
+			if (!m_noHooks) {
+				if (msg.wParam != 0) {
+					m_installScreensaver();
+				}
+				else {
+					m_uninstallScreensaver();
+				}
 			}
 			break;
 
@@ -896,6 +906,14 @@ CMSWindowsDesks::checkDesk()
 	else {
 		closeDesktop(hdesk);
 		desk = index->second;
+	}
+
+	// if we are told to shut down on desk switch, and this is not the 
+	// first switch, then shut down.
+	if (m_stopOnDeskSwitch && m_activeDesk != NULL && name != m_activeDeskName) {
+		LOG((CLOG_DEBUG "shutting down because of desk switch to \"%s\"", name.c_str()));
+		EVENTQUEUE->addEvent(CEvent(CEvent::kQuit));
+		return;
 	}
 
 	// if active desktop changed then tell the old and new desk threads

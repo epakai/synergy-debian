@@ -1,6 +1,7 @@
 /*
  * synergy -- mouse and keyboard sharing utility
- * Copyright (C) 2002 Chris Schoeneman, Nick Bolton, Sorin Sbarnea
+ * Copyright (C) 2012 Bolton Software Ltd.
+ * Copyright (C) 2002 Chris Schoeneman
  * 
  * This package is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -56,12 +57,19 @@
 #		include <X11/extensions/Xinerama.h>
 		}
 #	endif
+#	if HAVE_X11_EXTENSIONS_XRANDR_H
+#		include <X11/extensions/Xrandr.h>
+#	endif
 #	if HAVE_XKB_EXTENSION
 #		include <X11/XKBlib.h>
+#	endif
+#	ifdef HAVE_XI2
+#		include <X11/extensions/XInput2.h>
 #	endif
 #endif
 #include "CArch.h"
 
+static int xi_opcode;
 
 //
 // CXWindowsScreen
@@ -80,7 +88,7 @@
 
 CXWindowsScreen*		CXWindowsScreen::s_screen = NULL;
 
-CXWindowsScreen::CXWindowsScreen(const char* displayName, bool isPrimary, bool disableXInitThreads, int mouseScrollDelta) :
+CXWindowsScreen::CXWindowsScreen(const char* displayName, bool isPrimary, bool disableXInitThreads, int mouseScrollDelta, IEventQueue& eventQueue) :
 	m_isPrimary(isPrimary),
 	m_mouseScrollDelta(mouseScrollDelta),
 	m_display(NULL),
@@ -102,7 +110,11 @@ CXWindowsScreen::CXWindowsScreen(const char* displayName, bool isPrimary, bool d
 	m_screensaverNotify(false),
 	m_xtestIsXineramaUnaware(true),
 	m_preserveFocus(false),
-	m_xkb(false)
+	m_xkb(false),
+	m_xi2detected(false),
+	m_xrandr(false),
+	m_eventQueue(eventQueue),
+	CPlatformScreen(eventQueue)
 {
 	assert(s_screen == NULL);
 
@@ -126,8 +138,8 @@ CXWindowsScreen::CXWindowsScreen(const char* displayName, bool isPrimary, bool d
 		saveShape();
 		m_window      = openWindow();
 		m_screensaver = new CXWindowsScreenSaver(m_display,
-								m_window, getEventTarget());
-		m_keyState    = new CXWindowsKeyState(m_display, m_xkb);
+								m_window, getEventTarget(), eventQueue);
+		m_keyState    = new CXWindowsKeyState(m_display, m_xkb, eventQueue, m_keyMap);
 		LOG((CLOG_DEBUG "screen shape: %d,%d %dx%d %s", m_x, m_y, m_w, m_h, m_xinerama ? "(xinerama)" : ""));
 		LOG((CLOG_DEBUG "window is 0x%08x", m_window));
 	}
@@ -142,6 +154,17 @@ CXWindowsScreen::CXWindowsScreen(const char* displayName, bool isPrimary, bool d
 	if (m_isPrimary) {
 		// start watching for events on other windows
 		selectEvents(m_root);
+		m_xi2detected = detectXI2();
+
+		if (m_xi2detected) {
+#ifdef HAVE_XI2
+			selectXIRawMotion();
+#endif
+		} else
+		{
+			// start watching for events on other windows
+			selectEvents(m_root);
+		}
 
 		// prepare to use input methods
 		openIM();
@@ -157,12 +180,12 @@ CXWindowsScreen::CXWindowsScreen(const char* displayName, bool isPrimary, bool d
 	}
 
 	// install event handlers
-	EVENTQUEUE->adoptHandler(CEvent::kSystem, IEventQueue::getSystemTarget(),
+	m_eventQueue.adoptHandler(CEvent::kSystem, IEventQueue::getSystemTarget(),
 							new TMethodEventJob<CXWindowsScreen>(this,
 								&CXWindowsScreen::handleSystemEvent));
 
 	// install the platform event queue
-	EVENTQUEUE->adoptBuffer(new CXWindowsEventQueueBuffer(m_display, m_window));
+	m_eventQueue.adoptBuffer(new CXWindowsEventQueueBuffer(m_display, m_window));
 }
 
 CXWindowsScreen::~CXWindowsScreen()
@@ -170,8 +193,8 @@ CXWindowsScreen::~CXWindowsScreen()
 	assert(s_screen  != NULL);
 	assert(m_display != NULL);
 
-	EVENTQUEUE->adoptBuffer(NULL);
-	EVENTQUEUE->removeHandler(CEvent::kSystem, IEventQueue::getSystemTarget());
+	m_eventQueue.adoptBuffer(NULL);
+	m_eventQueue.removeHandler(CEvent::kSystem, IEventQueue::getSystemTarget());
 	for (ClipboardID id = 0; id < kClipboardEnd; ++id) {
 		delete m_clipboard[id];
 	}
@@ -529,7 +552,7 @@ CXWindowsScreen::registerHotKey(KeyID key, KeyModifierMask mask)
 	// only allow certain modifiers
 	if ((mask & ~(KeyModifierShift | KeyModifierControl |
 				  KeyModifierAlt   | KeyModifierSuper)) != 0) {
-		LOG((CLOG_WARN "could not map hotkey id=%04x mask=%04x", key, mask));
+		LOG((CLOG_DEBUG "could not map hotkey id=%04x mask=%04x", key, mask));
 		return 0;
 	}
 
@@ -542,14 +565,14 @@ CXWindowsScreen::registerHotKey(KeyID key, KeyModifierMask mask)
 	unsigned int modifiers;
 	if (!m_keyState->mapModifiersToX(mask, modifiers)) {
 		// can't map all modifiers
-		LOG((CLOG_WARN "could not map hotkey id=%04x mask=%04x", key, mask));
+		LOG((CLOG_DEBUG "could not map hotkey id=%04x mask=%04x", key, mask));
 		return 0;
 	}
 	CXWindowsKeyState::CKeycodeList keycodes;
 	m_keyState->mapKeyToKeycodes(key, keycodes);
 	if (key != kKeyNone && keycodes.empty()) {
 		// can't map key
-		LOG((CLOG_WARN "could not map hotkey id=%04x mask=%04x", key, mask));
+		LOG((CLOG_DEBUG "could not map hotkey id=%04x mask=%04x", key, mask));
 		return 0;
 	}
 
@@ -792,7 +815,7 @@ CXWindowsScreen::getCursorCenter(SInt32& x, SInt32& y) const
 }
 
 void
-CXWindowsScreen::fakeMouseButton(ButtonID button, bool press) const
+CXWindowsScreen::fakeMouseButton(ButtonID button, bool press)
 {
 	const unsigned int xButton = mapButtonToX(button);
 	if (xButton != 0) {
@@ -922,6 +945,16 @@ CXWindowsScreen::openDisplay(const char* displayName)
 	}
 #endif
 
+#if HAVE_X11_EXTENSIONS_XRANDR_H
+	// query for XRandR extension
+	int dummyError;
+	m_xrandr = XRRQueryExtension(display, &m_xrandrEventBase, &dummyError);
+	if (m_xrandr) {
+		// enable XRRScreenChangeNotifyEvent
+		XRRSelectInput(display, DefaultRootWindow(display), RRScreenChangeNotifyMask | RRCrtcChangeNotifyMask);
+	}
+#endif
+
 	return display;
 }
 
@@ -931,8 +964,25 @@ CXWindowsScreen::saveShape()
 	// get shape of default screen
 	m_x = 0;
 	m_y = 0;
+
 	m_w = WidthOfScreen(DefaultScreenOfDisplay(m_display));
 	m_h = HeightOfScreen(DefaultScreenOfDisplay(m_display));
+
+#if HAVE_X11_EXTENSIONS_XRANDR_H
+	if (m_xrandr){
+	  int numSizes;
+	  XRRScreenSize* xrrs;
+	  Rotation rotation;
+	  xrrs = XRRSizes(m_display, DefaultScreen(m_display), &numSizes);
+	  XRRRotations(m_display, DefaultScreen(m_display), &rotation);
+	  if (xrrs != NULL) {
+	    if (rotation & (RR_Rotate_90|RR_Rotate_270) ){
+	      m_w = xrrs->height;
+	      m_h = xrrs->width;
+	    }
+	  }
+	}
+#endif
 
 	// get center of default screen
 	m_xCenter = m_x + (m_w >> 1);
@@ -1089,7 +1139,7 @@ CXWindowsScreen::openIM()
 void
 CXWindowsScreen::sendEvent(CEvent::Type type, void* data)
 {
-	EVENTQUEUE->addEvent(CEvent(type, getEventTarget(), data));
+	m_eventQueue.addEvent(CEvent(type, getEventTarget(), data));
 }
 
 void
@@ -1182,7 +1232,7 @@ CXWindowsScreen::handleSystemEvent(const CEvent& event, void*)
 		}
 
 		// now filter the event
-		if (XFilterEvent(xevent, None)) {
+		if (XFilterEvent(xevent, DefaultRootWindow(m_display))) {
 			if (xevent->type == KeyPress) {
 				// add filtered presses to the filtered list
 				m_filtered.insert(m_lastKeycode);
@@ -1204,6 +1254,39 @@ CXWindowsScreen::handleSystemEvent(const CEvent& event, void*)
 		// screen saver handled it
 		return;
 	}
+
+#ifdef HAVE_XI2
+	if (m_xi2detected) {
+		// Process RawMotion
+		XGenericEventCookie *cookie = (XGenericEventCookie*)&xevent->xcookie;
+			if (XGetEventData(m_display, cookie) &&
+				cookie->type == GenericEvent &&
+				cookie->extension == xi_opcode) {
+			if (cookie->evtype == XI_RawMotion) {
+				// Get current pointer's position
+				Window root, child;
+				XMotionEvent xmotion;
+				xmotion.type = MotionNotify;
+				xmotion.send_event = False; // Raw motion
+				xmotion.display = m_display;
+				xmotion.window = m_window;
+				/* xmotion's time, state and is_hint are not used */
+				unsigned int msk;
+					xmotion.same_screen = XQueryPointer(
+						m_display, m_root, &xmotion.root, &xmotion.subwindow,
+						&xmotion.x_root,
+						&xmotion.y_root,
+						&xmotion.x,
+						&xmotion.y,
+						&msk);
+					onMouseMove(xmotion);
+					XFreeEventData(m_display, cookie);
+					return;
+			}
+        		XFreeEventData(m_display, cookie);
+		}
+	}
+#endif
 
 	// handle the event ourself
 	switch (xevent->type) {
@@ -1330,6 +1413,31 @@ CXWindowsScreen::handleSystemEvent(const CEvent& event, void*)
 			}
 		}
 #endif
+
+#if HAVE_X11_EXTENSIONS_XRANDR_H
+		if (m_xrandr) {
+			if (xevent->type == m_xrandrEventBase + RRScreenChangeNotify
+			||  xevent->type == m_xrandrEventBase + RRNotify
+			&& reinterpret_cast<XRRNotifyEvent *>(xevent)->subtype == RRNotify_CrtcChange) {
+				LOG((CLOG_INFO "XRRScreenChangeNotifyEvent or RRNotify_CrtcChange received"));
+
+				// we're required to call back into XLib so XLib can update its internal state
+				XRRUpdateConfiguration(xevent);
+
+				// requery/recalculate the screen shape
+				saveShape();
+
+				// we need to resize m_window, otherwise we'll get a weird problem where moving
+				// off the server onto the client causes the pointer to warp to the
+				// center of the server (so you can't move the pointer off the server)
+				if (m_isPrimary) {
+					XMoveWindow(m_display, m_window, m_x, m_y);
+					XResizeWindow(m_display, m_window, m_w, m_h);
+				}
+			}
+		}
+#endif
+
 		break;
 	}
 }
@@ -1434,7 +1542,7 @@ CXWindowsScreen::onHotKey(XKeyEvent& xkey, bool isRepeat)
 
 	// generate event (ignore key repeats)
 	if (!isRepeat) {
-		EVENTQUEUE->addEvent(CEvent(type, getEventTarget(),
+		m_eventQueue.addEvent(CEvent(type, getEventTarget(),
 								CHotKeyInfo::alloc(i->second)));
 	}
 	return true;
@@ -1617,7 +1725,7 @@ void
 CXWindowsScreen::onError()
 {
 	// prevent further access to the X display
-	EVENTQUEUE->adoptBuffer(NULL);
+	m_eventQueue.adoptBuffer(NULL);
 	m_screensaver->destroy();
 	m_screensaver = NULL;
 	m_display     = NULL;
@@ -1864,6 +1972,8 @@ CXWindowsScreen::updateButtons()
 bool
 CXWindowsScreen::grabMouseAndKeyboard()
 {
+	unsigned int event_mask = ButtonPressMask | ButtonReleaseMask | EnterWindowMask | LeaveWindowMask | PointerMotionMask;
+
 	// grab the mouse and keyboard.  keep trying until we get them.
 	// if we can't grab one after grabbing the other then ungrab
 	// and wait before retrying.  give up after s_timeout seconds.
@@ -1887,8 +1997,8 @@ CXWindowsScreen::grabMouseAndKeyboard()
 		} while (result != GrabSuccess);
 		LOG((CLOG_DEBUG2 "grabbed keyboard"));
 
-		// now the mouse
-		result = XGrabPointer(m_display, m_window, True, 0,
+		// now the mouse --- use event_mask to get EnterNotify, LeaveNotify events
+		result = XGrabPointer(m_display, m_window, False, event_mask,
 								GrabModeAsync, GrabModeAsync,
 								m_window, None, CurrentTime);
 		assert(result != GrabNotViewable);
@@ -1954,3 +2064,29 @@ CXWindowsScreen::CHotKeyItem::operator<(const CHotKeyItem& x) const
 	return (m_keycode < x.m_keycode ||
 			(m_keycode == x.m_keycode && m_mask < x.m_mask));
 }
+
+bool
+CXWindowsScreen::detectXI2()
+{
+	int event, error;
+	return XQueryExtension(m_display,
+			"XInputExtension", &xi_opcode, &event, &error);
+}
+
+#ifdef HAVE_XI2
+void
+CXWindowsScreen::selectXIRawMotion()
+{
+	XIEventMask mask;
+
+	mask.deviceid = XIAllDevices;
+	mask.mask_len = XIMaskLen(XI_RawMotion);
+	mask.mask = (unsigned char*)calloc(mask.mask_len, sizeof(char));
+	mask.deviceid = XIAllMasterDevices;
+	memset(mask.mask, 0, 2);
+    XISetMask(mask.mask, XI_RawKeyRelease);
+	XISetMask(mask.mask, XI_RawMotion);
+	XISelectEvents(m_display, DefaultRootWindow(m_display), &mask, 1);
+	free(mask.mask);
+}
+#endif

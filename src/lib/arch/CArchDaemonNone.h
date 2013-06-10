@@ -1,6 +1,7 @@
 /*
  * synergy -- mouse and keyboard sharing utility
- * Copyright (C) 2002 Chris Schoeneman, Nick Bolton, Sorin Sbarnea
+ * Copyright (C) 2012 Bolton Software Ltd.
+ * Copyright (C) 2002 Chris Schoeneman
  * 
  * This package is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -45,6 +46,9 @@ public:
 	virtual int			daemonize(const char* name, DaemonFunc func);
 	virtual bool		canInstallDaemon(const char* name, bool allUsers);
 	virtual bool		isDaemonInstalled(const char* name, bool allUsers);
+	virtual void		installDaemon();
+	virtual void		uninstallDaemon();
+	virtual std::string	commandLine() const;
 };
 
 #endif

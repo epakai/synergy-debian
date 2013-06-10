@@ -1,6 +1,7 @@
 /*
  * synergy -- mouse and keyboard sharing utility
- * Copyright (C) 2004 Chris Schoeneman, Nick Bolton, Sorin Sbarnea
+ * Copyright (C) 2012 Bolton Software Ltd.
+ * Copyright (C) 2004 Chris Schoeneman
  * 
  * This package is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -18,11 +19,14 @@
 #ifndef COSXSCREEN_H
 #define COSXSCREEN_H
 
+#include <bitset>
+
+#include "stdmap.h"
+#include "stdvector.h"
+
 #include <Carbon/Carbon.h>
 #include "COSXClipboard.h"
 #include "CPlatformScreen.h"
-#include "stdmap.h"
-#include "stdvector.h"
 
 #include <mach/mach_port.h>
 #include <mach/mach_interface.h>
@@ -48,7 +52,7 @@ class COSXScreenSaver;
 //! Implementation of IPlatformScreen for OS X
 class COSXScreen : public CPlatformScreen {
 public:
-	COSXScreen(bool isPrimary);
+	COSXScreen(bool isPrimary, bool autoShowHideCursor=true);
 	virtual ~COSXScreen();
 
 	// IScreen overrides
@@ -68,12 +72,17 @@ public:
 	virtual SInt32		getJumpZoneSize() const;
 	virtual bool		isAnyMouseButtonDown() const;
 	virtual void		getCursorCenter(SInt32& x, SInt32& y) const;
+	virtual void		gameDeviceTimingResp(UInt16 freq) { }
 
 	// ISecondaryScreen overrides
-	virtual void		fakeMouseButton(ButtonID id, bool press) const;
+	virtual void		fakeMouseButton(ButtonID id, bool press);
 	virtual void		fakeMouseMove(SInt32 x, SInt32 y) const;
 	virtual void		fakeMouseRelativeMove(SInt32 dx, SInt32 dy) const;
 	virtual void		fakeMouseWheel(SInt32 xDelta, SInt32 yDelta) const;
+	virtual void		fakeGameDeviceButtons(GameDeviceID id, GameDeviceButton buttons) const { }
+	virtual void		fakeGameDeviceSticks(GameDeviceID id, SInt16 x1, SInt16 y1, SInt16 x2, SInt16 y2) const { }
+	virtual void		fakeGameDeviceTriggers(GameDeviceID id, UInt8 t1, UInt8 t2) const { }
+	virtual void		queueGameDeviceTimingReq() const { }
 
 	// IPlatformScreen overrides
 	virtual void		enable();
@@ -89,6 +98,7 @@ public:
 	virtual void		setOptions(const COptionsList& options);
 	virtual void		setSequenceNumber(UInt32);
 	virtual bool		isPrimary() const;
+	virtual void		gameDeviceFeedback(GameDeviceID id, UInt16 m1, UInt16 m2) { }
 
 protected:
 	// IPlatformScreen overrides
@@ -116,6 +126,8 @@ private:
 	#if !defined(MAC_OS_X_VERSION_10_5)
 	bool				onDisplayChange();
 	#endif
+	void				constructMouseButtonEventMap();
+
 	bool				onKey(CGEventRef event);
 	
 	bool				onHotKey(EventRef event) const;
@@ -201,6 +213,28 @@ private:
 		UInt32			m_keycode;
 		UInt32			m_mask;
 	};
+
+	enum MouseButtonState {
+		kMouseButtonUp = 0,
+		kMouseButtonDragged,
+		kMouseButtonDown,
+		kMouseButtonStateMax
+	};
+	
+
+	class CMouseButtonState {
+	public:
+		void set(UInt32 button, MouseButtonState state);
+		bool any();
+		void reset(); 
+		void overwrite(UInt32 buttons);
+
+		bool test(UInt32 button) const;
+		SInt8 getFirstButtonDown() const;
+	private:
+		std::bitset<NumButtonIDs>	  m_buttons;
+	};
+
 	typedef std::map<UInt32, CHotKeyItem> HotKeyMap;
 	typedef std::vector<UInt32> HotKeyIDList;
 	typedef std::map<KeyModifierMask, UInt32> ModifierHotKeyMap;
@@ -223,7 +257,17 @@ private:
 	// mouse state
 	mutable SInt32		m_xCursor, m_yCursor;
 	mutable bool		m_cursorPosValid;
-	mutable boolean_t	m_buttons[5];
+	
+    /* FIXME: this data structure is explicitly marked mutable due
+       to a need to track the state of buttons since the remote
+       side only lets us know of change events, and because the
+       fakeMouseButton button method is marked 'const'. This is
+       Evil, and this should be moved to a place where it need not
+       be mutable as soon as possible. */
+	mutable CMouseButtonState m_buttonState;
+	typedef std::map<UInt16, CGEventType> MouseButtonEventMapType;
+	std::vector<MouseButtonEventMapType> MouseButtonEventMap;
+
 	bool				m_cursorHidden;
 	SInt32				m_dragNumButtonsDown;
 	Point				m_dragLastPoint;
@@ -285,6 +329,15 @@ private:
 	// Quartz input event support
 	CFMachPortRef			m_eventTapPort;
 	CFRunLoopSourceRef		m_eventTapRLSR;
+
+	// for double click coalescing.
+	double					m_lastSingleClick;
+	double					m_lastDoubleClick;
+	SInt32					m_lastSingleClickXCursor;
+	SInt32					m_lastSingleClickYCursor;
+
+	// cursor will hide and show on enable and disable if true.
+	bool					m_autoShowHideCursor;
 };
 
 #endif

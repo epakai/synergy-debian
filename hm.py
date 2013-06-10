@@ -1,7 +1,8 @@
 #! /usr/bin/env python
 
 # synergy -- mouse and keyboard sharing utility
-# Copyright (C) 2009 Chris Schoeneman, Nick Bolton, Sorin Sbarnea
+# Copyright (C) 2012 Bolton Software Ltd.
+# Copyright (C) 2009 Nick Bolton
 # 
 # This package is free software; you can redistribute it and/or
 # modify it under the terms of the GNU General Public License
@@ -41,9 +42,12 @@ if os.path.exists('build/toolchain.py'):
 from build import toolchain
 from getopt import gnu_getopt
 
-# minimum required version
+# minimum required version.
+# 2.6 needed for ZipFile.extractall.
+# do not change to 2.7, as the build machines are still at 2.6
+# and are a massive pain in the ass to upgrade.
 requiredMajor = 2
-requiredMinor = 3
+requiredMinor = 6
 
 # options used by all commands
 globalOptions = 'v'
@@ -54,7 +58,7 @@ globalOptionsLong = ['no-prompts', 'generator=', 'verbose', 'make-gui']
 cmd_opt_dict = {
 	'about'     : ['', []],
 	'setup'     : ['g:', []],
-	'configure' : ['g:dr', ['debug', 'release']],
+	'configure' : ['g:dr', ['debug', 'release', 'game-device', 'vnc', 'mac-sdk=']],
 	'build'     : ['dr', ['debug', 'release']],
 	'clean'     : ['dr', ['debug', 'release']],
 	'update'    : ['', []],
@@ -69,6 +73,8 @@ cmd_opt_dict = {
 	'open'      : ['', []],
 	'genlist'   : ['', []],
 	'reset'	    : ['', []],
+	'signwin'	: ['', ['pfx=', 'pwd=', 'dist']],
+	'signmac'	: ['', ['identity=']]
 }
 
 # aliases to valid commands

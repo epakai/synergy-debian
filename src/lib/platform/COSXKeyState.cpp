@@ -1,6 +1,7 @@
 /*
  * synergy -- mouse and keyboard sharing utility
- * Copyright (C) 2004 Chris Schoeneman, Nick Bolton, Sorin Sbarnea
+ * Copyright (C) 2012 Bolton Software Ltd.
+ * Copyright (C) 2004 Chris Schoeneman
  * 
  * This package is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -19,33 +20,92 @@
 #include "CLog.h"
 #include "CArch.h"
 
-// Hardcoded virtual key table.  Oddly, Apple doesn't document the
-// meaning of virtual key codes.  The whole point of *virtual* key
-// codes is to make them hardware independent so these codes should
-// be constant across OS versions and hardware.  Yet they don't
-// tell us what codes map to what keys so we have to figure it out
-// for ourselves.
-//
+#if defined(MAC_OS_X_VERSION_10_5)
+#include <Carbon/Carbon.h>
+#endif
+
 // Note that some virtual keys codes appear more than once.  The
 // first instance of a virtual key code maps to the KeyID that we
 // want to generate for that code.  The others are for mapping
 // different KeyIDs to a single key code.
+
+#if defined(MAC_OS_X_VERSION_10_5)
+static const UInt32 s_shiftVK    = kVK_Shift;
+static const UInt32 s_controlVK  = kVK_Control;
+static const UInt32 s_altVK      = kVK_Option;
+static const UInt32 s_superVK    = kVK_Command;
+static const UInt32 s_capsLockVK = kVK_CapsLock;
+static const UInt32 s_numLockVK  = kVK_ANSI_KeypadClear; // 71
+#else
+// Hardcoded virtual key table on 10.4 and below.
 static const UInt32 s_shiftVK    = 56;
 static const UInt32 s_controlVK  = 59;
 static const UInt32 s_altVK      = 58;
 static const UInt32 s_superVK    = 55;
 static const UInt32 s_capsLockVK = 57;
 static const UInt32 s_numLockVK  = 71;
+#endif
+
 static const UInt32 s_osxNumLock = 1 << 16;
+
 struct CKeyEntry {
 public:
 	KeyID				m_keyID;
 	UInt32				m_virtualKey;
 };
 static const CKeyEntry	s_controlKeys[] = {
+#if defined(MAC_OS_X_VERSION_10_5)
 	// cursor keys.  if we don't do this we'll may still get these from
 	// the keyboard resource but they may not correspond to the arrow
 	// keys.
+	{ kKeyLeft,		kVK_LeftArrow },
+	{ kKeyRight,		kVK_RightArrow },
+	{ kKeyUp,		kVK_UpArrow },
+	{ kKeyDown,		kVK_DownArrow },
+	{ kKeyHome,		kVK_Home },
+	{ kKeyEnd,		kVK_End },
+	{ kKeyPageUp,		kVK_PageUp },
+	{ kKeyPageDown,		kVK_PageDown },
+	{ kKeyInsert,		kVK_Help }, // Mac Keyboards have 'Help' on 'Insert'
+
+	// function keys
+	{ kKeyF1,		kVK_F1 },
+	{ kKeyF2,		kVK_F2 },
+	{ kKeyF3,		kVK_F3 },
+	{ kKeyF4,		kVK_F4 },
+	{ kKeyF5,		kVK_F5 },
+	{ kKeyF6,		kVK_F6 },
+	{ kKeyF7,		kVK_F7 },
+	{ kKeyF8,		kVK_F8 },
+	{ kKeyF9,		kVK_F9 },
+	{ kKeyF10,		kVK_F10 },
+	{ kKeyF11,		kVK_F11 },
+	{ kKeyF12,		kVK_F12 },
+	{ kKeyF13,		kVK_F13 },
+	{ kKeyF14,		kVK_F14 },
+	{ kKeyF15,		kVK_F15 },
+	{ kKeyF16,		kVK_F16 },
+
+	{ kKeyKP_0,		kVK_ANSI_Keypad0 },
+	{ kKeyKP_1,		kVK_ANSI_Keypad1 },
+	{ kKeyKP_2,		kVK_ANSI_Keypad2 },
+	{ kKeyKP_3,		kVK_ANSI_Keypad3 },
+	{ kKeyKP_4,		kVK_ANSI_Keypad4 },
+	{ kKeyKP_5,		kVK_ANSI_Keypad5 },
+	{ kKeyKP_6,		kVK_ANSI_Keypad6 },
+	{ kKeyKP_7,		kVK_ANSI_Keypad7 },
+	{ kKeyKP_8,		kVK_ANSI_Keypad8 },
+	{ kKeyKP_9,		kVK_ANSI_Keypad9 },
+	{ kKeyKP_Decimal,	kVK_ANSI_KeypadDecimal },
+	{ kKeyKP_Equal,		kVK_ANSI_KeypadEquals },
+	{ kKeyKP_Multiply,	kVK_ANSI_KeypadMultiply },
+	{ kKeyKP_Add,		kVK_ANSI_KeypadPlus },
+	{ kKeyKP_Divide,	kVK_ANSI_KeypadDivide },
+	{ kKeyKP_Subtract,	kVK_ANSI_KeypadMinus },
+	{ kKeyKP_Enter,		kVK_ANSI_KeypadEnter },
+#else
+  // Hardcoded virtual key table on 10.4 and below.
+	// cursor keys.
 	{ kKeyLeft,			123 },
 	{ kKeyRight,		124 },
 	{ kKeyUp,			126 },
@@ -54,6 +114,7 @@ static const CKeyEntry	s_controlKeys[] = {
 	{ kKeyEnd,			119 },
 	{ kKeyPageUp,		116 },
 	{ kKeyPageDown,		121 },
+	{ kKeyInsert,		114 },
 
 	// function keys
 	{ kKeyF1,			122 },
@@ -88,8 +149,9 @@ static const CKeyEntry	s_controlKeys[] = {
 	{ kKeyKP_Multiply,	67 },
 	{ kKeyKP_Add,		69 },
 	{ kKeyKP_Divide,	75 },
-	{ kKeyKP_Subtract,	79 },
+	{ kKeyKP_Subtract,	78 },
 	{ kKeyKP_Enter,		76 },
+#endif
 
 	// virtual key 110 is fn+enter and i have no idea what that's supposed
 	// to map to.  also the enter key with numlock on is a modifier but i
@@ -158,26 +220,23 @@ COSXKeyState::mapModifiersFromOSX(UInt32 mask) const
 {
 	LOG((CLOG_DEBUG1 "mask: %04x", mask));
 
-	// previously this used the kCGEventFlagMask* enums, which would
-	// not work, since GetCurrentKeyModifiers doesn't return a mask
-	// containing those values; instead *Key enums should be used.
 	KeyModifierMask outMask = 0;
-	if ((mask & shiftKey) != 0) {
+	if ((mask & kCGEventFlagMaskShift) != 0) {
 		outMask |= KeyModifierShift;
 	}
-	if ((mask & controlKey) != 0) {
+	if ((mask & kCGEventFlagMaskControl) != 0) {
 		outMask |= KeyModifierControl;
 	}
-	if ((mask & cmdKey) != 0) {
+	if ((mask & kCGEventFlagMaskAlternate) != 0) {
 		outMask |= KeyModifierAlt;
 	}
-	if ((mask & optionKey) != 0) {
+	if ((mask & kCGEventFlagMaskCommand) != 0) {
 		outMask |= KeyModifierSuper;
 	}
-	if ((mask & alphaLock) != 0) {
+	if ((mask & kCGEventFlagMaskAlphaShift) != 0) {
 		outMask |= KeyModifierCapsLock;
 	}
-	if ((mask & s_osxNumLock) != 0) {
+	if ((mask & kCGEventFlagMaskNumericPad) != 0) {
 		outMask |= KeyModifierNumLock;
 	}
 
@@ -298,22 +357,6 @@ COSXKeyState::mapKeyFromEvent(CKeyIDs& ids,
 #endif
 
 	if (layoutValid) {
-
-		// choose action
-		UInt16 action;
-		switch (eventKind) {
-		case kEventRawKeyDown:
-			action = kUCKeyActionDown;
-			break;
-
-		case kEventRawKeyRepeat:
-			action = kUCKeyActionAutoKey;
-			break;
-
-		default:
-			return 0;
-		}
-
 		// translate key
 		UniCharCount count;
 		UniChar chars[2];

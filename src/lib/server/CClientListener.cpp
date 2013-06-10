@@ -1,6 +1,7 @@
 /*
  * synergy -- mouse and keyboard sharing utility
- * Copyright (C) 2004 Chris Schoeneman, Nick Bolton, Sorin Sbarnea
+ * Copyright (C) 2012 Bolton Software Ltd.
+ * Copyright (C) 2004 Chris Schoeneman
  * 
  * This package is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -27,6 +28,12 @@
 #include "CLog.h"
 #include "IEventQueue.h"
 #include "TMethodEventJob.h"
+#include "CCryptoStream.h"
+#include "CCryptoOptions.h"
+
+// TODO: these are just for testing -- make sure they're gone by release!
+const byte g_key[] = "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa";
+const byte g_iv[] = "aaaaaaaaaaaaaaa";
 
 //
 // CClientListener
@@ -36,9 +43,12 @@ CEvent::Type			CClientListener::s_connectedEvent = CEvent::kUnknown;
 
 CClientListener::CClientListener(const CNetworkAddress& address,
 				ISocketFactory* socketFactory,
-				IStreamFilterFactory* streamFilterFactory) :
+				IStreamFilterFactory* streamFilterFactory,
+				const CCryptoOptions& crypto) :
 	m_socketFactory(socketFactory),
-	m_streamFilterFactory(streamFilterFactory)
+	m_streamFilterFactory(streamFilterFactory),
+	m_server(NULL),
+	m_crypto(crypto)
 {
 	assert(m_socketFactory != NULL);
 
@@ -65,7 +75,7 @@ CClientListener::CClientListener(const CNetworkAddress& address,
 	LOG((CLOG_DEBUG1 "listening for clients"));
 
 	// setup event handler
-	EVENTQUEUE->adoptHandler(IListenSocket::getConnectingEvent(), m_listen,
+	EVENTQUEUE->adoptHandler(m_listen->getConnectingEvent(), m_listen,
 							new TMethodEventJob<CClientListener>(this,
 								&CClientListener::handleClientConnecting));
 }
@@ -94,10 +104,17 @@ CClientListener::~CClientListener()
 		client = getNextClient();
 	}
 
-	EVENTQUEUE->removeHandler(IListenSocket::getConnectingEvent(), m_listen);
+	EVENTQUEUE->removeHandler(m_listen->getConnectingEvent(), m_listen);
 	delete m_listen;
 	delete m_socketFactory;
 	delete m_streamFilterFactory;
+}
+
+void
+CClientListener::setServer(CServer* server)
+{
+	assert(server != NULL);
+	m_server = server;
 }
 
 CClientProxy*
@@ -123,7 +140,7 @@ void
 CClientListener::handleClientConnecting(const CEvent&, void*)
 {
 	// accept client connection
-	IStream* stream = m_listen->accept();
+	synergy::IStream* stream = m_listen->accept();
 	if (stream == NULL) {
 		return;
 	}
@@ -134,9 +151,17 @@ CClientListener::handleClientConnecting(const CEvent&, void*)
 		stream = m_streamFilterFactory->create(stream, true);
 	}
 	stream = new CPacketStreamFilter(stream, true);
+	
+	if (m_crypto.m_mode != kDisabled) {
+		CCryptoStream* cryptoStream = new CCryptoStream(
+			EVENTQUEUE, stream, m_crypto, true);
+		stream = cryptoStream;
+	}
+
+	assert(m_server != NULL);
 
 	// create proxy for unknown client
-	CClientProxyUnknown* client = new CClientProxyUnknown(stream, 30.0);
+	CClientProxyUnknown* client = new CClientProxyUnknown(stream, 30.0, m_server);
 	m_newClients.insert(client);
 
 	// watch for events from unknown client

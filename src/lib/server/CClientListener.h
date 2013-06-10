@@ -1,6 +1,7 @@
 /*
  * synergy -- mouse and keyboard sharing utility
- * Copyright (C) 2004 Chris Schoeneman, Nick Bolton, Sorin Sbarnea
+ * Copyright (C) 2012 Bolton Software Ltd.
+ * Copyright (C) 2004 Chris Schoeneman
  * 
  * This package is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -22,6 +23,7 @@
 #include "CEvent.h"
 #include "stddeque.h"
 #include "stdset.h"
+#include "CCryptoOptions.h"
 
 class CClientProxy;
 class CClientProxyUnknown;
@@ -29,13 +31,23 @@ class CNetworkAddress;
 class IListenSocket;
 class ISocketFactory;
 class IStreamFilterFactory;
+class CServer;
 
 class CClientListener {
 public:
 	// The factories are adopted.
 	CClientListener(const CNetworkAddress&,
-							ISocketFactory*, IStreamFilterFactory*);
+							ISocketFactory*,
+							IStreamFilterFactory*,
+							const CCryptoOptions& crypto);
 	~CClientListener();
+
+	//! @name manipulators
+	//@{
+
+	void setServer(CServer* server);
+
+	//@}
 
 	//! @name accessors
 	//@{
@@ -72,6 +84,8 @@ private:
 	IStreamFilterFactory*	m_streamFilterFactory;
 	CNewClients				m_newClients;
 	CWaitingClients			m_waitingClients;
+	CServer*				m_server;
+	CCryptoOptions			m_crypto;
 
 	static CEvent::Type		s_connectedEvent;
 };

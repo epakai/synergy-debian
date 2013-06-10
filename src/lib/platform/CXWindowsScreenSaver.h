@@ -1,6 +1,7 @@
 /*
  * synergy -- mouse and keyboard sharing utility
- * Copyright (C) 2002 Chris Schoeneman, Nick Bolton, Sorin Sbarnea
+ * Copyright (C) 2012 Bolton Software Ltd.
+ * Copyright (C) 2002 Chris Schoeneman
  * 
  * This package is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -25,6 +26,7 @@
 #else
 #	include <X11/Xlib.h>
 #endif
+#include "IEventQueue.h"
 
 class CEvent;
 class CEventQueueTimer;
@@ -32,7 +34,7 @@ class CEventQueueTimer;
 //! X11 screen saver implementation
 class CXWindowsScreenSaver : public IScreenSaver {
 public:
-	CXWindowsScreenSaver(Display*, Window, void* eventTarget);
+	CXWindowsScreenSaver(Display*, Window, void* eventTarget, IEventQueue& eventQueue);
 	virtual ~CXWindowsScreenSaver();
 
 	//! @name manipulators
@@ -162,6 +164,8 @@ private:
 	// xscreensaver since 2.21 requires the mouse to move more than 10
 	// pixels to be considered significant.
 	SInt32				m_disablePos;
+
+	IEventQueue&		m_eventQueue;
 };
 
 #endif
