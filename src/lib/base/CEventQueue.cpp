@@ -1,6 +1,7 @@
 /*
  * synergy -- mouse and keyboard sharing utility
- * Copyright (C) 2004 Chris Schoeneman, Nick Bolton, Sorin Sbarnea
+ * Copyright (C) 2012 Bolton Software Ltd.
+ * Copyright (C) 2004 Chris Schoeneman
  * 
  * This package is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -54,11 +55,24 @@ CEventQueue::~CEventQueue()
 	setInstance(NULL);
 }
 
+void
+CEventQueue::loop()
+{
+	CEvent event;
+	getEvent(event);
+	while (event.getType() != CEvent::kQuit) {
+		dispatchEvent(event);
+		CEvent::deleteData(event);
+		getEvent(event);
+	}
+}
+
 CEvent::Type
 CEventQueue::registerType(const char* name)
 {
 	CArchMutexLock lock(m_mutex);
 	m_typeMap.insert(std::make_pair(m_nextType, name));
+	m_nameMap.insert(std::make_pair(name, m_nextType));
 	LOG((CLOG_DEBUG1 "registered event type %s as %d", name, m_nextType));
 	return m_nextType++;
 }
@@ -69,6 +83,7 @@ CEventQueue::registerTypeOnce(CEvent::Type& type, const char* name)
 	CArchMutexLock lock(m_mutex);
 	if (type == CEvent::kUnknown) {
 		m_typeMap.insert(std::make_pair(m_nextType, name));
+		m_nameMap.insert(std::make_pair(name, m_nextType));
 		LOG((CLOG_DEBUG1 "registered event type %s as %d", name, m_nextType));
 		type = m_nextType++;
 	}
@@ -106,6 +121,14 @@ void
 CEventQueue::adoptBuffer(IEventQueueBuffer* buffer)
 {
 	CArchMutexLock lock(m_mutex);
+
+	LOG((CLOG_DEBUG "adopting new buffer"));
+
+	if (m_events.size() != 0) {
+		// this can come as a nasty surprise to programmers expecting
+		// their events to be raised, only to have them deleted.
+		LOG((CLOG_DEBUG "discarding %d event(s)", m_events.size()));
+	}
 
 	// discard old buffer and old events
 	delete m_buffer;
@@ -453,6 +476,16 @@ CEventQueue::getNextTimerTimeout() const
 		return 0.0;
 	}
 	return m_timerQueue.top();
+}
+
+CEvent::Type
+CEventQueue::getRegisteredType(const CString& name) const
+{
+	CNameMap::const_iterator found = m_nameMap.find(name);
+	if (found != m_nameMap.end())
+		return found->second;
+
+	return CEvent::kUnknown;
 }
 
 

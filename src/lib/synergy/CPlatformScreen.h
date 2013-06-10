@@ -1,6 +1,7 @@
 /*
  * synergy -- mouse and keyboard sharing utility
- * Copyright (C) 2004 Chris Schoeneman, Nick Bolton, Sorin Sbarnea
+ * Copyright (C) 2012 Bolton Software Ltd.
+ * Copyright (C) 2004 Chris Schoeneman
  * 
  * This package is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -29,6 +30,7 @@ subclasses to implement the rest.
 class CPlatformScreen : public IPlatformScreen {
 public:
 	CPlatformScreen();
+	CPlatformScreen(IEventQueue& eventQueue);
 	virtual ~CPlatformScreen();
 
 	// IScreen overrides
@@ -49,12 +51,17 @@ public:
 	virtual SInt32		getJumpZoneSize() const = 0;
 	virtual bool		isAnyMouseButtonDown() const = 0;
 	virtual void		getCursorCenter(SInt32& x, SInt32& y) const = 0;
+	virtual void		gameDeviceTimingResp(UInt16 freq) = 0;
 
 	// ISecondaryScreen overrides
-	virtual void		fakeMouseButton(ButtonID id, bool press) const = 0;
+	virtual void		fakeMouseButton(ButtonID id, bool press) = 0;
 	virtual void		fakeMouseMove(SInt32 x, SInt32 y) const = 0;
 	virtual void		fakeMouseRelativeMove(SInt32 dx, SInt32 dy) const = 0;
 	virtual void		fakeMouseWheel(SInt32 xDelta, SInt32 yDelta) const = 0;
+	virtual void		fakeGameDeviceButtons(GameDeviceID id, GameDeviceButton buttons) const = 0;
+	virtual void		fakeGameDeviceSticks(GameDeviceID id, SInt16 x1, SInt16 y1, SInt16 x2, SInt16 y2) const = 0;
+	virtual void		fakeGameDeviceTriggers(GameDeviceID id, UInt8 t1, UInt8 t2) const = 0;
+	virtual void		queueGameDeviceTimingReq() const = 0;
 
 	// IKeyState overrides
 	virtual void		updateKeyMap();

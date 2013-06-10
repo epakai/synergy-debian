@@ -1,6 +1,7 @@
 /*
  * synergy -- mouse and keyboard sharing utility
- * Copyright (C) 2002 Chris Schoeneman, Nick Bolton, Sorin Sbarnea
+ * Copyright (C) 2012 Bolton Software Ltd.
+ * Copyright (C) 2002 Chris Schoeneman
  * 
  * This package is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -60,14 +61,7 @@ public:
 	/*!
 	Writes the given string to the console, opening it if necessary.
 	*/
-	virtual void		writeConsole(ELevel level, const char*) = 0;
-
-	//! Returns the newline sequence for the console
-	/*!
-	Different consoles use different character sequences for newlines.
-	This method returns the appropriate newline sequence for the console.
-	*/
-	virtual const char*	getNewlineForConsole() = 0;
+	virtual void		writeConsole(ELevel, const char*) = 0;
 
 	//@}
 };

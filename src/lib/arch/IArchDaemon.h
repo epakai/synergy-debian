@@ -1,6 +1,7 @@
 /*
  * synergy -- mouse and keyboard sharing utility
- * Copyright (C) 2002 Chris Schoeneman, Nick Bolton, Sorin Sbarnea
+ * Copyright (C) 2012 Bolton Software Ltd.
+ * Copyright (C) 2002 Chris Schoeneman
  * 
  * This package is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -19,6 +20,7 @@
 #define IARCHDAEMON_H
 
 #include "IInterface.h"
+#include "CString.h"
 
 //! Interface for architecture dependent daemonizing
 /*!
@@ -58,6 +60,18 @@ public:
 	Uninstall a daemon.  Throws an \c XArchDaemon on failure.
 	*/
 	virtual void		uninstallDaemon(const char* name, bool allUsers) = 0;
+
+	//! Install daemon
+	/*!
+	Installs the default daemon.
+	*/
+	virtual void		installDaemon() = 0;
+	
+	//! Uninstall daemon
+	/*!
+	Uninstalls the default daemon.
+	*/
+	virtual void		uninstallDaemon() = 0;
 
 	//! Daemonize the process
 	/*!
@@ -103,6 +117,14 @@ public:
 	Returns true iff the daemon is installed.
 	*/
 	virtual bool		isDaemonInstalled(const char* name, bool allUsers) = 0;
+
+	//@}
+
+	//! Get the command line
+	/*!
+	Gets the command line with which the application was started.
+	*/
+	virtual std::string	commandLine() const = 0;
 
 	//@}
 };

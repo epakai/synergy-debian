@@ -1,6 +1,7 @@
 /*
  * synergy -- mouse and keyboard sharing utility
- * Copyright (C) 2002 Chris Schoeneman, Nick Bolton, Sorin Sbarnea
+ * Copyright (C) 2012 Bolton Software Ltd.
+ * Copyright (C) 2002 Chris Schoeneman
  * 
  * This package is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -28,6 +29,7 @@
 #include "IArchMultithread.h"
 #include <windows.h>
 #include <winsock2.h>
+#include <list>
 
 #define ARCH_NETWORK CArchNetworkWinsock
 
@@ -55,6 +57,8 @@ class CArchNetworkWinsock : public IArchNetwork {
 public:
 	CArchNetworkWinsock();
 	virtual ~CArchNetworkWinsock();
+
+	virtual void init();
 
 	// IArchNetwork overrides
 	virtual CArchSocket	newSocket(EAddressFamily, ESocketType);
@@ -88,7 +92,7 @@ public:
 	virtual bool			isEqualAddr(CArchNetAddress, CArchNetAddress);
 
 private:
-	void				init(HMODULE);
+	void				initModule(HMODULE);
 
 	void				setBlockingOnSocket(SOCKET, bool blocking);
 
@@ -96,7 +100,10 @@ private:
 	void				throwNameError(int);
 
 private:
+	typedef std::list<WSAEVENT> CEventList;
+
 	CArchMutex			m_mutex;
+	CEventList			m_unblockEvents;
 };
 
 #endif

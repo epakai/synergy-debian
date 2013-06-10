@@ -1,6 +1,7 @@
 /*
  * synergy -- mouse and keyboard sharing utility
- * Copyright (C) 2004 Chris Schoeneman, Nick Bolton, Sorin Sbarnea
+ * Copyright (C) 2012 Bolton Software Ltd.
+ * Copyright (C) 2004 Chris Schoeneman
  * 
  * This package is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -34,6 +35,10 @@ CEvent::Type		IPrimaryScreen::s_hotKeyDownEvent      = CEvent::kUnknown;
 CEvent::Type		IPrimaryScreen::s_hotKeyUpEvent        = CEvent::kUnknown;
 CEvent::Type		IPrimaryScreen::s_fakeInputBegin       = CEvent::kUnknown;
 CEvent::Type		IPrimaryScreen::s_fakeInputEnd         = CEvent::kUnknown;
+CEvent::Type		IPrimaryScreen::s_gameButtonsEvent     = CEvent::kUnknown;
+CEvent::Type		IPrimaryScreen::s_gameSticksEvent      = CEvent::kUnknown;
+CEvent::Type		IPrimaryScreen::s_gameTriggersEvent    = CEvent::kUnknown;
+CEvent::Type		IPrimaryScreen::s_gameTimingReqEvent   = CEvent::kUnknown;
 
 CEvent::Type
 IPrimaryScreen::getButtonDownEvent()
@@ -112,6 +117,33 @@ IPrimaryScreen::getFakeInputEndEvent()
 							"IPrimaryScreen::fakeInputEnd");
 }
 
+CEvent::Type
+IPrimaryScreen::getGameDeviceButtonsEvent()
+{
+	return EVENTQUEUE->registerTypeOnce(s_gameButtonsEvent,
+							"IPrimaryScreen::getGameDeviceButtonsEvent");
+}
+
+CEvent::Type
+IPrimaryScreen::getGameDeviceSticksEvent()
+{
+	return EVENTQUEUE->registerTypeOnce(s_gameSticksEvent,
+							"IPrimaryScreen::getGameDeviceSticksEvent");
+}
+
+CEvent::Type
+IPrimaryScreen::getGameDeviceTriggersEvent()
+{
+	return EVENTQUEUE->registerTypeOnce(s_gameTriggersEvent,
+							"IPrimaryScreen::getGameDeviceTriggersEvent");
+}
+
+CEvent::Type
+IPrimaryScreen::getGameDeviceTimingReqEvent()
+{
+	return EVENTQUEUE->registerTypeOnce(s_gameTimingReqEvent,
+		"IPrimaryScreen::getGameDeviceTimingReqEvent");
+}
 
 //
 // IPrimaryScreen::CButtonInfo

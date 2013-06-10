@@ -1,6 +1,7 @@
 /*
  * synergy -- mouse and keyboard sharing utility
- * Copyright (C) 2002 Chris Schoeneman, Nick Bolton, Sorin Sbarnea
+ * Copyright (C) 2012 Bolton Software Ltd.
+ * Copyright (C) 2002 Chris Schoeneman
  * 
  * This package is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -101,6 +102,10 @@
 	// this one's a little too aggressive
 #	pragma warning(disable: 4127) // conditional expression is constant
 
+	// Code Analysis
+#	pragma warning(disable: 6011)
+
+
 	// emitted incorrectly under release build in some circumstances
 #	if defined(NDEBUG)
 #		pragma warning(disable: 4702) // unreachable code
@@ -132,9 +137,26 @@
 // define NULL
 #include <stddef.h>
 
+// we don't want to use NULL since it's old and nasty, so replace any
+// usages with nullptr (warning: this could break many things).
+// if not c++0x yet, future proof code by allowing use of nullptr
+#ifdef nullptr
+#define NULL nullptr
+#else
+#define nullptr NULL
+#endif
+
 // make assert available since we use it a lot
 #include <assert.h>
 #include <stdlib.h>
 #include <string.h>
+
+enum {
+	kExitSuccess    = 0,  // successful completion
+	kExitFailed     = 1,  // general failure
+	kExitTerminated = 2,  // killed by signal
+	kExitArgs       = 3,  // bad arguments
+	kExitConfig     = 4  // cannot read configuration
+};
 
 #endif

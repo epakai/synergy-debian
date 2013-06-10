@@ -1,6 +1,7 @@
 /*
  * synergy -- mouse and keyboard sharing utility
- * Copyright (C) 2002 Chris Schoeneman, Nick Bolton, Sorin Sbarnea
+ * Copyright (C) 2012 Bolton Software Ltd.
+ * Copyright (C) 2002 Chris Schoeneman
  * 
  * This package is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -22,7 +23,7 @@
 #include "CEvent.h"
 #include "CString.h"
 
-class IStream;
+namespace synergy { class IStream; }
 
 //! Generic proxy for client
 class CClientProxy : public CBaseClientProxy {
@@ -30,7 +31,7 @@ public:
 	/*!
 	\c name is the name of the client.
 	*/
-	CClientProxy(const CString& name, IStream* adoptedStream);
+	CClientProxy(const CString& name, synergy::IStream* adoptedStream);
 	~CClientProxy();
 
 	//! @name manipulators
@@ -48,9 +49,10 @@ public:
 
 	//! Get stream
 	/*!
-	Returns the stream passed to the c'tor.
+	Returns a crypto stream if the user has this enabled,
+	otherwise returns the original stream passed to the c'tor.
 	*/
-	IStream*			getStream() const;
+	synergy::IStream*			getStream() const;
 
 	//! Get ready event type
 	/*!
@@ -74,6 +76,13 @@ public:
 	IScreen::CClipboardInfo.
 	*/
 	static CEvent::Type	getClipboardChangedEvent();
+
+	//! Get game device timing receive event type
+	/*!
+	Returns the game device timing receive event type.  This is set 
+	whenever the server receives to a timing event response from a client.
+	*/
+	static CEvent::Type	getGameDeviceTimingRespEvent();
 
 	//@}
 
@@ -104,13 +113,19 @@ public:
 	virtual void		screensaver(bool activate) = 0;
 	virtual void		resetOptions() = 0;
 	virtual void		setOptions(const COptionsList& options) = 0;
+	virtual void		gameDeviceButtons(GameDeviceID id, GameDeviceButton buttons) = 0;
+	virtual void		gameDeviceSticks(GameDeviceID id, SInt16 x1, SInt16 y1, SInt16 x2, SInt16 y2) = 0;
+	virtual void		gameDeviceTriggers(GameDeviceID id, UInt8 t1, UInt8 t2) = 0;
+	virtual void		gameDeviceTimingReq() = 0;
+	virtual void		cryptoIv(const UInt8* iv) = 0;
 
 private:
-	IStream*			m_stream;
+	synergy::IStream*	m_stream;
 
 	static CEvent::Type	s_readyEvent;
 	static CEvent::Type	s_disconnectedEvent;
 	static CEvent::Type	s_clipboardChangedEvent;
+	static CEvent::Type	s_gameDeviceTimingRecvEvent;
 };
 
 #endif

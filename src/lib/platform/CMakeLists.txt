@@ -1,5 +1,6 @@
 # synergy -- mouse and keyboard sharing utility
-# Copyright (C) 2009 Chris Schoeneman, Nick Bolton, Sorin Sbarnea
+# Copyright (C) 2012 Bolton Software Ltd.
+# Copyright (C) 2009 Nick Bolton
 # 
 # This package is free software; you can redistribute it and/or
 # modify it under the terms of the GNU General Public License
@@ -28,12 +29,14 @@ if (WIN32)
 		CMSWindowsScreen.h
 		CMSWindowsScreenSaver.h
 		CMSWindowsUtil.h
+		CMSWindowsRelauncher.h
 		CMSWindowsHookLibraryLoader.h
 		IMSWindowsClipboardFacade.h
+		CMSWindowsDebugOutputter.h
+		CMSWindowsXInput.h
 	)
 
 	set(src
-		${inc}
 		CMSWindowsClipboard.cpp
 		CMSWindowsClipboardFacade.cpp
 		CMSWindowsClipboardAnyTextConverter.cpp
@@ -47,7 +50,9 @@ if (WIN32)
 		CMSWindowsScreen.cpp
 		CMSWindowsScreenSaver.cpp
 		CMSWindowsUtil.cpp
+		CMSWindowsRelauncher.cpp
 		CMSWindowsHookLibraryLoader.cpp
+		CMSWindowsDebugOutputter.cpp
 	)
 	
 	set(inc_hook
@@ -57,6 +62,42 @@ if (WIN32)
 	set(src_hook
 		CSynergyHook.cpp
 	)
+  
+  if (GAME_DEVICE_SUPPORT)
+
+    list(APPEND inc
+      CMSWindowsXInput.h
+    )
+
+    list(APPEND src
+      CMSWindowsXInput.cpp
+    )
+      
+  
+    set(inc_xinhook
+      XInputHook.h
+      HookDLL.h
+    )
+    
+    set(src_xinhook
+      XInputHook.cpp
+      HookDLL.cpp
+    )
+
+    set(inc_xinproxy13
+      XInput13.h
+      XInputProxy13.h
+    )
+
+    set(src_xinproxy13
+      XInputProxy13.cpp
+    )
+  
+  endif()
+  
+  list(APPEND src
+    ${inc}
+  )
 
 elseif (APPLE)
 
@@ -97,6 +138,9 @@ set(inc
 	../common
 	../mt
 	../synergy
+	../ipc
+	../net
+	../io
 )
 
 if (UNIX)
@@ -110,9 +154,9 @@ add_library(platform STATIC ${src})
 
 if (WIN32)
 	add_library(synrgyhk SHARED ${inc_hook} ${src_hook})
-	
-	# move the synrgyhk.dll (and supporting files) from the lib dir to 
-	# the bin dir, so that synergyc and synergys can easily find it.
+
+	# copy the dlls (and supporting files) from the lib dir to 
+	# the bin dir, so that synergyc and synergys can easily find them.
 	# we should leave the other libraries compiling to the lib dir,
 	# so that the bin dir remains tidy. the path is relative to the
 	# build dir (in this case, that's: build\src\lib\platform).
@@ -123,8 +167,33 @@ if (WIN32)
 			..\\..\\..\\..\\lib\\${CMAKE_CFG_INTDIR}\\synrgyhk.*
 			..\\..\\..\\..\\bin\\${CMAKE_CFG_INTDIR}\\
 	)
+
+	if (GAME_DEVICE_SUPPORT)
+		include_directories($ENV{DXSDK_DIR}/Include)
+		add_library(synxinhk SHARED ${inc_xinhook} ${src_xinhook})
+
+		add_custom_command(
+			TARGET synxinhk
+			POST_BUILD
+			COMMAND xcopy /Y /Q
+				..\\..\\..\\..\\lib\\${CMAKE_CFG_INTDIR}\\synxinhk.*
+				..\\..\\..\\..\\bin\\${CMAKE_CFG_INTDIR}\\
+			)
+
+		# synergy xinput1_3.dll proxy
+		include_directories($ENV{DXSDK_DIR}/Include)
+		add_library(sxinpx13 SHARED ${inc_xinproxy13} ${src_xinproxy13})
+		target_link_libraries(sxinpx13 synxinhk)
+		add_custom_command(
+			TARGET sxinpx13
+			POST_BUILD
+			COMMAND xcopy /Y /Q
+				..\\..\\..\\..\\lib\\${CMAKE_CFG_INTDIR}\\sxinpx13.*
+				..\\..\\..\\..\\bin\\${CMAKE_CFG_INTDIR}\\
+			)
+	endif()
 endif()
 
 if (UNIX)
-	target_link_libraries(platform synergy)
+	target_link_libraries(platform io net ipc synergy ${libs})
 endif()

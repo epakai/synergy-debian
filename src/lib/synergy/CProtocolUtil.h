@@ -1,6 +1,7 @@
 /*
  * synergy -- mouse and keyboard sharing utility
- * Copyright (C) 2002 Chris Schoeneman, Nick Bolton, Sorin Sbarnea
+ * Copyright (C) 2012 Bolton Software Ltd.
+ * Copyright (C) 2002 Chris Schoeneman
  * 
  * This package is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -22,7 +23,7 @@
 #include "XIO.h"
 #include <stdarg.h>
 
-class IStream;
+namespace synergy { class IStream; }
 
 //! Synergy protocol utilities
 /*!
@@ -49,7 +50,7 @@ public:
 	- \%s   -- converts CString* to stream of bytes
 	- \%S   -- converts integer N and const UInt8* to stream of N bytes
 	*/
-	static void			writef(IStream*,
+	static void			writef(synergy::IStream*,
 							const char* fmt, ...);
 
 	//! Read formatted data
@@ -68,19 +69,19 @@ public:
 	- \%4I  -- reads NBO 4 byte integers;  arg is std::vector<UInt32>*
 	- \%s   -- reads bytes;  argument must be a CString*, \b not a char*
 	*/
-	static bool			readf(IStream*,
+	static bool			readf(synergy::IStream*,
 							const char* fmt, ...);
 
 private:
-	static void			vwritef(IStream*,
+	static void			vwritef(synergy::IStream*,
 							const char* fmt, UInt32 size, va_list);
-	static void			vreadf(IStream*,
+	static void			vreadf(synergy::IStream*,
 							const char* fmt, va_list);
 
 	static UInt32		getLength(const char* fmt, va_list);
 	static void			writef(void*, const char* fmt, va_list);
 	static UInt32		eatLength(const char** fmt);
-	static void			read(IStream*, void*, UInt32);
+	static void			read(synergy::IStream*, void*, UInt32);
 };
 
 //! Mismatched read exception

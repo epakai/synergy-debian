@@ -1,6 +1,7 @@
 /*
  * synergy -- mouse and keyboard sharing utility
- * Copyright (C) 2002 Chris Schoeneman, Nick Bolton, Sorin Sbarnea
+ * Copyright (C) 2012 Bolton Software Ltd.
+ * Copyright (C) 2002 Chris Schoeneman
  * 
  * This package is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -28,12 +29,13 @@
 #include "XBase.h"
 #include <memory>
 #include <cstring>
+#include "CCryptoStream.h"
 
 //
 // CServerProxy
 //
 
-CServerProxy::CServerProxy(CClient* client, IStream* stream) :
+CServerProxy::CServerProxy(CClient* client, synergy::IStream* stream, IEventQueue* eventQueue) :
 	m_client(client),
 	m_stream(stream),
 	m_seqNum(0),
@@ -46,7 +48,8 @@ CServerProxy::CServerProxy(CClient* client, IStream* stream) :
 	m_ignoreMouse(false),
 	m_keepAliveAlarm(0.0),
 	m_keepAliveAlarmTimer(NULL),
-	m_parser(&CServerProxy::parseHandshakeMessage)
+	m_parser(&CServerProxy::parseHandshakeMessage),
+	m_eventQueue(eventQueue)
 {
 	assert(m_client != NULL);
 	assert(m_stream != NULL);
@@ -56,7 +59,7 @@ CServerProxy::CServerProxy(CClient* client, IStream* stream) :
 		m_modifierTranslationTable[id] = id;
 
 	// handle data on stream
-	EVENTQUEUE->adoptHandler(IStream::getInputReadyEvent(),
+	m_eventQueue->adoptHandler(m_stream->getInputReadyEvent(),
 							m_stream->getEventTarget(),
 							new TMethodEventJob<CServerProxy>(this,
 								&CServerProxy::handleData));
@@ -68,7 +71,7 @@ CServerProxy::CServerProxy(CClient* client, IStream* stream) :
 CServerProxy::~CServerProxy()
 {
 	setKeepAliveRate(-1.0);
-	EVENTQUEUE->removeHandler(IStream::getInputReadyEvent(),
+	m_eventQueue->removeHandler(m_stream->getInputReadyEvent(),
 							m_stream->getEventTarget());
 }
 
@@ -76,14 +79,14 @@ void
 CServerProxy::resetKeepAliveAlarm()
 {
 	if (m_keepAliveAlarmTimer != NULL) {
-		EVENTQUEUE->removeHandler(CEvent::kTimer, m_keepAliveAlarmTimer);
-		EVENTQUEUE->deleteTimer(m_keepAliveAlarmTimer);
+		m_eventQueue->removeHandler(CEvent::kTimer, m_keepAliveAlarmTimer);
+		m_eventQueue->deleteTimer(m_keepAliveAlarmTimer);
 		m_keepAliveAlarmTimer = NULL;
 	}
 	if (m_keepAliveAlarm > 0.0) {
 		m_keepAliveAlarmTimer =
-			EVENTQUEUE->newOneShotTimer(m_keepAliveAlarm, NULL);
-		EVENTQUEUE->adoptHandler(CEvent::kTimer, m_keepAliveAlarmTimer,
+			m_eventQueue->newOneShotTimer(m_keepAliveAlarm, NULL);
+		m_eventQueue->adoptHandler(CEvent::kTimer, m_keepAliveAlarmTimer,
 							new TMethodEventJob<CServerProxy>(this,
 								&CServerProxy::handleKeepAliveAlarm));
 	}
@@ -286,6 +289,26 @@ CServerProxy::parseMessage(const UInt8* code)
 		setOptions();
 	}
 
+	else if (memcmp(code, kMsgDGameButtons, 4) == 0) {
+		gameDeviceButtons();
+	}
+
+	else if (memcmp(code, kMsgDGameSticks, 4) == 0) {
+		gameDeviceSticks();
+	}
+
+	else if (memcmp(code, kMsgDGameTriggers, 4) == 0) {
+		gameDeviceTriggers();
+	}
+
+	else if (memcmp(code, kMsgCGameTimingReq, 4) == 0) {
+		gameDeviceTimingReq();
+	}
+
+	else if (memcmp(code, kMsgDCryptoIv, 4) == 0) {
+		cryptoIv();
+	}
+
 	else if (memcmp(code, kMsgCClose, 4) == 0) {
 		// server wants us to hangup
 		LOG((CLOG_DEBUG1 "recv close"));
@@ -348,6 +371,20 @@ CServerProxy::onClipboardChanged(ClipboardID id, const IClipboard* clipboard)
 }
 
 void
+CServerProxy::onGameDeviceTimingResp(UInt16 freq)
+{
+	LOG((CLOG_DEBUG1 "sending game device timing response freq=%d", freq));
+	CProtocolUtil::writef(m_stream, kMsgCGameTimingResp, freq);
+}
+
+void
+CServerProxy::onGameDeviceFeedback(GameDeviceID id, UInt16 m1, UInt16 m2)
+{
+	LOG((CLOG_DEBUG1 "sending game device feedback id=%d, m1=%d, m2=%d", id, m1, m2));
+	CProtocolUtil::writef(m_stream, kMsgDGameFeedback, id, m1, m2);
+}
+
+void
 CServerProxy::flushCompressedMouse()
 {
 	if (m_compressMouse) {
@@ -381,7 +418,8 @@ CServerProxy::translateKey(KeyID id) const
 		{ kKeyControl_L, kKeyControl_R },
 		{ kKeyAlt_L,     kKeyAlt_R },
 		{ kKeyMeta_L,    kKeyMeta_R },
-		{ kKeySuper_L,   kKeySuper_R }
+		{ kKeySuper_L,   kKeySuper_R },
+		{ kKeyAltGr,     kKeyAltGr}
 	};
 
 	KeyModifierID id2 = kKeyModifierIDNull;
@@ -415,6 +453,11 @@ CServerProxy::translateKey(KeyID id) const
 	case kKeyAlt_R:
 		id2  = kKeyModifierIDAlt;
 		side = 1;
+		break;
+
+	case kKeyAltGr:
+		id2 = kKeyModifierIDAltGr;
+		side = 1; // there is only one alt gr key on the right side
 		break;
 
 	case kKeyMeta_L:
@@ -455,14 +498,16 @@ CServerProxy::translateModifierMask(KeyModifierMask mask) const
 		KeyModifierControl,
 		KeyModifierAlt,
 		KeyModifierMeta,
-		KeyModifierSuper
+		KeyModifierSuper,
+		KeyModifierAltGr
 	};
 
 	KeyModifierMask newMask = mask & ~(KeyModifierShift |
 										KeyModifierControl |
 										KeyModifierAlt |
 										KeyModifierMeta |
-										KeyModifierSuper);
+										KeyModifierSuper |
+										KeyModifierAltGr );
 	if ((mask & KeyModifierShift) != 0) {
 		newMask |= s_masks[m_modifierTranslationTable[kKeyModifierIDShift]];
 	}
@@ -471,6 +516,9 @@ CServerProxy::translateModifierMask(KeyModifierMask mask) const
 	}
 	if ((mask & KeyModifierAlt) != 0) {
 		newMask |= s_masks[m_modifierTranslationTable[kKeyModifierIDAlt]];
+	}
+	if ((mask & KeyModifierAltGr) != 0) {
+		newMask |= s_masks[m_modifierTranslationTable[kKeyModifierIDAltGr]];
 	}
 	if ((mask & KeyModifierMeta) != 0) {
 		newMask |= s_masks[m_modifierTranslationTable[kKeyModifierIDMeta]];
@@ -733,6 +781,67 @@ CServerProxy::mouseWheel()
 }
 
 void
+CServerProxy::gameDeviceButtons()
+{
+	// parse
+	GameDeviceID id;
+	GameDeviceButton buttons;
+	CProtocolUtil::readf(m_stream, kMsgDGameButtons + 4, &id, &buttons);
+	LOG((CLOG_DEBUG2 "recv game device id=%d buttons=%d", id, buttons));
+
+	// forward
+	m_client->gameDeviceButtons(id, buttons);
+}
+
+void
+CServerProxy::gameDeviceSticks()
+{
+	// parse
+	GameDeviceID id;
+	SInt16 x1, y1, x2, y2;
+	CProtocolUtil::readf(m_stream, kMsgDGameSticks + 4, &id, &x1, &y1, &x2, &y2);
+	LOG((CLOG_DEBUG2 "recv game device sticks id=%d s1=%+d,%+d s2=%+d,%+d", id, x1, y1, x2, y2));
+
+	// forward
+	m_client->gameDeviceSticks(id, x1, y1, x2, y2);
+}
+
+void
+CServerProxy::gameDeviceTriggers()
+{
+	// parse
+	GameDeviceID id;
+	UInt8 t1, t2;
+	CProtocolUtil::readf(m_stream, kMsgDGameTriggers + 4, &id, &t1, &t2);
+	LOG((CLOG_DEBUG2 "recv game device triggers id=%d t1=%d t2=%d", id, t1, t2));
+
+	// forward
+	m_client->gameDeviceTriggers(id, t1, t2);
+}
+
+void
+CServerProxy::gameDeviceTimingReq()
+{
+	// parse
+	LOG((CLOG_DEBUG2 "recv game device timing request"));
+
+	// forward
+	m_client->gameDeviceTimingReq();
+}
+
+void
+CServerProxy::cryptoIv()
+{
+	// parse
+	CString s;
+	CProtocolUtil::readf(m_stream, kMsgDCryptoIv + 4, &s);
+	LOG((CLOG_DEBUG2 "recv crypto iv size=%i", s.size()));
+
+	// forward
+	m_client->setDecryptIv(reinterpret_cast<const UInt8*>(s.c_str()));
+}
+
+void
 CServerProxy::screensaver()
 {
 	// parse
@@ -784,6 +893,9 @@ CServerProxy::setOptions()
 		}
 		else if (options[i] == kOptionModifierMapForAlt) {
 			id = kKeyModifierIDAlt;
+		}
+		else if (options[i] == kOptionModifierMapForAltGr) {
+			id = kKeyModifierIDAltGr;
 		}
 		else if (options[i] == kOptionModifierMapForMeta) {
 			id = kKeyModifierIDMeta;

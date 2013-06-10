@@ -1,6 +1,7 @@
 /*
  * synergy -- mouse and keyboard sharing utility
- * Copyright (C) 2004 Chris Schoeneman, Nick Bolton, Sorin Sbarnea
+ * Copyright (C) 2012 Bolton Software Ltd.
+ * Copyright (C) 2004 Chris Schoeneman
  * 
  * This package is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -22,11 +23,12 @@
 
 class CClientProxy;
 class CEventQueueTimer;
-class IStream;
+namespace synergy { class IStream; }
+class CServer;
 
 class CClientProxyUnknown {
 public:
-	CClientProxyUnknown(IStream* stream, double timeout);
+	CClientProxyUnknown(synergy::IStream* stream, double timeout, CServer* server);
 	~CClientProxyUnknown();
 
 	//! @name manipulators
@@ -74,13 +76,14 @@ private:
 	void				handleReady(const CEvent&, void*);
 
 private:
-	IStream*			m_stream;
+	synergy::IStream*	m_stream;
 	CEventQueueTimer*	m_timer;
 	CClientProxy*		m_proxy;
 	bool				m_ready;
 
 	static CEvent::Type	s_successEvent;
 	static CEvent::Type	s_failureEvent;
+	CServer*			m_server;
 };
 
 #endif

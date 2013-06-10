@@ -1,6 +1,7 @@
 /*
  * synergy -- mouse and keyboard sharing utility
- * Copyright (C) 2002 Chris Schoeneman, Nick Bolton, Sorin Sbarnea
+ * Copyright (C) 2012 Bolton Software Ltd.
+ * Copyright (C) 2002 Chris Schoeneman
  * 
  * This package is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -26,6 +27,15 @@ CString
 XBadClient::getWhat() const throw()
 {
 	return "XBadClient";
+}
+
+//
+// XBadCryptoMode
+//
+CString
+XBadCryptoMode::getWhat() const throw()
+{
+	return "XBadCryptoMode";
 }
 
 
@@ -104,4 +114,29 @@ CString
 XUnknownClient::getWhat() const throw()
 {
 	return format("XUnknownClient", "unknown client %{1}", m_name.c_str());
+}
+
+
+//
+// XExitApp
+//
+
+XExitApp::XExitApp(int code) :
+	m_code(code)
+{
+	// do nothing
+}
+
+int
+XExitApp::getCode() const throw()
+{
+	return m_code;
+}
+
+CString
+XExitApp::getWhat() const throw()
+{
+	return format(
+		"XExitApp", "exiting with code %{1}", 
+		CStringUtil::print("%d", m_code).c_str());
 }

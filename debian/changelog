@@ -1,3 +1,53 @@
+synergy (1.4.12-3) unstable; urgency=low
+
+  * Make GUI build and rest-of-synergy build separately targetable
+    (for testing on slow Debian build archs).
+  * Disable relro hardening flags on mips and mipsel, as it causes
+    the unit tests to segfault.
+
+ -- Jeff Licquia <licquia@debian.org>  Mon, 10 Jun 2013 03:12:05 +0000
+
+synergy (1.4.12-2) unstable; urgency=low
+
+  * Fix build failure on gcc 4.6 archs by changing a parameter's type
+    on a private method.
+  * Update Standards-Version.
+  * Add lintian override for autotools-dev files (which the synergy
+    build doesn't use).
+  * Don't run the test suite if DEB_BUILD_OPTIONS=nocheck is set.
+  * Add the proper incantations to get qmake to recognize the
+    proper dpkg hardening flags.
+
+ -- Jeff Licquia <licquia@debian.org>  Sat, 08 Jun 2013 00:12:44 +0000
+
+synergy (1.4.12-1) unstable; urgency=low
+
+  * New upstream version...
+  * ...which includes the new encryption layer.  Closes: #421512.
+  * Deal with new dependency on Crypto++:
+    - Add a rule to debian/rules for unpacking the embedded cryptopp
+      zip file if needed.
+    - Alter CMakeLists files, Python build system to detect and use
+      the system libcrypto++ (based on pkgconfig).
+    - Alter include paths in source to strip the version number from
+      the path.
+    - Build-Depend on libcrypto++-dev.
+  * Re-enable the integrity tests, but don't fail if they segfault.
+  * Enable the GUI.  Thanks to Mario Limonciello
+    <Mario_Limonciello@Dell.com> for the original patch, which I've
+    adapted.  Closes: #698291.
+  * Add man page for new synergy app (the GUI).
+  * Add missing options to the synergys and synergyc man pages.
+    Closes: #659883.
+
+ -- Jeff Licquia <licquia@debian.org>  Mon, 03 Jun 2013 05:10:19 +0000
+
+synergy (1.4.10-1) experimental; urgency=low
+
+  * New upstream version.
+
+ -- Jeff Licquia <licquia@debian.org>  Sun, 28 Oct 2012 16:35:08 -0400
+
 synergy (1.3.8-2) unstable; urgency=low
 
   * Build with dpkg-buildflags hardening support.
@@ -6,6 +56,28 @@ synergy (1.3.8-2) unstable; urgency=low
     to fix a number of segfault issues.  Closes: #666896.
 
  -- Jeff Licquia <licquia@debian.org>  Sat, 07 Jul 2012 15:08:33 -0400
+
+synergy (1.4.8-1) experimental; urgency=low
+
+  * New upstream version.
+  * Add synergyd, a new daemon upstream is working on (more for
+    Windows, I think).
+
+ -- Jeff Licquia <licquia@debian.org>  Sun, 15 Apr 2012 20:40:40 -0400
+
+synergy (1.4.7-1) experimental; urgency=low
+
+  * New upstream version.
+  * Remove gnome3.patch (pulled in upstream).
+  * Update Standards-Version.
+
+ -- Jeff Licquia <licquia@debian.org>  Sun, 01 Apr 2012 20:14:53 -0400
+
+synergy (1.4.5-1) experimental; urgency=low
+
+  * Move to upstream 1.4.x series.
+
+ -- Jeff Licquia <licquia@debian.org>  Sat, 14 Jan 2012 13:59:27 -0500
 
 synergy (1.3.8-1) unstable; urgency=low
 

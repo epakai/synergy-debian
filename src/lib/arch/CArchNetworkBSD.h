@@ -1,6 +1,7 @@
 /*
  * synergy -- mouse and keyboard sharing utility
- * Copyright (C) 2002 Chris Schoeneman, Nick Bolton, Sorin Sbarnea
+ * Copyright (C) 2012 Bolton Software Ltd.
+ * Copyright (C) 2002 Chris Schoeneman
  * 
  * This package is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -59,10 +60,11 @@ public:
 	CArchNetworkBSD();
 	virtual ~CArchNetworkBSD();
 
+	virtual void init();
+
 	// IArchNetwork overrides
-	virtual CArchSocket	newSocket(EAddressFamily, ESocketType);
-	virtual CArchSocket	copySocket(CArchSocket s);
-	virtual void		closeSocket(CArchSocket s);
+	virtual CArchSocket     newSocket(EAddressFamily, ESocketType);
+	virtual CArchSocket     copySocket(CArchSocket s);	virtual void		closeSocket(CArchSocket s);
 	virtual void		closeSocketForRead(CArchSocket s);
 	virtual void		closeSocketForWrite(CArchSocket s);
 	virtual void		bindSocket(CArchSocket s, CArchNetAddress addr);

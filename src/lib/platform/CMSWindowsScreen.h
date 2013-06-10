@@ -1,6 +1,7 @@
 /*
  * synergy -- mouse and keyboard sharing utility
- * Copyright (C) 2002 Chris Schoeneman, Nick Bolton, Sorin Sbarnea
+ * Copyright (C) 2012 Bolton Software Ltd.
+ * Copyright (C) 2002 Chris Schoeneman
  * 
  * This package is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -23,9 +24,13 @@
 #include "CCondVar.h"
 #include "CMutex.h"
 #include "CString.h"
+#include "CMSWindowsHookLibraryLoader.h"
+#include "CGameDevice.h"
+#include "CMSWindowsXInput.h"
+#include "CEventGameDevice.h"
+
 #define WIN32_LEAN_AND_MEAN
 #include <windows.h>
-#include "CMSWindowsHookLibraryLoader.h"
 
 class CEventQueueTimer;
 class CMSWindowsDesks;
@@ -36,7 +41,11 @@ class CThread;
 //! Implementation of IPlatformScreen for Microsoft Windows
 class CMSWindowsScreen : public CPlatformScreen {
 public:
-	CMSWindowsScreen(bool isPrimary);
+	CMSWindowsScreen(
+		bool isPrimary,
+		bool noHooks,
+		const CGameDeviceInfo &gameDevice,
+		bool stopOnDeskSwitch);
 	virtual ~CMSWindowsScreen();
 
 	//! @name manipulators
@@ -57,7 +66,7 @@ public:
 	/*!
 	Returns the application instance handle passed to init().
 	*/
-	static HINSTANCE	getInstance();
+	static HINSTANCE	getWindowInstance();
 
 	//@}
 
@@ -79,12 +88,18 @@ public:
 	virtual SInt32		getJumpZoneSize() const;
 	virtual bool		isAnyMouseButtonDown() const;
 	virtual void		getCursorCenter(SInt32& x, SInt32& y) const;
+	virtual void		gameDeviceTimingResp(UInt16 freq);
+	virtual void		gameDeviceFeedback(GameDeviceID id, UInt16 m1, UInt16 m2);
 
 	// ISecondaryScreen overrides
-	virtual void		fakeMouseButton(ButtonID id, bool press) const;
+	virtual void		fakeMouseButton(ButtonID id, bool press);
 	virtual void		fakeMouseMove(SInt32 x, SInt32 y) const;
 	virtual void		fakeMouseRelativeMove(SInt32 dx, SInt32 dy) const;
 	virtual void		fakeMouseWheel(SInt32 xDelta, SInt32 yDelta) const;
+	virtual void		fakeGameDeviceButtons(GameDeviceID id, GameDeviceButton buttons) const;
+	virtual void		fakeGameDeviceSticks(GameDeviceID id, SInt16 x1, SInt16 y1, SInt16 x2, SInt16 y2) const;
+	virtual void		fakeGameDeviceTriggers(GameDeviceID id, UInt8 t1, UInt8 t2) const;
+	virtual void		queueGameDeviceTimingReq() const;
 
 	// IKeyState overrides
 	virtual void		updateKeys();
@@ -129,7 +144,9 @@ private:
 	void				destroyWindow(HWND) const;
 
 	// convenience function to send events
+public: // HACK
 	void				sendEvent(CEvent::Type type, void* = NULL);
+private: // HACK
 	void				sendClipboardEvent(CEvent::Type type, ClipboardID id);
 
 	// handle message before it gets dispatched.  returns true iff
@@ -215,10 +232,13 @@ private:
 	typedef std::vector<UInt32> HotKeyIDList;
 	typedef std::map<CHotKeyItem, UInt32> HotKeyToIDMap;
 
-	static HINSTANCE	s_instance;
+	static HINSTANCE	s_windowInstance;
 
 	// true if screen is being used as a primary screen, false otherwise
 	bool				m_isPrimary;
+
+	// true if hooks are not to be installed (useful for debugging)
+	bool				m_noHooks;
 
 	// true if windows 95/98/me
 	bool				m_is95Family;
@@ -304,6 +324,9 @@ private:
 	// loads synrgyhk.dll
 	CMSWindowsHookLibraryLoader
 						m_hookLibraryLoader;
+
+	const CGameDeviceInfo&	m_gameDeviceInfo;
+	CGameDevice*		m_gameDevice;
 
 	static CMSWindowsScreen*	s_screen;
 

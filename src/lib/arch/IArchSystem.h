@@ -1,6 +1,7 @@
 /*
  * synergy -- mouse and keyboard sharing utility
- * Copyright (C) 2004 Chris Schoeneman, Nick Bolton, Sorin Sbarnea
+ * Copyright (C) 2012 Bolton Software Ltd.
+ * Copyright (C) 2004 Chris Schoeneman
  * 
  * This package is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -41,6 +42,20 @@ public:
 	Returns a string identifying the platform this OS is running on.
 	*/
 	virtual std::string getPlatformName() const = 0;
+	//@}
+
+	//! Get a Synergy setting
+	/*!
+	Reads a Synergy setting from the system.
+	*/
+	virtual std::string setting(const std::string& valueName) const = 0;
+	//@}
+
+	//! Set a Synergy setting
+	/*!
+	Writes a Synergy setting from the system.
+	*/
+	virtual void setting(const std::string& valueName, const std::string& valueString) const = 0;
 	//@}
 };
 

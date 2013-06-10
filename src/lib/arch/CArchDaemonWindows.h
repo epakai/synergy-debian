@@ -1,6 +1,7 @@
 /*
  * synergy -- mouse and keyboard sharing utility
- * Copyright (C) 2002 Chris Schoeneman, Nick Bolton, Sorin Sbarnea
+ * Copyright (C) 2012 Bolton Software Ltd.
+ * Copyright (C) 2002 Chris Schoeneman
  * 
  * This package is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -82,9 +83,12 @@ public:
 							const char* dependencies,
 							bool allUsers);
 	virtual void		uninstallDaemon(const char* name, bool allUsers);
+	virtual void		installDaemon();
+	virtual void		uninstallDaemon();
 	virtual int			daemonize(const char* name, DaemonFunc func);
 	virtual bool		canInstallDaemon(const char* name, bool allUsers);
 	virtual bool		isDaemonInstalled(const char* name, bool allUsers);
+	std::string			commandLine() const { return m_commandLine; }
 
 private:
 	static HKEY			openNTServicesKey();
@@ -106,6 +110,9 @@ private:
 
 	void				serviceHandler(DWORD ctrl);
 	static void WINAPI	serviceHandlerEntry(DWORD ctrl);
+
+	void				start(const char* name);
+	void				stop(const char* name);
 
 private:
 	class XArchDaemonRunFailed {
@@ -132,6 +139,22 @@ private:
 	SERVICE_STATUS_HANDLE m_statusHandle;
 
 	UINT				m_quitMessage;
+
+	std::string			m_commandLine;
+};
+
+#define DEFAULT_DAEMON_NAME _T("Synergy")
+#define DEFAULT_DAEMON_INFO _T("Manages the Synergy foreground processes.")
+
+#define LEGACY_SERVER_DAEMON_NAME _T("Synergy Server")
+#define LEGACY_CLIENT_DAEMON_NAME _T("Synergy Client")
+
+static const TCHAR* const g_daemonKeyPath[] = {
+	_T("SOFTWARE"),
+	_T("The Synergy Project"),
+	_T("Synergy"),
+	_T("Service"),
+	NULL
 };
 
 #endif

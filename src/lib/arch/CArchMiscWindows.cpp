@@ -1,6 +1,7 @@
 /*
  * synergy -- mouse and keyboard sharing utility
- * Copyright (C) 2002 Chris Schoeneman, Nick Bolton, Sorin Sbarnea
+ * Copyright (C) 2012 Bolton Software Ltd.
+ * Copyright (C) 2002 Chris Schoeneman
  * 
  * This package is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -18,6 +19,15 @@
 #include "CArchMiscWindows.h"
 #include "CArchDaemonWindows.h"
 #include "CLog.h"
+
+#include <Wtsapi32.h>
+#pragma warning(disable: 4099)
+#include <Userenv.h>
+#pragma warning(default: 4099)
+#include "Version.h"
+
+// parent process name for services in Vista
+#define SERVICE_LAUNCHER "services.exe"
 
 #ifndef ES_SYSTEM_REQUIRED
 #define ES_SYSTEM_REQUIRED  ((DWORD)0x00000001)
@@ -39,6 +49,13 @@ DWORD						CArchMiscWindows::s_busyState = 0;
 CArchMiscWindows::STES_t	CArchMiscWindows::s_stes      = NULL;
 HICON						CArchMiscWindows::s_largeIcon = NULL;
 HICON						CArchMiscWindows::s_smallIcon = NULL;
+HINSTANCE					CArchMiscWindows::s_instanceWin32 = NULL;
+
+void
+CArchMiscWindows::cleanup()
+{
+	delete s_dialogs;
+}
 
 void
 CArchMiscWindows::init()
@@ -197,6 +214,7 @@ void
 CArchMiscWindows::closeKey(HKEY key)
 {
 	assert(key  != NULL);
+	if (key==NULL) return;
 	RegCloseKey(key);
 }
 
@@ -205,6 +223,7 @@ CArchMiscWindows::deleteKey(HKEY key, const TCHAR* name)
 {
 	assert(key  != NULL);
 	assert(name != NULL);
+	if (key==NULL || name==NULL) return;
 	RegDeleteKey(key, name);
 }
 
@@ -213,6 +232,7 @@ CArchMiscWindows::deleteValue(HKEY key, const TCHAR* name)
 {
 	assert(key  != NULL);
 	assert(name != NULL);
+	if (key==NULL || name==NULL) return;
 	RegDeleteValue(key, name);
 }
 
@@ -254,6 +274,7 @@ CArchMiscWindows::setValue(HKEY key,
 {
 	assert(key  != NULL);
 	assert(name != NULL);
+	if(key ==NULL || name==NULL) return; // TODO: throw exception
 	RegSetValueEx(key, name, 0, REG_SZ,
 								reinterpret_cast<const BYTE*>(value.c_str()),
 								(DWORD)value.size() + 1);
@@ -264,6 +285,7 @@ CArchMiscWindows::setValue(HKEY key, const TCHAR* name, DWORD value)
 {
 	assert(key  != NULL);
 	assert(name != NULL);
+	if(key ==NULL || name==NULL) return; // TODO: throw exception
 	RegSetValueEx(key, name, 0, REG_DWORD,
 								reinterpret_cast<CONST BYTE*>(&value),
 								sizeof(DWORD));
@@ -275,6 +297,7 @@ CArchMiscWindows::setValueBinary(HKEY key,
 {
 	assert(key  != NULL);
 	assert(name != NULL);
+	if(key ==NULL || name==NULL) return; // TODO: throw exception
 	RegSetValueEx(key, name, 0, REG_BINARY,
 								reinterpret_cast<const BYTE*>(value.data()),
 								(DWORD)value.size());
@@ -442,11 +465,49 @@ CArchMiscWindows::wakeupDisplay()
 	setThreadExecutionState(s_busyState);
 }
 
+bool
+CArchMiscWindows::wasLaunchedAsService() 
+{
+	CString name;
+	if (!getParentProcessName(name)) {
+		LOG((CLOG_ERR "cannot determine if process was launched as service"));
+		return false;
+	}
+
+	return (name == SERVICE_LAUNCHER);
+}
+
+bool
+CArchMiscWindows::getParentProcessName(CString &name) 
+{	
+	PROCESSENTRY32 parentEntry;
+	if (!getParentProcessEntry(parentEntry)){
+		LOG((CLOG_ERR "could not get entry for parent process"));
+		return false;
+	}
+
+	name = parentEntry.szExeFile;
+	return true;
+}
+
 BOOL WINAPI 
 CArchMiscWindows::getSelfProcessEntry(PROCESSENTRY32& entry)
 {
 	// get entry from current PID
 	return getProcessEntry(entry, GetCurrentProcessId());
+}
+
+BOOL WINAPI 
+CArchMiscWindows::getParentProcessEntry(PROCESSENTRY32& entry)
+{
+	// get the current process, so we can get parent PID
+	PROCESSENTRY32 selfEntry;
+	if (!getSelfProcessEntry(selfEntry)) {
+		return FALSE;
+	}
+
+	// get entry from parent PID
+	return getProcessEntry(entry, selfEntry.th32ParentProcessID);
 }
 
 BOOL WINAPI 
@@ -483,4 +544,18 @@ CArchMiscWindows::getProcessEntry(PROCESSENTRY32& entry, DWORD processID)
 	}
 
 	return FALSE;
+}
+
+HINSTANCE
+CArchMiscWindows::instanceWin32()
+{
+	assert(s_instanceWin32 != NULL);
+	return s_instanceWin32;
+}
+
+void
+CArchMiscWindows::setInstanceWin32(HINSTANCE instance)
+{
+	assert(instance != NULL);
+	s_instanceWin32 = instance;
 }

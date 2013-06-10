@@ -1,6 +1,7 @@
 /*
  * synergy -- mouse and keyboard sharing utility
- * Copyright (C) 2002 Chris Schoeneman, Nick Bolton, Sorin Sbarnea
+ * Copyright (C) 2012 Bolton Software Ltd.
+ * Copyright (C) 2002 Chris Schoeneman
  * 
  * This package is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -883,6 +884,10 @@ CConfig::readSectionScreens(CConfigReadContext& s)
 				addOption(screen, kOptionModifierMapForAlt,
 					s.parseModifierKey(value));
 			}
+			else if (name == "altgr") {
+				addOption(screen, kOptionModifierMapForAltGr,
+					s.parseModifierKey(value));
+			}
 			else if (name == "meta") {
 				addOption(screen, kOptionModifierMapForMeta,
 					s.parseModifierKey(value));
@@ -1315,6 +1320,9 @@ CConfig::getOptionName(OptionID id)
 	if (id == kOptionModifierMapForAlt) {
 		return "alt";
 	}
+	if (id == kOptionModifierMapForAltGr) {
+		return "altgr";
+	}
 	if (id == kOptionModifierMapForMeta) {
 		return "meta";
 	}
@@ -1382,6 +1390,7 @@ CConfig::getOptionValue(OptionID id, OptionValue value)
 	if (id == kOptionModifierMapForShift ||
 		id == kOptionModifierMapForControl ||
 		id == kOptionModifierMapForAlt ||
+		id == kOptionModifierMapForAltGr ||
 		id == kOptionModifierMapForMeta ||
 		id == kOptionModifierMapForSuper) {
 		switch (value) {
@@ -1393,6 +1402,9 @@ CConfig::getOptionValue(OptionID id, OptionValue value)
 
 		case kKeyModifierIDAlt:
 			return "alt";
+
+		case kKeyModifierIDAltGr:
+			return "altgr";
 
 		case kKeyModifierIDMeta:
 			return "meta";
@@ -1960,6 +1972,9 @@ CConfigReadContext::parseModifierKey(const CString& arg) const
 	}
 	if (CStringUtil::CaselessCmp::equal(arg, "alt")) {
 		return static_cast<OptionValue>(kKeyModifierIDAlt);
+	}
+	if (CStringUtil::CaselessCmp::equal(arg, "altgr")) {
+		return static_cast<OptionValue>(kKeyModifierIDAltGr);
 	}
 	if (CStringUtil::CaselessCmp::equal(arg, "meta")) {
 		return static_cast<OptionValue>(kKeyModifierIDMeta);
