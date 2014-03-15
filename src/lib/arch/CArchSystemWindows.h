@@ -1,6 +1,7 @@
 /*
  * synergy -- mouse and keyboard sharing utility
- * Copyright (C) 2004 Chris Schoeneman, Nick Bolton, Sorin Sbarnea
+ * Copyright (C) 2012 Bolton Software Ltd.
+ * Copyright (C) 2004 Chris Schoeneman
  * 
  * This package is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -31,6 +32,8 @@ public:
 	// IArchSystem overrides
 	virtual std::string	getOSName() const;
 	virtual std::string getPlatformName() const;
+	virtual std::string setting(const std::string& valueName) const;
+	virtual void setting(const std::string& valueName, const std::string& valueString) const;
 
 	bool isWOW64() const;
 };

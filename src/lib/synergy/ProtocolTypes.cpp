@@ -1,6 +1,7 @@
 /*
  * synergy -- mouse and keyboard sharing utility
- * Copyright (C) 2002 Chris Schoeneman, Nick Bolton, Sorin Sbarnea
+ * Copyright (C) 2012 Bolton Software Ltd.
+ * Copyright (C) 2002 Chris Schoeneman
  * 
  * This package is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -28,6 +29,8 @@ const char*				kMsgCScreenSaver 	= "CSEC%1i";
 const char*				kMsgCResetOptions	= "CROP";
 const char*				kMsgCInfoAck		= "CIAK";
 const char*				kMsgCKeepAlive		= "CALV";
+const char*				kMsgCGameTimingReq	= "CGRQ";
+const char*				kMsgCGameTimingResp	= "CGRS%2i";
 const char*				kMsgDKeyDown		= "DKDN%2i%2i%2i";
 const char*				kMsgDKeyDown1_0		= "DKDN%2i%2i";
 const char*				kMsgDKeyRepeat		= "DKRP%2i%2i%2i%2i";
@@ -43,6 +46,11 @@ const char*				kMsgDMouseWheel1_0	= "DMWM%2i";
 const char*				kMsgDClipboard		= "DCLP%1i%4i%s";
 const char*				kMsgDInfo			= "DINF%2i%2i%2i%2i%2i%2i%2i";
 const char*				kMsgDSetOptions		= "DSOP%4I";
+const char*				kMsgDGameButtons	= "DGBT%1i%2i";
+const char*				kMsgDGameSticks		= "DGST%1i%2i%2i%2i%2i";
+const char*				kMsgDGameTriggers	= "DGTR%1i%1i%1i";
+const char*				kMsgDGameFeedback	= "DGFB%1i%2i%2i";
+const char*				kMsgDCryptoIv		= "DCIV%s";
 const char*				kMsgQInfo			= "QINF";
 const char*				kMsgEIncompatible	= "EICV%2i%2i";
 const char*				kMsgEBusy 			= "EBSY";

@@ -1,6 +1,7 @@
 /*
  * synergy -- mouse and keyboard sharing utility
- * Copyright (C) 2004 Chris Schoeneman, Nick Bolton, Sorin Sbarnea
+ * Copyright (C) 2012 Bolton Software Ltd.
+ * Copyright (C) 2004 Chris Schoeneman
  * 
  * This package is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -34,6 +35,7 @@ class CEventQueueTimer;
 class CThread;
 class IJob;
 class IScreenSaver;
+class IEventQueue;
 
 //! Microsoft Windows desk handling
 /*!
@@ -62,8 +64,10 @@ public:
 	updated in a thread attached to the current desk.
 	\p hookLibrary must be a handle to the hook library.
 	*/
-	CMSWindowsDesks(bool isPrimary, HINSTANCE hookLibrary,
-							const IScreenSaver* screensaver, IJob* updateKeys);
+	CMSWindowsDesks(
+		bool isPrimary, bool noHooks, HINSTANCE hookLibrary,
+		const IScreenSaver* screensaver, IEventQueue& eventQueue,
+		IJob* updateKeys, bool stopOnDeskSwitch);
 	~CMSWindowsDesks();
 
 	//! @name manipulators
@@ -165,7 +169,7 @@ public:
 	/*!
 	Synthesize a press or release of mouse button \c id.
 	*/
-	void				fakeMouseButton(ButtonID id, bool press) const;
+	void				fakeMouseButton(ButtonID id, bool press);
 
 	//! Fake mouse move
 	/*!
@@ -216,6 +220,7 @@ private:
 	void				deskEnter(CDesk* desk);
 	void				deskLeave(CDesk* desk, HKL keyLayout);
 	void				deskThread(void* vdesk);
+	void				xinputThread();
 
 	// desk switch checking and handling
 	CDesk*				addDesk(const CString& name, HDESK hdesk);
@@ -243,6 +248,9 @@ private:
 private:
 	// true if screen is being used as a primary screen, false otherwise
 	bool				m_isPrimary;
+
+	// true if hooks are not to be installed (useful for debugging)
+	bool				m_noHooks;
 
 	// true if windows 95/98/me
 	bool				m_is95Family;
@@ -285,8 +293,10 @@ private:
 	// hook library stuff
 	InstallFunc			m_install;
 	UninstallFunc		m_uninstall;
-	InstallScreenSaverFunc		m_installScreensaver;
-	UninstallScreenSaverFunc	m_uninstallScreensaver;
+	InstallScreenSaverFunc
+						m_installScreensaver;
+	UninstallScreenSaverFunc
+						m_uninstallScreensaver;
 
 	// keyboard stuff
 	IJob*				m_updateKeys;
@@ -294,6 +304,11 @@ private:
 
 	// options
 	bool				m_leaveForegroundOption;
+
+	IEventQueue&		m_eventQueue;
+
+	// true if program should stop on desk switch.
+	bool				m_stopOnDeskSwitch;
 };
 
 #endif

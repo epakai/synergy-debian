@@ -1,6 +1,7 @@
 /*
  * synergy -- mouse and keyboard sharing utility
- * Copyright (C) 2011 Chris Schoeneman, Nick Bolton, Sorin Sbarnea
+ * Copyright (C) 2012 Bolton Software Ltd.
+ * Copyright (C) 2011 Nick Bolton
  * 
  * This package is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -18,21 +19,24 @@
 #include <gtest/gtest.h>
 #include "CArch.h"
 #include "CLog.h"
-#include "LogOutputters.h"
+
+#if SYSAPI_WIN32
+#include "CArchMiscWindows.h"
+#endif
 
 int
 main(int argc, char **argv)
 {
-	CArch arch;
-
 #if SYSAPI_WIN32
-	// only add std output logger for windows (unix
-	// already outputs to standard streams).
-	CStdLogOutputter stdLogOutputter;
-	CLOG->insert(&stdLogOutputter, true);
+	// HACK: shouldn't be needed, but logging fails without this.
+	CArchMiscWindows::setInstanceWin32(GetModuleHandle(NULL));
 #endif
 
-	CLOG->setFilter(kDEBUG2);
+	CArch arch;
+	arch.init();
+	
+	CLog log;
+	log.setFilter(kDEBUG4);
 
 	testing::InitGoogleTest(&argc, argv);
 

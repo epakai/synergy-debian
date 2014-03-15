@@ -1,6 +1,7 @@
 /*
  * synergy -- mouse and keyboard sharing utility
- * Copyright (C) 2002 Chris Schoeneman, Nick Bolton, Sorin Sbarnea
+ * Copyright (C) 2012 Bolton Software Ltd.
+ * Copyright (C) 2002 Chris Schoeneman
  * 
  * This package is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -17,10 +18,9 @@
 
 #include "LogOutputters.h"
 #include "CArch.h"
+#include "TMethodJob.h"
 
 #include <fstream>
-#include <iostream>
-
 //
 // CStopLogOutputter
 //
@@ -59,12 +59,6 @@ CStopLogOutputter::write(ELevel, const char*)
 	return false;
 }
 
-const char*
-CStopLogOutputter::getNewline() const
-{
-	return "";
-}
-
 
 //
 // CConsoleLogOutputter
@@ -72,12 +66,10 @@ CStopLogOutputter::getNewline() const
 
 CConsoleLogOutputter::CConsoleLogOutputter()
 {
-	// do nothing
 }
 
 CConsoleLogOutputter::~CConsoleLogOutputter()
 {
-	// do nothing
 }
 
 void
@@ -105,10 +97,10 @@ CConsoleLogOutputter::write(ELevel level, const char* msg)
 	return true;
 }
 
-const char*
-CConsoleLogOutputter::getNewline() const
+void
+CConsoleLogOutputter::flush()
 {
-	return ARCH->getNewlineForConsole();
+
 }
 
 
@@ -150,13 +142,6 @@ CSystemLogOutputter::write(ELevel level, const char* msg)
 	ARCH->writeLog(level, msg);
 	return true;
 }
-
-const char*
-CSystemLogOutputter::getNewline() const
-{
-	return "";
-}
-
 
 //
 // CSystemLogger
@@ -242,47 +227,30 @@ CBufferedLogOutputter::write(ELevel, const char* message)
 	return true;
 }
 
-const char*
-CBufferedLogOutputter::getNewline() const
-{
-	return "";
-}
-
 
 //
 // CFileLogOutputter
 //
 
-CFileLogOutputter::CFileLogOutputter(const char * logFile)
+CFileLogOutputter::CFileLogOutputter(const char* logFile)
 {
 	assert(logFile != NULL);
-
-	m_handle.open(logFile, std::fstream::app);
-	// open file handle
+	m_fileName = logFile;
 }
 
 CFileLogOutputter::~CFileLogOutputter()
 {
-	// close file handle
-	if (m_handle.is_open())
-		m_handle.close();
-}
-
-const char*
-CFileLogOutputter::getNewline() const
-{
-	return "\n";
 }
 
 bool
 CFileLogOutputter::write(ELevel level, const char *message)
 {
+	std::ofstream m_handle;
+	m_handle.open(m_fileName.c_str(), std::fstream::app);
 	if (m_handle.is_open() && m_handle.fail() != true) {
-		m_handle << message;
-		
-		// write buffer to file
-		m_handle.flush();
+		m_handle << message << std::endl;
 	}
+	m_handle.close();
 
 	return true;
 }
@@ -296,42 +264,49 @@ CFileLogOutputter::close() {}
 void
 CFileLogOutputter::show(bool showIfEmpty) {}
 
-CStdLogOutputter::CStdLogOutputter()
+//
+// CMesssageBoxLogOutputter
+//
+
+CMesssageBoxLogOutputter::CMesssageBoxLogOutputter()
 {
+	// do nothing
 }
 
-CStdLogOutputter::~CStdLogOutputter()
+CMesssageBoxLogOutputter::~CMesssageBoxLogOutputter()
 {
+	// do nothing
+}
+
+void
+CMesssageBoxLogOutputter::open(const char* title) 
+{
+	// do nothing
+}
+
+void
+CMesssageBoxLogOutputter::close()
+{
+	// do nothing
+}
+
+void
+CMesssageBoxLogOutputter::show(bool showIfEmpty)
+{
+	// do nothing
 }
 
 bool
-CStdLogOutputter::write(ELevel level, const char* message)
+CMesssageBoxLogOutputter::write(ELevel level, const char* msg)
 {
-	if ((level >= kFATAL) && (level <= kWARNING))
-		std::cerr << message << std::endl;
-	else
-		std::cout << message << std::endl;
+	// don't spam user with messages.
+	if (level > kERROR) {
+		return true;
+	}
+
+#if SYSAPI_WIN32
+	MessageBox(NULL, msg, CLOG->getFilterName(level), MB_OK);
+#endif
 
 	return true;
-}
-
-void
-CStdLogOutputter::close()
-{
-}
-
-void
-CStdLogOutputter::open(const char* title)
-{
-}
-
-void
-CStdLogOutputter::show(bool showIfEmpty)
-{
-}
-
-const char*
-CStdLogOutputter::getNewline() const
-{
-	return "";
 }

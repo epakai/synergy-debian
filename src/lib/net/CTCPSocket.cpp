@@ -1,6 +1,7 @@
 /*
  * synergy -- mouse and keyboard sharing utility
- * Copyright (C) 2002 Chris Schoeneman, Nick Bolton, Sorin Sbarnea
+ * Copyright (C) 2012 Bolton Software Ltd.
+ * Copyright (C) 2002 Chris Schoeneman
  * 
  * This package is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -349,11 +350,9 @@ CTCPSocket::newJob()
 void
 CTCPSocket::sendConnectionFailedEvent(const char* msg)
 {
-	CConnectionFailedInfo* info = (CConnectionFailedInfo*)malloc(
-							sizeof(CConnectionFailedInfo) + strlen(msg));
-	strcpy(info->m_what, msg);
+	CConnectionFailedInfo* info = new CConnectionFailedInfo(msg);
 	EVENTQUEUE->addEvent(CEvent(getConnectionFailedEvent(),
-							getEventTarget(), info));
+							getEventTarget(), info, CEvent::kDontFreeData));
 }
 
 void

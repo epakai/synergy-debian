@@ -1,5 +1,6 @@
 # synergy -- mouse and keyboard sharing utility
-# Copyright (C) 2009 Chris Schoeneman, Nick Bolton, Sorin Sbarnea
+# Copyright (C) 2012 Bolton Software Ltd.
+# Copyright (C) 2009 Nick Bolton
 # 
 # This package is free software; you can redistribute it and/or
 # modify it under the terms of the GNU General Public License
@@ -72,3 +73,7 @@ endif()
 
 include_directories(${inc})
 add_library(base STATIC ${src})
+
+if (UNIX)
+	target_link_libraries(base common)
+endif()

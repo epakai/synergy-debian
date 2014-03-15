@@ -1,6 +1,7 @@
 /*
  * synergy -- mouse and keyboard sharing utility
- * Copyright (C) 2004 Chris Schoeneman, Nick Bolton, Sorin Sbarnea
+ * Copyright (C) 2012 Bolton Software Ltd.
+ * Copyright (C) 2004 Chris Schoeneman
  * 
  * This package is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -36,7 +37,7 @@ COSXClipboard::COSXClipboard() :
 	OSStatus createErr = PasteboardCreate(kPasteboardClipboard, &m_pboard);
 	if (createErr != noErr) {
 		LOG((CLOG_DEBUG "failed to create clipboard reference: error %i", createErr));
-		LOG((CLOG_ERR "Unable to connect to pasteboard. Clipboard sharing disabled.", createErr));
+		LOG((CLOG_ERR "unable to connect to pasteboard, clipboard sharing disabled", createErr));
 		m_pboard = NULL;
 		return;
 
@@ -76,7 +77,7 @@ COSXClipboard::synchronize()
 		return false;
 
 	PasteboardSyncFlags flags = PasteboardSynchronize(m_pboard);
-	LOG((CLOG_DEBUG1 "flags: %x", flags));
+	LOG((CLOG_DEBUG2 "flags: %x", flags));
 
 	if (flags & kPasteboardModified) {
 		return true;
@@ -87,6 +88,7 @@ COSXClipboard::synchronize()
 	void
 COSXClipboard::add(EFormat format, const CString & data)
 {
+	bool emptied = false;
 	if (m_pboard == NULL)
 		return;
 
@@ -105,9 +107,14 @@ COSXClipboard::add(EFormat format, const CString & data)
 
 			// integ tests showed that if you call add(...) twice, then the
 			// second call will actually fail to set clipboard data. calling
-			// empty() seems to solve this problem.
-			empty();
-
+			// empty() seems to solve this problem. but, only clear the clipboard
+			// for the first converter, otherwise further converters will wipe out
+			// what we just added.
+			if (!emptied) {
+				empty();
+				emptied = true;
+			}
+			
 			PasteboardPutItemFlavor(
 					m_pboard,
 					(PasteboardItemID) 0,

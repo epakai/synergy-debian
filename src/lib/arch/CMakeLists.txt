@@ -1,5 +1,6 @@
 # synergy -- mouse and keyboard sharing utility
-# Copyright (C) 2009 Chris Schoeneman, Nick Bolton, Sorin Sbarnea
+# Copyright (C) 2012 Bolton Software Ltd.
+# Copyright (C) 2009 Nick Bolton
 # 
 # This package is free software; you can redistribute it and/or
 # modify it under the terms of the GNU General Public License
@@ -15,9 +16,9 @@
 
 set(src
 	CArch.cpp
-	CArchDaemonNone.cpp
 	IArchString.cpp
 	XArch.cpp
+	CArchConsoleStd.cpp
 )
 
 if (WIN32)
@@ -35,9 +36,13 @@ if (WIN32)
 		CArchSystemWindows.h
 		CArchTaskBarWindows.h
 		CArchTimeWindows.h
+		CArchConsoleStd.h
 		XArchWindows.h
 		CMultibyte.h
 		vsnprintf.h
+		XArch.h
+		IArchPlugin.h
+		CArchPluginWindows.h
 	)
 
 	list(APPEND src
@@ -55,6 +60,7 @@ if (WIN32)
 		CArchTaskBarWindows.cpp
 		CArchTimeWindows.cpp
 		XArchWindows.cpp
+		CArchPluginWindows.cpp
 	)
 	
 elseif (UNIX)
@@ -72,6 +78,8 @@ elseif (UNIX)
 		CArchTaskBarXWindows.cpp
 		CArchTimeUnix.cpp
 		XArchUnix.cpp
+		CArchDaemonNone.cpp
+		CArchPluginUnix.cpp
 	)
 	
 endif()
@@ -93,3 +101,9 @@ endif()
 
 include_directories(${inc})
 add_library(arch STATIC ${src})
+
+if (WIN32)
+	if (GAME_DEVICE_SUPPORT)
+		target_link_libraries(arch synxinhk)
+	endif()
+endif()
