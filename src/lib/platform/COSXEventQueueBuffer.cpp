@@ -30,8 +30,10 @@ class CEventQueueTimer { };
 // COSXEventQueueBuffer
 //
 
-COSXEventQueueBuffer::COSXEventQueueBuffer() :
-	m_event(NULL)
+COSXEventQueueBuffer::COSXEventQueueBuffer(IEventQueue* events) :
+	m_eventQueue(events),
+	m_event(NULL),
+	m_carbonEventQueue(NULL)
 {
 	// do nothing
 }
@@ -42,6 +44,12 @@ COSXEventQueueBuffer::~COSXEventQueueBuffer()
 	if (m_event != NULL) {
 		ReleaseEvent(m_event);
 	}
+}
+
+void
+COSXEventQueueBuffer::init()
+{
+	m_carbonEventQueue = GetCurrentEventQueue();
 }
 
 void
@@ -80,7 +88,7 @@ COSXEventQueueBuffer::getEvent(CEvent& event, UInt32& dataID)
 
 		default: 
 			event = CEvent(CEvent::kSystem,
-						IEventQueue::getSystemTarget(), &m_event);
+						m_eventQueue->getSystemTarget(), &m_event);
 			return kSystem;
 		}
 	}
@@ -90,7 +98,7 @@ bool
 COSXEventQueueBuffer::addEvent(UInt32 dataID)
 {
 	EventRef event;
-	OSStatus error = CreateEvent( 
+	OSStatus error = CreateEvent(
 							kCFAllocatorDefault,
 							'Syne', 
 							dataID,
@@ -99,8 +107,14 @@ COSXEventQueueBuffer::addEvent(UInt32 dataID)
 							&event);
 
 	if (error == noErr) {
-		error = PostEventToQueue(GetMainEventQueue(), event, 
-							kEventPriorityStandard);
+	
+		assert(m_carbonEventQueue != NULL);
+		
+		error = PostEventToQueue(
+			m_carbonEventQueue,
+			event,
+			kEventPriorityStandard);
+		
 		ReleaseEvent(event);
 	}
 	

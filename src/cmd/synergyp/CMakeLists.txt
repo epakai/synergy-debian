@@ -47,6 +47,8 @@ set(inc
 	../../lib/platform
 	../../lib/synergy
 	../../lib/server
+	../../lib/synwinhk
+	../../lib/synwinxt
 )
 
 if (UNIX)

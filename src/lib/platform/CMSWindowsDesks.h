@@ -19,7 +19,7 @@
 #ifndef CMSWINDOWSDESKS_H
 #define CMSWINDOWSDESKS_H
 
-#include "CSynergyHook.h"
+#include "synwinhk.h"
 #include "KeyTypes.h"
 #include "MouseTypes.h"
 #include "OptionTypes.h"
@@ -66,7 +66,7 @@ public:
 	*/
 	CMSWindowsDesks(
 		bool isPrimary, bool noHooks, HINSTANCE hookLibrary,
-		const IScreenSaver* screensaver, IEventQueue& eventQueue,
+		const IScreenSaver* screensaver, IEventQueue* events,
 		IJob* updateKeys, bool stopOnDeskSwitch);
 	~CMSWindowsDesks();
 
@@ -220,7 +220,6 @@ private:
 	void				deskEnter(CDesk* desk);
 	void				deskLeave(CDesk* desk, HKL keyLayout);
 	void				deskThread(void* vdesk);
-	void				xinputThread();
 
 	// desk switch checking and handling
 	CDesk*				addDesk(const CString& name, HDESK hdesk);
@@ -305,7 +304,7 @@ private:
 	// options
 	bool				m_leaveForegroundOption;
 
-	IEventQueue&		m_eventQueue;
+	IEventQueue*		m_events;
 
 	// true if program should stop on desk switch.
 	bool				m_stopOnDeskSwitch;

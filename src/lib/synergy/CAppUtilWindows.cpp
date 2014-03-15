@@ -30,13 +30,15 @@
 #include "CArgsBase.h"
 #include "IEventQueue.h"
 #include "CEvent.h"
+#include "CEventQueue.h"
 
 #include <sstream>
 #include <iostream>
 #include <conio.h>
 
-CAppUtilWindows::CAppUtilWindows() :
-m_exitMode(kExitModeNormal)
+CAppUtilWindows::CAppUtilWindows(IEventQueue* events) :
+	m_events(events),
+	m_exitMode(kExitModeNormal)
 {
 	if (SetConsoleCtrlHandler((PHANDLER_ROUTINE)consoleHandler, TRUE) == FALSE)
     {
@@ -51,7 +53,8 @@ CAppUtilWindows::~CAppUtilWindows()
 BOOL WINAPI CAppUtilWindows::consoleHandler(DWORD)
 {
 	LOG((CLOG_INFO "got shutdown signal"));
-	EVENTQUEUE->addEvent(CEvent(CEvent::kQuit));
+	IEventQueue* events = CAppUtil::instance().app().getEvents();
+	events->addEvent(CEvent(CEvent::kQuit));
     return TRUE;
 }
 
@@ -66,27 +69,6 @@ CAppUtilWindows::parseArg(const int& argc, const char* const* argv, int& i)
 	else if (app().isArg(i, argc, argv, NULL, "--exit-pause")) {
 
 		app().argsBase().m_pauseOnExit = true;
-	}
-	else if (app().isArg(i, argc, argv, NULL, "--game-mode")) {
-		CString mode(argv[++i]);
-		if (mode == "xinput") {
-			app().argsBase().m_gameDevice.m_mode = CGameDeviceInfo::kGameModeXInput;
-		}
-		else if (mode == "joyinfoex") {
-			app().argsBase().m_gameDevice.m_mode = CGameDeviceInfo::kGameModeJoyInfoEx;
-		}
-	}
-	else if (app().isArg(i, argc, argv, NULL, "--game-poll")) {
-		CString mode(argv[++i]);
-		if (mode == "dynamic") {
-			app().argsBase().m_gameDevice.m_poll = CGameDeviceInfo::kGamePollDynamic;
-		}
-		else if (mode == "static") {
-			app().argsBase().m_gameDevice.m_poll = CGameDeviceInfo::kGamePollStatic;
-		}
-	}
-	else if (app().isArg(i, argc, argv, NULL, "--game-poll-freq")) {
-		app().argsBase().m_gameDevice.m_pollFreq = atoi(argv[++i]);
 	}
 	else if (app().isArg(i, argc, argv, NULL, "--stop-on-desk-switch")) {
 		app().argsBase().m_stopOnDeskSwitch = true;

@@ -32,6 +32,10 @@
 #include "TMethodEventJob.h"
 #include "TMethodJob.h"
 #include "XArch.h"
+#include "COSXDragSimulator.h"
+#include "COSXPasteboardPeeker.h"
+#include "CClientApp.h"
+#include "CClient.h"
 
 #include <math.h>
 
@@ -61,13 +65,12 @@ enum {
 // COSXScreen
 //
 
-
-
 bool					COSXScreen::s_testedForGHOM = false;
 bool					COSXScreen::s_hasGHOM	    = false;
-CEvent::Type			COSXScreen::s_confirmSleepEvent = CEvent::kUnknown;
 
-COSXScreen::COSXScreen(bool isPrimary, bool autoShowHideCursor) :
+COSXScreen::COSXScreen(IEventQueue* events, bool isPrimary, bool autoShowHideCursor) :
+	CPlatformScreen(events),
+	m_events(events),
 	MouseButtonEventMap(NumButtonIDs),
 	m_isPrimary(isPrimary),
 	m_isOnScreen(m_isPrimary),
@@ -96,17 +99,30 @@ COSXScreen::COSXScreen(bool isPrimary, bool autoShowHideCursor) :
 	m_autoShowHideCursor(autoShowHideCursor),
 	m_eventTapRLSR(nullptr),
 	m_eventTapPort(nullptr),
-	m_pmRootPort(0)
+	m_pmRootPort(0),
+	m_getDropTargetThread(NULL)
 {
 	try {
 		m_displayID   = CGMainDisplayID();
 		updateScreenShape(m_displayID, 0);
-		m_screensaver = new COSXScreenSaver(getEventTarget());
-		m_keyState	  = new COSXKeyState();
+		m_screensaver = new COSXScreenSaver(m_events, getEventTarget());
+		m_keyState	  = new COSXKeyState(m_events);
 		
-    // TODO: http://stackoverflow.com/questions/2950124/enable-access-for-assistive-device-programmatically
-		if (m_isPrimary && !AXAPIEnabled())
-			throw XArch("system setting not enabled: \"Enable access for assistive devices\"");
+		// only needed when running as a server.
+		if (m_isPrimary) {
+		
+#if defined(MAC_OS_X_VERSION_10_9)
+			// we can't pass options to show the dialog, this must be done by the gui.
+			//if (!AXIsProcessTrusted()) {
+			//	throw XArch("assistive devices does not trust this process, allow it in system settings.");
+			//}
+#else
+			// now deprecated in mavericks.
+			if (!AXAPIEnabled()) {
+				throw XArch("assistive devices is not enabled, enable it in system settings.");
+			}
+#endif
+		}
 		
 		// install display manager notification handler
 #if defined(MAC_OS_X_VERSION_10_5)
@@ -134,7 +150,7 @@ COSXScreen::COSXScreen(bool isPrimary, bool autoShowHideCursor) :
 		constructMouseButtonEventMap();
 
 		// watch for requests to sleep
-		EVENTQUEUE->adoptHandler(COSXScreen::getConfirmSleepEvent(),
+		m_events->adoptHandler(m_events->forCOSXScreen().confirmSleep(),
 								getEventTarget(),
 								new TMethodEventJob<COSXScreen>(this,
 									&COSXScreen::handleConfirmSleep));
@@ -146,7 +162,7 @@ COSXScreen::COSXScreen(bool isPrimary, bool autoShowHideCursor) :
 								(this, &COSXScreen::watchSystemPowerThread));
 	}
 	catch (...) {
-		EVENTQUEUE->removeHandler(COSXScreen::getConfirmSleepEvent(),
+		m_events->removeHandler(m_events->forCOSXScreen().confirmSleep(),
 								getEventTarget());
 		if (m_switchEventHandlerRef != 0) {
 			RemoveEventHandler(m_switchEventHandlerRef);
@@ -176,19 +192,19 @@ COSXScreen::COSXScreen(bool isPrimary, bool autoShowHideCursor) :
 	}
 
 	// install event handlers
-	EVENTQUEUE->adoptHandler(CEvent::kSystem, IEventQueue::getSystemTarget(),
+	m_events->adoptHandler(CEvent::kSystem, m_events->getSystemTarget(),
 							new TMethodEventJob<COSXScreen>(this,
 								&COSXScreen::handleSystemEvent));
 
 	// install the platform event queue
-	EVENTQUEUE->adoptBuffer(new COSXEventQueueBuffer);
+	m_events->adoptBuffer(new COSXEventQueueBuffer(m_events));
 }
 
 COSXScreen::~COSXScreen()
 {
 	disable();
-	EVENTQUEUE->adoptBuffer(NULL);
-	EVENTQUEUE->removeHandler(CEvent::kSystem, IEventQueue::getSystemTarget());
+	m_events->adoptBuffer(NULL);
+	m_events->removeHandler(CEvent::kSystem, m_events->getSystemTarget());
 
 	if (m_pmWatchThread) {
 		// make sure the thread has setup the runloop.
@@ -209,7 +225,7 @@ COSXScreen::~COSXScreen()
 	delete m_pmThreadReady;
 	delete m_pmMutex;
 
-	EVENTQUEUE->removeHandler(COSXScreen::getConfirmSleepEvent(),
+	m_events->removeHandler(m_events->forCOSXScreen().confirmSleep(),
 								getEventTarget());
 
 	RemoveEventHandler(m_switchEventHandlerRef);
@@ -309,8 +325,13 @@ COSXScreen::getJumpZoneSize() const
 }
 
 bool
-COSXScreen::isAnyMouseButtonDown() const
+COSXScreen::isAnyMouseButtonDown(UInt32& buttonID) const
 {
+	if (m_buttonState.test(0)) {
+		buttonID = kButtonLeft;
+		return true;
+	}
+
 	return (GetCurrentButtonState() != 0);
 }
 
@@ -565,7 +586,7 @@ COSXScreen::fakeMouseButton(ButtonID id, bool press)
 		
 		MouseButtonState state = press ? kMouseButtonDown : kMouseButtonUp;
 		
-		LOG((CLOG_DEBUG1 "faking mouse button %s", press ? "press" : "release"));
+		LOG((CLOG_DEBUG1 "faking mouse button id: %d press: %s", id, press ? "pressed" : "released"));
 		
 		MouseButtonEventMapType thisButtonMap = MouseButtonEventMap[index];
 		CGEventType type = thisButtonMap[state];
@@ -581,11 +602,69 @@ COSXScreen::fakeMouseButton(ButtonID id, bool press)
 		m_lastSingleClickXCursor = m_xCursor;
 		m_lastSingleClickYCursor = m_yCursor;
 	}
+	if (!press && (id == kButtonLeft)) {
+		// fake ctrl key up
+		fakeKeyUp(29);
+		
+		if (m_fakeDraggingStarted) {
+			m_getDropTargetThread = new CThread(new TMethodJob<COSXScreen>(
+				this, &COSXScreen::getDropTargetThread));
+		}
+		
+		m_draggingStarted = false;
+	}
 }
 
 void
-COSXScreen::fakeMouseMove(SInt32 x, SInt32 y) const
+COSXScreen::getDropTargetThread(void*)
 {
+#if defined(MAC_OS_X_VERSION_10_7)
+	char* cstr = NULL;
+	
+	// wait for 5 secs for the drop destinaiton string to be filled.
+	UInt32 timeout = ARCH->time() + 5;
+	
+	while (ARCH->time() < timeout) {
+		CFStringRef cfstr = getCocoaDropTarget();
+		cstr = CFStringRefToUTF8String(cfstr);
+		CFRelease(cfstr);
+		
+		if (cstr != NULL) {
+			break;
+		}
+		ARCH->sleep(.1f);
+	}
+	
+	if (cstr != NULL) {
+		LOG((CLOG_DEBUG "drop target: %s", cstr));
+		m_dropTarget = cstr;
+	}
+	else {
+		LOG((CLOG_ERR "failed to get drop target"));
+		m_dropTarget.clear();
+	}
+#else
+	LOG((CLOG_WARN "drag drop not supported"));
+#endif
+	m_fakeDraggingStarted = false;
+}
+
+void
+COSXScreen::fakeMouseMove(SInt32 x, SInt32 y)
+{
+	if (m_fakeDraggingStarted) {
+		// HACK: for some reason the drag icon
+		// does not follow the cursor unless a key
+		// is pressed (except esc key)
+		// TODO: fake this key down properly
+		fakeKeyDown(kKeyControl_L, 8194, 29);
+	}
+	
+	// index 0 means left mouse button
+	if (m_buttonState.test(0)) {
+		m_draggingStarted = true;
+	}
+	
 	// synthesize event
 	CGPoint pos;
 	pos.x = x;
@@ -707,8 +786,8 @@ void
 COSXScreen::enable()
 {
 	// watch the clipboard
-	m_clipboardTimer = EVENTQUEUE->newTimer(1.0, NULL);
-	EVENTQUEUE->adoptHandler(CEvent::kTimer, m_clipboardTimer,
+	m_clipboardTimer = m_events->newTimer(1.0, NULL);
+	m_events->adoptHandler(CEvent::kTimer, m_clipboardTimer,
 							new TMethodEventJob<COSXScreen>(this,
 								&COSXScreen::handleClipboardCheck));
 
@@ -778,8 +857,8 @@ COSXScreen::disable()
 
 	// uninstall clipboard timer
 	if (m_clipboardTimer != NULL) {
-		EVENTQUEUE->removeHandler(CEvent::kTimer, m_clipboardTimer);
-		EVENTQUEUE->deleteTimer(m_clipboardTimer);
+		m_events->removeHandler(CEvent::kTimer, m_clipboardTimer);
+		m_events->deleteTimer(m_clipboardTimer);
 		m_clipboardTimer = NULL;
 	}
 
@@ -801,6 +880,17 @@ COSXScreen::enter()
 		// reset buttons
 		m_buttonState.reset();
 
+		// patch by Yutaka Tsutano
+		// wakes the client screen
+		// http://synergy-foss.org/spit/issues/details/3287#c12
+		io_registry_entry_t entry = IORegistryEntryFromPath(
+			kIOMasterPortDefault,
+			"IOService:/IOResources/IODisplayWrangler");
+		if (entry != MACH_PORT_NULL) {
+			IORegistryEntrySetCFProperty(entry, CFSTR("IORequestIdle"), kCFBooleanFalse);
+			IOObjectRelease(entry);
+		}
+
 		// avoid suppression of local hardware events
 		// stkamp@users.sourceforge.net
 		CGSetLocalEventsFilterDuringSupressionState(
@@ -821,6 +911,32 @@ COSXScreen::leave()
 {
     hideCursor();
     
+	if (getDraggingStarted()) {
+		CString& fileList = getDraggingFilename();
+		size_t size = fileList.size();
+		
+		if (!m_isPrimary) {
+			// fake esc key down and up
+			fakeKeyDown(kKeyEscape, 8192, 1);
+			fakeKeyUp(1);
+			
+			fakeMouseButton(kButtonLeft, false);
+			
+			// fake ctrl key up
+			fakeKeyUp(29);
+			
+			if (fileList.empty() == false) {
+				CClientApp& app = CClientApp::instance();
+				CClient* client = app.getClientPtr();
+				UInt32 fileCount = 1;
+				client->draggingInfoSending(fileCount, fileList, size);
+				LOG((CLOG_DEBUG "send dragging file to server"));
+				client->sendFileToServer(fileList.c_str());
+			}
+		}
+		m_draggingStarted = false;
+	}
+	
 	if (m_isPrimary) {
 		// warp to center
 		//warpCursor(m_xCenter, m_yCenter);
@@ -865,8 +981,8 @@ COSXScreen::checkClipboards()
 	LOG((CLOG_DEBUG2 "checking clipboard"));
 	if (m_pasteboard.synchronize()) {
 		LOG((CLOG_DEBUG "clipboard changed"));
-		sendClipboardEvent(getClipboardGrabbedEvent(), kClipboardClipboard);
-		sendClipboardEvent(getClipboardGrabbedEvent(), kClipboardSelection);
+		sendClipboardEvent(m_events->forIScreen().clipboardGrabbed(), kClipboardClipboard);
+		sendClipboardEvent(m_events->forIScreen().clipboardGrabbed(), kClipboardSelection);
 	}
 }
 
@@ -925,7 +1041,7 @@ COSXScreen::isPrimary() const
 void
 COSXScreen::sendEvent(CEvent::Type type, void* data) const
 {
-	EVENTQUEUE->addEvent(CEvent(type, getEventTarget(), data));
+	m_events->addEvent(CEvent(type, getEventTarget(), data));
 }
 
 void
@@ -1039,8 +1155,11 @@ COSXScreen::onMouseMove(SInt32 mx, SInt32 my)
 
 	if (m_isOnScreen) {
 		// motion on primary screen
-		sendEvent(getMotionOnPrimaryEvent(),
+		sendEvent(m_events->forIPrimaryScreen().motionOnPrimary(),
 							CMotionInfo::alloc(m_xCursor, m_yCursor));
+		if (m_buttonState.test(0)) {
+			m_draggingStarted = true;
+		}
 	}
 	else {
 		// motion on secondary screen.  warp mouse back to
@@ -1061,7 +1180,7 @@ COSXScreen::onMouseMove(SInt32 mx, SInt32 my)
 		}
 		else {
 			// send motion
-			sendEvent(getMotionOnSecondaryEvent(), CMotionInfo::alloc(x, y));
+			sendEvent(m_events->forIPrimaryScreen().motionOnSecondary(), CMotionInfo::alloc(x, y));
 		}
 	}
 
@@ -1078,14 +1197,14 @@ COSXScreen::onMouseButton(bool pressed, UInt16 macButton)
 		LOG((CLOG_DEBUG1 "event: button press button=%d", button));
 		if (button != kButtonNone) {
 			KeyModifierMask mask = m_keyState->getActiveModifiers();
-			sendEvent(getButtonDownEvent(), CButtonInfo::alloc(button, mask));
+			sendEvent(m_events->forIPrimaryScreen().buttonDown(), CButtonInfo::alloc(button, mask));
 		}
 	}
 	else {
 		LOG((CLOG_DEBUG1 "event: button release button=%d", button));
 		if (button != kButtonNone) {
 			KeyModifierMask mask = m_keyState->getActiveModifiers();
-			sendEvent(getButtonUpEvent(), CButtonInfo::alloc(button, mask));
+			sendEvent(m_events->forIPrimaryScreen().buttonUp(), CButtonInfo::alloc(button, mask));
 		}
 	}
 
@@ -1104,6 +1223,23 @@ COSXScreen::onMouseButton(bool pressed, UInt16 macButton)
 			}
 		}
 	}
+	
+	if (macButton == kButtonLeft) {
+		MouseButtonState state = pressed ? kMouseButtonDown : kMouseButtonUp;
+		m_buttonState.set(kButtonLeft - 1, state);
+		if (pressed) {
+			m_draggingFilename.clear();
+			LOG((CLOG_DEBUG2 "dragging file directory is cleared"));
+		}
+		else {
+			if (m_fakeDraggingStarted) {
+				m_getDropTargetThread = new CThread(new TMethodJob<COSXScreen>(
+																			   this, &COSXScreen::getDropTargetThread));
+			}
+			
+			m_draggingStarted = false;
+		}
+	}
 
 	return true;
 }
@@ -1112,7 +1248,7 @@ bool
 COSXScreen::onMouseWheel(SInt32 xDelta, SInt32 yDelta) const
 {
 	LOG((CLOG_DEBUG1 "event: button wheel delta=%+d,%+d", xDelta, yDelta));
-	sendEvent(getWheelEvent(), CWheelInfo::alloc(xDelta, yDelta));
+	sendEvent(m_events->forIPrimaryScreen().wheel(), CWheelInfo::alloc(xDelta, yDelta));
 	return true;
 }
 
@@ -1152,7 +1288,7 @@ COSXScreen::onDisplayChange()
 		}
 
 		// send new screen info
-		sendEvent(getShapeChangedEvent());
+		sendEvent(m_events->forIPrimaryScreen().shapeChanged());
 	}
 
 	return true;
@@ -1204,7 +1340,7 @@ COSXScreen::onKey(CGEventRef event)
 			if (m_modifierHotKeys.count(newMask) > 0) {
 				m_activeModifierHotKey     = m_modifierHotKeys[newMask];
 				m_activeModifierHotKeyMask = newMask;
-				EVENTQUEUE->addEvent(CEvent(getHotKeyDownEvent(),
+				m_events->addEvent(CEvent(m_events->forIPrimaryScreen().hotKeyDown(),
 								getEventTarget(),
 								CHotKeyInfo::alloc(m_activeModifierHotKey)));
 			}
@@ -1215,7 +1351,7 @@ COSXScreen::onKey(CGEventRef event)
 		else if (m_activeModifierHotKey != 0) {
 			KeyModifierMask mask = (newMask & m_activeModifierHotKeyMask);
 			if (mask != m_activeModifierHotKeyMask) {
-				EVENTQUEUE->addEvent(CEvent(getHotKeyUpEvent(),
+				m_events->addEvent(CEvent(m_events->forIPrimaryScreen().hotKeyUp(),
 								getEventTarget(),
 								CHotKeyInfo::alloc(m_activeModifierHotKey)));
 				m_activeModifierHotKey     = 0;
@@ -1242,16 +1378,16 @@ COSXScreen::onKey(CGEventRef event)
 			CEvent::Type type;
 			//UInt32 eventKind = GetEventKind(event);
 			if (eventKind == kCGEventKeyDown) {
-				type = getHotKeyDownEvent();
+				type = m_events->forIPrimaryScreen().hotKeyDown();
 			}
 			else if (eventKind == kCGEventKeyUp) {
-				type = getHotKeyUpEvent();
+				type = m_events->forIPrimaryScreen().hotKeyUp();
 			}
 			else {
 				return false;
 			}
 	
-			EVENTQUEUE->addEvent(CEvent(type, getEventTarget(),
+			m_events->addEvent(CEvent(type, getEventTarget(),
 										CHotKeyInfo::alloc(id)));
 		
 			return true;
@@ -1315,16 +1451,16 @@ COSXScreen::onHotKey(EventRef event) const
 	CEvent::Type type;
 	UInt32 eventKind = GetEventKind(event);
 	if (eventKind == kEventHotKeyPressed) {
-		type = getHotKeyDownEvent();
+		type = m_events->forIPrimaryScreen().hotKeyDown();
 	}
 	else if (eventKind == kEventHotKeyReleased) {
-		type = getHotKeyUpEvent();
+		type = m_events->forIPrimaryScreen().hotKeyUp();
 	}
 	else {
 		return false;
 	}
 
-	EVENTQUEUE->addEvent(CEvent(type, getEventTarget(),
+	m_events->addEvent(CEvent(type, getEventTarget(),
 								CHotKeyInfo::alloc(id)));
 
 	return true;
@@ -1399,19 +1535,19 @@ COSXScreen::getScrollSpeedFactor() const
 void
 COSXScreen::enableDragTimer(bool enable)
 {
-  UInt32 modifiers;
-  MouseTrackingResult res; 
+	UInt32 modifiers;
+	MouseTrackingResult res;
 
 	if (enable && m_dragTimer == NULL) {
-		m_dragTimer = EVENTQUEUE->newTimer(0.01, NULL);
-		EVENTQUEUE->adoptHandler(CEvent::kTimer, m_dragTimer,
+		m_dragTimer = m_events->newTimer(0.01, NULL);
+		m_events->adoptHandler(CEvent::kTimer, m_dragTimer,
 							new TMethodEventJob<COSXScreen>(this,
 								&COSXScreen::handleDrag));
 		TrackMouseLocationWithOptions(NULL, 0, 0, &m_dragLastPoint, &modifiers, &res);
 	}
 	else if (!enable && m_dragTimer != NULL) {
-		EVENTQUEUE->removeHandler(CEvent::kTimer, m_dragTimer);
-		EVENTQUEUE->deleteTimer(m_dragTimer);
+		m_events->removeHandler(CEvent::kTimer, m_dragTimer);
+		m_events->deleteTimer(m_dragTimer);
 		m_dragTimer = NULL;
 	}
 }
@@ -1420,8 +1556,8 @@ void
 COSXScreen::handleDrag(const CEvent&, void*)
 {
 	Point p;
-  UInt32 modifiers;
-  MouseTrackingResult res; 
+	UInt32 modifiers;
+	MouseTrackingResult res; 
 
 	TrackMouseLocationWithOptions(NULL, 0, 0, &p, &modifiers, &res);
 
@@ -1497,7 +1633,7 @@ COSXScreen::updateScreenShape()
 
 	delete[] displays;
 	// We want to notify the peer screen whether we are primary screen or not
-	sendEvent(getShapeChangedEvent());
+	sendEvent(m_events->forIScreen().shapeChanged());
 
 	LOG((CLOG_DEBUG "screen shape: center=%d,%d size=%dx%d on %u %s",
          m_x, m_y, m_w, m_h, displayCount,
@@ -1521,15 +1657,16 @@ COSXScreen::userSwitchCallback(EventHandlerCallRef nextHandler,
 {
 	COSXScreen* screen = (COSXScreen*)inUserData;
 	UInt32 kind        = GetEventKind(theEvent);
+	IEventQueue* events = screen->getEvents();
 
 	if (kind == kEventSystemUserSessionDeactivated) {
 		LOG((CLOG_DEBUG "user session deactivated"));
-		EVENTQUEUE->addEvent(CEvent(IScreen::getSuspendEvent(),
+		events->addEvent(CEvent(events->forIScreen().suspend(),
 									screen->getEventTarget()));
 	}
 	else if (kind == kEventSystemUserSessionActivated) {
 		LOG((CLOG_DEBUG "user session activated"));
-		EVENTQUEUE->addEvent(CEvent(IScreen::getResumeEvent(),
+		events->addEvent(CEvent(events->forIScreen().resume(),
 									screen->getEventTarget()));
 	}
 	return (CallNextEventHandler(nextHandler, theEvent));
@@ -1580,8 +1717,13 @@ COSXScreen::watchSystemPowerThread(void*)
 		return;
 	}
 
-	// start the run loop
 	LOG((CLOG_DEBUG "started watchSystemPowerThread"));
+    
+	// HACK: sleep, this seem to stop synergy from freezing.
+	ARCH->sleep(1);
+    
+	// start the run loop
+	LOG((CLOG_DEBUG "starting carbon loop"));
 	CFRunLoopRun();
 	
 	// cleanup
@@ -1614,14 +1756,14 @@ COSXScreen::handlePowerChangeRequest(natural_t messageType, void* messageArg)
 		// COSXScreen has to handle this in the main thread so we have to
 		// queue a confirm sleep event here.  we actually don't allow the
 		// system to sleep until the event is handled.
-		EVENTQUEUE->addEvent(CEvent(COSXScreen::getConfirmSleepEvent(),
+		m_events->addEvent(CEvent(m_events->forCOSXScreen().confirmSleep(),
 								getEventTarget(), messageArg,
 								CEvent::kDontFreeData));
 		return;
 			
 	case kIOMessageSystemHasPoweredOn:
 		LOG((CLOG_DEBUG "system wakeup"));
-		EVENTQUEUE->addEvent(CEvent(IScreen::getResumeEvent(),
+		m_events->addEvent(CEvent(m_events->forIScreen().resume(),
 								getEventTarget()));
 		break;
 
@@ -1635,13 +1777,6 @@ COSXScreen::handlePowerChangeRequest(natural_t messageType, void* messageArg)
 	}
 }
 
-CEvent::Type
-COSXScreen::getConfirmSleepEvent()
-{
-	return EVENTQUEUE->registerTypeOnce(s_confirmSleepEvent,
-									"COSXScreen::confirmSleep");
-}
-
 void
 COSXScreen::handleConfirmSleep(const CEvent& event, void*)
 {
@@ -1650,7 +1785,7 @@ COSXScreen::handleConfirmSleep(const CEvent& event, void*)
 		CLock lock(m_pmMutex);
 		if (m_pmRootPort != 0) {
 			// deliver suspend event immediately.
-			EVENTQUEUE->addEvent(CEvent(IScreen::getSuspendEvent(),
+			m_events->addEvent(CEvent(m_events->forIScreen().suspend(),
 									getEventTarget(), NULL, 
 									CEvent::kDeliverImmediately));
 	
@@ -1844,10 +1979,10 @@ COSXScreen::handleCGInputEvent(CGEventTapProxy proxy,
 		case kCGEventOtherMouseUp:
 			screen->onMouseButton(false, CGEventGetIntegerValueField(event, kCGMouseEventButtonNumber) + 1);
 			break;
-		case kCGEventMouseMoved:
 		case kCGEventLeftMouseDragged:
 		case kCGEventRightMouseDragged:
 		case kCGEventOtherMouseDragged:
+		case kCGEventMouseMoved:
 			pos = CGEventGetLocation(event);
 			screen->onMouseMove(pos.x, pos.y);
 			
@@ -1937,4 +2072,54 @@ COSXScreen::CMouseButtonState::getFirstButtonDown() const
 		}
 	}
 	return -1;
+}
+
+char*
+COSXScreen::CFStringRefToUTF8String(CFStringRef aString)
+{
+	if (aString == NULL) {
+		return NULL;
+	}
+	
+	CFIndex length = CFStringGetLength(aString);
+	CFIndex maxSize = CFStringGetMaximumSizeForEncoding(
+		length,
+		kCFStringEncodingUTF8);
+	char* buffer = (char*)malloc(maxSize);
+	if (CFStringGetCString(aString, buffer, maxSize, kCFStringEncodingUTF8)) {
+		return buffer;
+	}
+	return NULL;
+}
+
+void
+COSXScreen::fakeDraggingFiles(CString str)
+{
+	m_fakeDraggingStarted = true;
+#if defined(MAC_OS_X_VERSION_10_7)
+	// TODO: use real file extension
+	fakeDragging("txt", 3, m_xCursor, m_yCursor);
+#else
+	LOG((CLOG_WARN "drag drop not supported"));
+#endif
+}
+
+CString&
+COSXScreen::getDraggingFilename()
+{
+	if (m_draggingStarted) {
+		CFStringRef dragInfo = getDraggedFileURL();
+		char* info = NULL;
+		info = CFStringRefToUTF8String(dragInfo);
+		if (info == NULL) {
+			m_draggingFilename.clear();
+		}
+		else {
+			LOG((CLOG_DEBUG "drag info: %s", info));
+			CFRelease(dragInfo);
+			CString fileList(info);
+			m_draggingFilename = fileList;
+		}
+	}
+	return m_draggingFilename;
 }

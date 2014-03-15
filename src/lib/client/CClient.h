@@ -24,6 +24,8 @@
 #include "CNetworkAddress.h"
 #include "INode.h"
 #include "CCryptoOptions.h"
+#include "CEventTypes.h"
+#include "CDragInformation.h"
 
 class CEventQueueTimer;
 class CScreen;
@@ -34,6 +36,7 @@ namespace synergy { class IStream; }
 class IStreamFilterFactory;
 class IEventQueue;
 class CCryptoStream;
+class CThread;
 
 //! Synergy client
 /*!
@@ -54,16 +57,17 @@ public:
 	as its name and \p address as the server's address and \p factory
 	to create the socket.  \p screen is	the local screen.
 	*/
-	CClient(IEventQueue* eventQueue,
+	CClient(IEventQueue* events,
 							const CString& name, const CNetworkAddress& address,
 							ISocketFactory* socketFactory,
 							IStreamFilterFactory* streamFilterFactory,
 							CScreen* screen,
-							const CCryptoOptions& crypto);
+							const CCryptoOptions& crypto,
+							bool enableDragDrop);
 	~CClient();
 	
 #ifdef TEST_ENV
-	CClient() { }
+	CClient() : m_mock(true) { }
 #endif
 
 	//! @name manipulators
@@ -91,6 +95,27 @@ public:
 	//! Set crypto IV for decryption
 	virtual void		setDecryptIv(const UInt8* iv);
 
+	//! Clears the file buffer
+	void				clearReceivedFileData();
+
+	//! Set the expected size of receiving file
+	void				setExpectedFileSize(CString data);
+
+	//! Received a chunk of file data
+	void				fileChunkReceived(CString data);
+
+	//! Received drag information
+	void				dragInfoReceived(UInt32 fileNum, CString data);
+
+	//! Create a new thread and use it to send file to Server
+	void				sendFileToServer(const char* filename);
+
+	//! Set file transder destination
+	void				setFileTransferDes(CString& des) { m_fileTransferDes = des; }
+	
+	//! Send dragging file information back to server
+	void				draggingInfoSending(UInt32 fileCount, CString& fileList, size_t size);
+	
 	//@}
 	//! @name accessors
 	//@{
@@ -114,28 +139,12 @@ public:
 	to connect) to.
 	*/
 	CNetworkAddress		getServerAddress() const;
+	
+	//! Return true if recieved file size is valid
+	bool				isReceivedFileSizeValid();
 
-	//! Get connected event type
-	/*!
-	Returns the connected event type.  This is sent when the client has
-	successfully connected to the server.
-	*/
-	static CEvent::Type	getConnectedEvent();
-
-	//! Get connection failed event type
-	/*!
-	Returns the connection failed event type.  This is sent when the
-	server fails for some reason.  The event data is a CFailInfo*.
-	*/
-	static CEvent::Type	getConnectionFailedEvent();
-
-	//! Get disconnected event type
-	/*!
-	Returns the disconnected event type.  This is sent when the client
-	has disconnected from the server (and only after having successfully
-	connected).
-	*/
-	static CEvent::Type	getDisconnectedEvent();
+	//! Return expected file size
+	size_t				getExpectedFileSize() { return m_expectedFileSize; }
 
 	//@}
 
@@ -166,16 +175,15 @@ public:
 	virtual void		screensaver(bool activate);
 	virtual void		resetOptions();
 	virtual void		setOptions(const COptionsList& options);
-	virtual void		gameDeviceButtons(GameDeviceID id, GameDeviceButton buttons);
-	virtual void		gameDeviceSticks(GameDeviceID id, SInt16 x1, SInt16 y1, SInt16 x2, SInt16 y2);
-	virtual void		gameDeviceTriggers(GameDeviceID id, UInt8 t1, UInt8 t2);
-	virtual void		gameDeviceTimingReq();
 	virtual CString		getName() const;
 
 private:
 	void				sendClipboard(ClipboardID);
 	void				sendEvent(CEvent::Type, void*);
 	void				sendConnectionFailedEvent(const char* msg);
+	void				sendFileChunk(const void* data);
+	void				sendFileThread(void*);
+	void				writeToDropDirThread(void*);
 	void				setupConnecting();
 	void				setupConnection();
 	void				setupScreen();
@@ -194,9 +202,10 @@ private:
 	void				handleHello(const CEvent&, void*);
 	void				handleSuspend(const CEvent& event, void*);
 	void				handleResume(const CEvent& event, void*);
-	void				handleGameDeviceTimingResp(const CEvent& event, void*);
-	void				handleGameDeviceFeedback(const CEvent& event, void*);
-	
+	void				handleFileChunkSending(const CEvent&, void*);
+	void				handleFileRecieveCompleted(const CEvent&, void*);
+	void				onFileRecieveCompleted();
+
 public:
 	bool					m_mock;
 
@@ -217,13 +226,18 @@ private:
 	bool					m_sentClipboard[kClipboardEnd];
 	IClipboard::Time		m_timeClipboard[kClipboardEnd];
 	CString					m_dataClipboard[kClipboardEnd];
-	IEventQueue*			m_eventQueue;
+	IEventQueue*			m_events;
 	CCryptoStream*			m_cryptoStream;
 	CCryptoOptions			m_crypto;
-
-	static CEvent::Type		s_connectedEvent;
-	static CEvent::Type		s_connectionFailedEvent;
-	static CEvent::Type		s_disconnectedEvent;
+	std::size_t				m_expectedFileSize;
+	CString					m_receivedFileData;
+	CString					m_fileTransferSrc;
+	CString					m_fileTransferDes;
+	CDragFileList			m_dragFileList;
+	CString					m_dragFileExt;
+	CThread*				m_sendFileThread;
+	CThread*				m_writeToDropDirThread;
+	bool					m_enableDragDrop;
 };
 
 #endif

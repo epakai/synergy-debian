@@ -24,10 +24,11 @@
 #include "KeyTypes.h"
 #include "MouseTypes.h"
 #include "OptionTypes.h"
-#include "GameDeviceTypes.h"
+#include "CString.h"
 
 class IClipboard;
 class IPlatformScreen;
+class IEventQueue;
 
 //! Platform independent screen
 /*!
@@ -36,8 +37,12 @@ primary or secondary screen.
 */
 class CScreen : public IScreen {
 public:
-	CScreen(IPlatformScreen* platformScreen);
+	CScreen(IPlatformScreen* platformScreen, IEventQueue* events);
 	virtual ~CScreen();
+
+#ifdef TEST_ENV
+	CScreen() : m_mock(true) { }
+#endif
 
 	//! @name manipulators
 	//@{
@@ -48,14 +53,14 @@ public:
 	For a secondary screen it also means disabling the screen saver if
 	synchronizing it and preparing to synthesize events.
 	*/
-	void				enable();
+	virtual void		enable();
 
 	//! Deactivate screen
 	/*!
 	Undoes the operations in activate() and events are no longer
 	reported.  It also releases keys that are logically pressed.
 	*/
-	void				disable();
+	virtual void		disable();
 
 	//! Enter screen
 	/*!
@@ -167,54 +172,18 @@ public:
 	*/
 	void				mouseWheel(SInt32 xDelta, SInt32 yDelta);
 
-	//! Notify of game device buttons changed
-	/*!
-	Synthesize game device button states.
-	*/
-	virtual void		gameDeviceButtons(GameDeviceID id, GameDeviceButton buttons);
-
-	//! Notify of game device sticks changed
-	/*!
-	Synthesize game device stick states.
-	*/
-	virtual void		gameDeviceSticks(GameDeviceID id, SInt16 x1, SInt16 y1, SInt16 x2, SInt16 y2);
-	
-	//! Notify of game device trigger changes
-	/*!
-	Synthesize game device trigger states.
-	*/
-	virtual void		gameDeviceTriggers(GameDeviceID id, UInt8 t1, UInt8 t2);
-	
-	//! Notify of game device timing request
-	/*!
-	Causes a game device timing response when state is next faked.
-	*/
-	virtual void		gameDeviceTimingReq();
-	
-	//! Notify of game device timing response
-	/*!
-	Handles a game device timing response coming back from the client.
-	*/
-	virtual void		gameDeviceTimingResp(UInt16 freq);
-	
-	//! Notify of game device feedback changes
-	/*!
-	Sets the game device state with new feedback values.
-	*/
-	virtual void		gameDeviceFeedback(GameDeviceID id, UInt16 m1, UInt16 m2);
-
 	//! Notify of options changes
 	/*!
 	Resets all options to their default values.
 	*/
-	void				resetOptions();
+	virtual void		resetOptions();
 
 	//! Notify of options changes
 	/*!
 	Set options to given values.  Ignores unknown options and doesn't
 	modify options that aren't given in \c options.
 	*/
-	void				setOptions(const COptionsList& options);
+	virtual void		setOptions(const COptionsList& options);
 
 	//! Set clipboard sequence number
 	/*!
@@ -250,6 +219,13 @@ public:
 	*/
 	void				fakeInputEnd();
 
+	//! Change dragging status
+	void				setDraggingStarted(bool started);
+	
+	//! Fake a files dragging operation
+	void				startDraggingFiles(CString str);
+
+	void				setEnableDragDrop(bool enabled);
 	//@}
 	//! @name accessors
 	//@{
@@ -298,6 +274,22 @@ public:
 	*/
 	KeyModifierMask		pollActiveModifiers() const;
 
+	//! Check if a local dragging has started.
+
+	bool				getDraggingStarted() const;
+	
+	//! Check if a fake dragging has started.
+	
+	bool				getFakeDraggingStarted() const;
+
+	//! Get dragging file's directory.
+
+	CString&			getDraggingFilename() const;
+
+	//! Get drop target directory.
+	
+	const CString&		getDropTarget() const;
+
 	//@}
 
 	// IScreen overrides
@@ -340,6 +332,11 @@ private:
 
 	// true if we're faking input on a primary screen
 	bool				m_fakeInput;
+
+	IEventQueue*		m_events;
+
+	bool				m_mock;
+	bool				m_enableDragDrop;
 };
 
 #endif

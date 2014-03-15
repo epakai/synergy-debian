@@ -45,15 +45,21 @@
 #include <ApplicationServices/ApplicationServices.h>
 #endif
 
+#if defined(__APPLE__)
+#include "COSXDragSimulator.h"
+#endif
+
 CApp* CApp::s_instance = nullptr;
 
-CApp::CApp(CreateTaskBarReceiverFunc createTaskBarReceiver, CArgsBase* args) :
-m_createTaskBarReceiver(createTaskBarReceiver),
-m_args(args),
-m_bye(&exit),
-m_taskBarReceiver(NULL),
-m_suspended(false),
-m_ipcClient(nullptr)
+CApp::CApp(IEventQueue* events, CreateTaskBarReceiverFunc createTaskBarReceiver, CArgsBase* args) :
+	m_events(events),
+	m_createTaskBarReceiver(createTaskBarReceiver),
+	m_args(args),
+	m_bye(&exit),
+	m_taskBarReceiver(NULL),
+	m_suspended(false),
+	m_ipcClient(nullptr),
+	m_appUtil(events)
 {
 	assert(s_instance == nullptr);
 	s_instance = this;
@@ -163,17 +169,36 @@ CApp::parseArg(const int& argc, const char* const* argv, int& i)
 
 	else if (isArg(i, argc, argv, NULL, "--crypto-pass")) {
 		argsBase().m_crypto.m_pass = argv[++i];
+		argsBase().m_crypto.setMode("cfb");
 	}
 
-	else if (isArg(i, argc, argv, NULL, "--crypto-mode")) {
-		argsBase().m_crypto.setMode(argv[++i]);
-	}
+	else if (isArg(i, argc, argv, NULL, "--enable-drag-drop")) {
+        bool useDragDrop = true;
 
-#if VNC_SUPPORT
-	else if (isArg(i, argc, argv, NULL, "--vnc")) {
-		argsBase().m_enableVnc = true;
-	}
+#ifdef WINAPI_XWINDOWS
+
+        useDragDrop = false;
+		LOG((CLOG_INFO "ignoring --enable-drag-drop, not supported on linux."));
+
 #endif
+
+#ifdef WINAPI_MSWINDOWS
+
+        OSVERSIONINFO osvi;
+        ZeroMemory(&osvi, sizeof(OSVERSIONINFO));
+        osvi.dwOSVersionInfoSize = sizeof(OSVERSIONINFO);
+        GetVersionEx(&osvi);
+
+        if (osvi.dwMajorVersion < 6) {
+            useDragDrop = false;
+		    LOG((CLOG_INFO "ignoring --enable-drag-drop, not supported below vista."));
+        }
+#endif
+
+        if (useDragDrop) {
+		    argsBase().m_enableDragDrop = true;
+        }
+	}
 
 	else {
 		// option not supported here
@@ -354,18 +379,18 @@ CApp::initApp(int argc, const char** argv)
 
 		// make the task bar receiver.  the user can control this app
 		// through the task bar.
-		m_taskBarReceiver = m_createTaskBarReceiver(logBuffer);
+		m_taskBarReceiver = m_createTaskBarReceiver(logBuffer, m_events);
 	}
 }
 
 void
 CApp::initIpcClient()
 {
-	m_ipcClient = new CIpcClient();
+	m_ipcClient = new CIpcClient(m_events, m_socketMultiplexer);
 	m_ipcClient->connect();
 
-	EVENTQUEUE->adoptHandler(
-		CIpcClient::getMessageReceivedEvent(), m_ipcClient,
+	m_events->adoptHandler(
+		m_events->forCIpcClient().messageReceived(), m_ipcClient,
 		new TMethodEventJob<CApp>(this, &CApp::handleIpcMessage));
 }
 
@@ -373,7 +398,7 @@ void
 CApp::cleanupIpcClient()
 {
 	m_ipcClient->disconnect();
-	EVENTQUEUE->removeHandler(CIpcClient::getMessageReceivedEvent(), m_ipcClient);
+	m_events->removeHandler(m_events->forCIpcClient().messageReceived(), m_ipcClient);
 	delete m_ipcClient;
 }
 
@@ -383,6 +408,18 @@ CApp::handleIpcMessage(const CEvent& e, void*)
 	CIpcMessage* m = static_cast<CIpcMessage*>(e.getDataObject());
 	if (m->type() == kIpcShutdown) {
 		LOG((CLOG_INFO "got ipc shutdown message"));
-		EVENTQUEUE->addEvent(CEvent(CEvent::kQuit));
-	}
+		m_events->addEvent(CEvent(CEvent::kQuit));
+    }
+}
+
+void
+CApp::runEventsLoop(void*)
+{
+	m_events->loop();
+	
+#if defined(MAC_OS_X_VERSION_10_7)
+	
+	stopCocoaLoop();
+	
+#endif
 }

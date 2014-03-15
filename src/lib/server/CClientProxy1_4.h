@@ -19,36 +19,31 @@
 #pragma once
 
 #include "CClientProxy1_3.h"
-#include "GameDeviceTypes.h"
 
 class CServer;
 
 //! Proxy for client implementing protocol version 1.4
 class CClientProxy1_4 : public CClientProxy1_3 {
 public:
-	CClientProxy1_4(const CString& name, synergy::IStream* adoptedStream, CServer* server, IEventQueue* eventQueue);
+	CClientProxy1_4(const CString& name, synergy::IStream* adoptedStream, CServer* server, IEventQueue* events);
 	~CClientProxy1_4();
 
+	//! @name accessors
+	//@{
+
+	//! get server pointer
+	CServer*			getServer() { return m_server; }
+
+	//@}
+
 	// IClient overrides
-	virtual void		gameDeviceButtons(GameDeviceID id, GameDeviceButton buttons);
-	virtual void		gameDeviceSticks(GameDeviceID id, SInt16 x1, SInt16 y1, SInt16 x2, SInt16 y2);
-	virtual void		gameDeviceTriggers(GameDeviceID id, UInt8 t1, UInt8 t2);
-	virtual void		gameDeviceTimingReq();
 	virtual void		keyDown(KeyID key, KeyModifierMask mask, KeyButton button);
 	virtual void		keyRepeat(KeyID key, KeyModifierMask mask, SInt32 count, KeyButton button);
 	virtual void		keyUp(KeyID key, KeyModifierMask mask, KeyButton button);
+	virtual void		keepAlive();
 
 	//! Send IV to make 
 	void				cryptoIv();
-
-protected:
-	// CClientProxy overrides
-	virtual bool		parseMessage(const UInt8* code);
-
-private:
-	// message handlers
-	void				gameDeviceTimingResp();
-	void				gameDeviceFeedback();
 
 	CServer*			m_server;
 };

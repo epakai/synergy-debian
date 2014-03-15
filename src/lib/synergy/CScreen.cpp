@@ -28,13 +28,16 @@
 // CScreen
 //
 
-CScreen::CScreen(IPlatformScreen* platformScreen) :
+CScreen::CScreen(IPlatformScreen* platformScreen, IEventQueue* events) :
+	m_events(events),
 	m_screen(platformScreen),
 	m_isPrimary(platformScreen->isPrimary()),
 	m_enabled(false),
 	m_entered(m_isPrimary),
 	m_screenSaverSync(true),
-	m_fakeInput(false)
+	m_fakeInput(false),
+	m_mock(false),
+	m_enableDragDrop(false)
 {
 	assert(m_screen != NULL);
 
@@ -46,6 +49,10 @@ CScreen::CScreen(IPlatformScreen* platformScreen) :
 
 CScreen::~CScreen()
 {
+	if (m_mock) {
+		return;
+	}
+
 	if (m_enabled) {
 		disable();
 	}
@@ -180,8 +187,6 @@ CScreen::screensaver(bool activate)
 void
 CScreen::keyDown(KeyID id, KeyModifierMask mask, KeyButton button)
 {
-	assert(!m_isPrimary || m_fakeInput);
-
 	// check for ctrl+alt+del emulation
 	if (id == kKeyDelete &&
 		(mask & (KeyModifierControl | KeyModifierAlt)) ==
@@ -205,21 +210,18 @@ CScreen::keyRepeat(KeyID id,
 void
 CScreen::keyUp(KeyID, KeyModifierMask, KeyButton button)
 {
-	assert(!m_isPrimary || m_fakeInput);
 	m_screen->fakeKeyUp(button);
 }
 
 void
 CScreen::mouseDown(ButtonID button)
 {
-	assert(!m_isPrimary);
 	m_screen->fakeMouseButton(button, true);
 }
 
 void
 CScreen::mouseUp(ButtonID button)
 {
-	assert(!m_isPrimary);
 	m_screen->fakeMouseButton(button, false);
 }
 
@@ -242,34 +244,6 @@ CScreen::mouseWheel(SInt32 xDelta, SInt32 yDelta)
 {
 	assert(!m_isPrimary);
 	m_screen->fakeMouseWheel(xDelta, yDelta);
-}
-
-void
-CScreen::gameDeviceButtons(GameDeviceID id, GameDeviceButton buttons)
-{
-	assert(!m_isPrimary);
-	m_screen->fakeGameDeviceButtons(id, buttons);
-}
-
-void
-CScreen::gameDeviceSticks(GameDeviceID id, SInt16 x1, SInt16 y1, SInt16 x2, SInt16 y2)
-{
-	assert(!m_isPrimary);
-	m_screen->fakeGameDeviceSticks(id, x1, y1, x2, y2);
-}
-
-void
-CScreen::gameDeviceTriggers(GameDeviceID id, UInt8 t1, UInt8 t2)
-{
-	assert(!m_isPrimary);
-	m_screen->fakeGameDeviceTriggers(id, t1, t2);
-}
-
-void
-CScreen::gameDeviceTimingReq()
-{
-	assert(!m_isPrimary);
-	m_screen->queueGameDeviceTimingReq();
 }
 
 void
@@ -393,9 +367,20 @@ bool
 CScreen::isLockedToScreen() const
 {
 	// check for pressed mouse buttons
-	if (m_screen->isAnyMouseButtonDown()) {
-		LOG((CLOG_DEBUG "locked by mouse button"));
-		return true;
+	// HACK: commented out as it breaks new drag drop feature
+	UInt32 buttonID = 0;
+
+	if (m_screen->isAnyMouseButtonDown(buttonID)) {
+		if (buttonID != kButtonLeft) {
+			LOG((CLOG_DEBUG "locked by mouse buttonID: %d", buttonID));
+		}
+		
+		if (m_enableDragDrop) {
+			return (buttonID == kButtonLeft) ? false : true;
+		}
+		else {
+			return true;
+		}
 	}
 
 	// not locked
@@ -431,6 +416,48 @@ CScreen::pollActiveModifiers() const
 	return m_screen->pollActiveModifiers();
 }
 
+bool
+CScreen::getDraggingStarted() const
+{
+	return m_screen->getDraggingStarted();
+}
+
+bool
+CScreen::getFakeDraggingStarted() const
+{
+	return m_screen->getFakeDraggingStarted();
+}
+
+void
+CScreen::setDraggingStarted(bool started)
+{
+	m_screen->setDraggingStarted(started);
+}
+
+void
+CScreen::startDraggingFiles(CString str)
+{
+	m_screen->fakeDraggingFiles(str);
+}
+
+void
+CScreen::setEnableDragDrop(bool enabled)
+{
+	m_enableDragDrop = enabled;
+}
+
+CString&
+CScreen::getDraggingFilename() const
+{
+	return m_screen->getDraggingFilename();
+}
+
+const CString&
+CScreen::getDropTarget() const
+{
+	return m_screen->getDropTarget();
+}
+
 void*
 CScreen::getEventTarget() const
 {
@@ -462,7 +489,7 @@ CScreen::enablePrimary()
 	m_screen->openScreensaver(true);
 
 	// claim screen changed size
-	EVENTQUEUE->addEvent(CEvent(getShapeChangedEvent(), getEventTarget()));
+	m_events->addEvent(CEvent(m_events->forIScreen().shapeChanged(), getEventTarget()));
 }
 
 void
@@ -519,16 +546,4 @@ CScreen::leaveSecondary()
 {
 	// release any keys we think are still down
 	m_screen->fakeAllKeysUp();
-}
-
-void
-CScreen::gameDeviceTimingResp(UInt16 freq)
-{
-	m_screen->gameDeviceTimingResp(freq);
-}
-
-void
-CScreen::gameDeviceFeedback(GameDeviceID id, UInt16 m1, UInt16 m2)
-{
-	m_screen->gameDeviceFeedback(id, m1, m2);
 }

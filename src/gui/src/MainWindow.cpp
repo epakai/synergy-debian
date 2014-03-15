@@ -16,7 +16,7 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#define WEBSITE_ADDRESS "synergy-foss.org"
+#define DOWNLOAD_URL "http://synergy-foss.org/?source=gui"
 
 #include <iostream>
 
@@ -30,6 +30,10 @@
 #include <QtGui>
 #include <QtNetwork>
 #include <QNetworkAccessManager>
+#include <QMenu>
+#include <QMenuBar>
+#include <QMessageBox>
+#include <QFileDialog>
 
 #if defined(Q_OS_MAC)
 #include <ApplicationServices/ApplicationServices.h>
@@ -64,10 +68,14 @@ MainWindow::MainWindow(QSettings& settings, AppConfig& appConfig) :
 	m_pTempConfigFile(NULL),
 	m_pTrayIcon(NULL),
 	m_pTrayIconMenu(NULL),
-	m_alreadyHidden(false),
-	m_SetupWizard(NULL),
+	m_AlreadyHidden(false),
 	m_ElevateProcess(false),
-	m_SuppressElevateWarning(false)
+	m_SuppressElevateWarning(false),
+	m_pMenuBar(NULL),
+	m_pMenuFile(NULL),
+	m_pMenuEdit(NULL),
+	m_pMenuWindow(NULL),
+	m_pMenuHelp(NULL)
 {
 	setupUi(this);
 
@@ -75,13 +83,12 @@ MainWindow::MainWindow(QSettings& settings, AppConfig& appConfig) :
 	loadSettings();
 	initConnections();
 
-	m_pUpdateIcon->hide();
-	m_pUpdateLabel->hide();
-	m_versionChecker.setApp(appPath(appConfig.synergycName()));
+	m_pWidgetUpdate->hide();
+	m_VersionChecker.setApp(appPath(appConfig.synergycName()));
 	m_pLabelScreenName->setText(getScreenName());
 	m_pLabelIpAddresses->setText(getIPAddresses());
 
-	m_SetupWizard = new SetupWizard(*this, false);
+	updatePremiumInfo();
 
 #if defined(Q_OS_WIN)
 	// ipc must always be enabled, so that we can disable command when switching to desktop mode.
@@ -94,7 +101,7 @@ MainWindow::MainWindow(QSettings& settings, AppConfig& appConfig) :
 	m_pElevateCheckBox->hide();
 #endif
 
-    // change default size based on os
+	// change default size based on os
 #if defined(Q_OS_MAC)
 	resize(720, 550);
 	setMinimumSize(size());
@@ -112,30 +119,25 @@ MainWindow::~MainWindow()
 	}
 
 	saveSettings();
-	delete m_SetupWizard;
 }
 
-void MainWindow::start(bool firstRun)
+void MainWindow::start()
 {
-	onModeChanged(!firstRun && appConfig().autoConnect(), false);
-
 	createTrayIcon();
 
-	// always show. auto-hide only happens when we have a connection.
 	showNormal();
 
-	m_versionChecker.checkLatest();
+	m_VersionChecker.checkLatest();
+
+	if (appConfig().processMode() == Desktop) {
+		startSynergy();
+	}
 }
 
 void MainWindow::onModeChanged(bool startDesktop, bool applyService)
 {
-	refreshApplyButton();
-
 	if (appConfig().processMode() == Service)
 	{
-		// form is always enabled in service mode.
-		setFormEnabled(true);
-
 		// ensure that the apply button actually does something, since desktop
 		// mode screws around with connecting/disconnecting the action.
 		disconnect(m_pButtonToggleStart, SIGNAL(clicked()), m_pActionStartSynergy, SLOT(trigger()));
@@ -154,11 +156,6 @@ void MainWindow::onModeChanged(bool startDesktop, bool applyService)
 	}
 
 	m_pElevateCheckBox->setEnabled(appConfig().processMode() == Service);
-}
-
-void MainWindow::refreshApplyButton()
-{
-	m_pButtonApply->setEnabled(appConfig().processMode() == Service);
 }
 
 void MainWindow::setStatus(const QString &status)
@@ -190,42 +187,51 @@ void MainWindow::createTrayIcon()
 	m_pTrayIcon->show();
 }
 
+void MainWindow::retranslateMenuBar()
+{
+	m_pMenuFile->setTitle(tr("&File"));
+	m_pMenuEdit->setTitle(tr("&Edit"));
+	m_pMenuWindow->setTitle(tr("&Window"));
+	m_pMenuHelp->setTitle(tr("&Help"));
+}
+
 void MainWindow::createMenuBar()
 {
-	QMenuBar* menubar = new QMenuBar(this);
-	QMenu* pMenuFile = new QMenu(tr("&File"), menubar);
-	QMenu* pMenuEdit = new QMenu(tr("&Edit"), menubar);
-	QMenu* pMenuWindow = new QMenu(tr("&Window"), menubar);
-	QMenu* pMenuHelp = new QMenu(tr("&Help"), menubar);
+	m_pMenuBar = new QMenuBar(this);
+	m_pMenuFile = new QMenu("", m_pMenuBar);
+	m_pMenuEdit = new QMenu("", m_pMenuBar);
+	m_pMenuWindow = new QMenu("", m_pMenuBar);
+	m_pMenuHelp = new QMenu("", m_pMenuBar);
+	retranslateMenuBar();
 
-	menubar->addAction(pMenuFile->menuAction());
-	menubar->addAction(pMenuEdit->menuAction());
+	m_pMenuBar->addAction(m_pMenuFile->menuAction());
+	m_pMenuBar->addAction(m_pMenuEdit->menuAction());
 #if !defined(Q_OS_MAC)
-	menubar->addAction(pMenuWindow->menuAction());
+	m_pMenuBar->addAction(m_pMenuWindow->menuAction());
 #endif
-	menubar->addAction(pMenuHelp->menuAction());
+	m_pMenuBar->addAction(m_pMenuHelp->menuAction());
 
-	pMenuFile->addAction(m_pActionStartSynergy);
-	pMenuFile->addAction(m_pActionStopSynergy);
-	pMenuFile->addSeparator();
-	pMenuFile->addAction(m_pActionWizard);
-	pMenuFile->addAction(m_pActionSave);
-	pMenuFile->addSeparator();
-	pMenuFile->addAction(m_pActionQuit);
-	pMenuEdit->addAction(m_pActionSettings);
-	pMenuWindow->addAction(m_pActionMinimize);
-	pMenuWindow->addAction(m_pActionRestore);
-	pMenuHelp->addAction(m_pActionAbout);
+	m_pMenuFile->addAction(m_pActionStartSynergy);
+	m_pMenuFile->addAction(m_pActionStopSynergy);
+	m_pMenuFile->addSeparator();
+	m_pMenuFile->addAction(m_pActionWizard);
+	m_pMenuFile->addAction(m_pActionSave);
+	m_pMenuFile->addSeparator();
+	m_pMenuFile->addAction(m_pActionQuit);
+	m_pMenuEdit->addAction(m_pActionSettings);
+	m_pMenuWindow->addAction(m_pActionMinimize);
+	m_pMenuWindow->addAction(m_pActionRestore);
+	m_pMenuHelp->addAction(m_pActionAbout);
 
-	setMenuBar(menubar);
+	setMenuBar(m_pMenuBar);
 }
 
 void MainWindow::loadSettings()
 {
 	// the next two must come BEFORE loading groupServerChecked and groupClientChecked or
 	// disabling and/or enabling the right widgets won't automatically work
-        m_pRadioExternalConfig->setChecked(settings().value("useExternalConfig", false).toBool());
-        m_pRadioInternalConfig->setChecked(settings().value("useInternalConfig", true).toBool());
+	m_pRadioExternalConfig->setChecked(settings().value("useExternalConfig", false).toBool());
+	m_pRadioInternalConfig->setChecked(settings().value("useInternalConfig", true).toBool());
 
 	m_pGroupServer->setChecked(settings().value("groupServerChecked", false).toBool());
 	m_pLineEditConfigFile->setText(settings().value("configFile", QDir::homePath() + "/" + synergyConfigName).toString());
@@ -244,16 +250,16 @@ void MainWindow::initConnections()
 	connect(m_pActionStartSynergy, SIGNAL(triggered()), this, SLOT(startSynergy()));
 	connect(m_pActionStopSynergy, SIGNAL(triggered()), this, SLOT(stopSynergy()));
 	connect(m_pActionQuit, SIGNAL(triggered()), qApp, SLOT(quit()));
-	connect(&m_versionChecker, SIGNAL(updateFound(const QString&)), this, SLOT(updateFound(const QString&)));
+	connect(&m_VersionChecker, SIGNAL(updateFound(const QString&)), this, SLOT(updateFound(const QString&)));
 }
 
 void MainWindow::saveSettings()
 {
 	// program settings
 	settings().setValue("groupServerChecked", m_pGroupServer->isChecked());
-        settings().setValue("useExternalConfig", m_pRadioExternalConfig->isChecked());
+	settings().setValue("useExternalConfig", m_pRadioExternalConfig->isChecked());
 	settings().setValue("configFile", m_pLineEditConfigFile->text());
-        settings().setValue("useInternalConfig", m_pRadioInternalConfig->isChecked());
+	settings().setValue("useInternalConfig", m_pRadioInternalConfig->isChecked());
 	settings().setValue("groupClientChecked", m_pGroupClient->isChecked());
 	settings().setValue("serverHostname", m_pLineEditHostname->text());
 
@@ -271,6 +277,7 @@ void MainWindow::setIcon(qSynergyState state)
 
 void MainWindow::trayActivated(QSystemTrayIcon::ActivationReason reason)
 {
+#ifndef Q_OS_WIN
 	if (reason == QSystemTrayIcon::DoubleClick)
 	{
 		if (isVisible())
@@ -283,6 +290,7 @@ void MainWindow::trayActivated(QSystemTrayIcon::ActivationReason reason)
 			activateWindow();
 		}
 	}
+#endif
 }
 
 void MainWindow::logOutput()
@@ -310,11 +318,12 @@ void MainWindow::logError()
 
 void MainWindow::updateFound(const QString &version)
 {
-	m_pUpdateIcon->show();
-	m_pUpdateLabel->show();
-	m_pUpdateLabel->setText(
-		tr("<p>Version %1 is now available, <a href=\"%2\">visit website</a>.</p>")
-		.arg(version).arg("http://synergy-foss.org"));
+	m_pWidgetUpdate->show();
+	m_pLabelUpdate->setText(
+		tr("<p>Your version of Synergy is out of date. "
+		   "Version <b>%1</b> is now available to "
+		   "<a href=\"%2\">download</a>.</p>")
+		.arg(version).arg(DOWNLOAD_URL));
 }
 
 void MainWindow::appendLogNote(const QString& text)
@@ -341,27 +350,20 @@ void MainWindow::updateStateFromLogLine(const QString &line)
 {
 	// TODO: implement ipc connection state messages to replace this hack.
 	if (line.contains("started server") ||
-		line.contains("connected to server"))
+		line.contains("connected to server") ||
+		line.contains("watchdog status: ok"))
 	{
 		setSynergyState(synergyConnected);
-
-		// only hide once after each new connection.
-		if (!m_alreadyHidden && appConfig().autoHide())
-		{
-			hide();
-			m_alreadyHidden = true;
-		}
 	}
 }
 
 void MainWindow::clearLog()
 {
-    m_pLogOutput->clear();
+	m_pLogOutput->clear();
 }
 
 void MainWindow::startSynergy()
 {
-	// TODO: refactor this out into 2 methods.
 	bool desktopMode = appConfig().processMode() == Desktop;
 	bool serviceMode = appConfig().processMode() == Service;
 
@@ -380,9 +382,8 @@ void MainWindow::startSynergy()
 	if (!appConfig().screenName().isEmpty())
 		args << "--name" << appConfig().screenName();
 
-		if (appConfig().cryptoMode() != Disabled)
+		if (appConfig().cryptoEnabled())
 		{
-			args << "--crypto-mode" << appConfig().cryptoModeString();
 			args << "--crypto-pass" << appConfig().cryptoPass();
 		}
 
@@ -403,6 +404,13 @@ void MainWindow::startSynergy()
 		args << "--stop-on-desk-switch";
 #endif
 	}
+
+#ifndef Q_OS_LINUX
+	if (appConfig().isPremium())
+	{
+		args << "--enable-drag-drop";
+	}
+#endif
 
 	if ((synergyType() == synergyClient && !clientArgs(args, app))
 		|| (synergyType() == synergyServer && !serverArgs(args, app)))
@@ -469,6 +477,11 @@ bool MainWindow::clientArgs(QStringList& args, QString& app)
 		return false;
 	}
 
+#if defined(Q_OS_WIN)
+	// wrap in quotes so a malicious user can't start \Program.exe as admin.
+	app = QString("\"%1\"").arg(app);
+#endif
+
 	if (m_pLineEditHostname->text().isEmpty())
 	{
 		show();
@@ -499,7 +512,7 @@ QString MainWindow::configFilename()
 		if (!m_pTempConfigFile->open())
 		{
 			QMessageBox::critical(this, tr("Cannot write configuration file"), tr("The temporary configuration file required to start synergy can not be written."));
-			return false;
+			return "";
 		}
 
 		serverConfig().save(*m_pTempConfigFile);
@@ -515,7 +528,7 @@ QString MainWindow::configFilename()
 				tr("You have not filled in a valid configuration file for the synergy server. "
 						"Do you want to browse for the configuration file now?"), QMessageBox::Yes | QMessageBox::No) != QMessageBox::Yes
 					|| !on_m_pButtonBrowseConfigFile_clicked())
-				return false;
+				return "";
 		}
 
 		filename = m_pLineEditConfigFile->text();
@@ -543,6 +556,11 @@ bool MainWindow::serverArgs(QStringList& args, QString& app)
 							 tr("The executable for the synergy server does not exist."));
 		return false;
 	}
+
+#if defined(Q_OS_WIN)
+	// wrap in quotes so a malicious user can't start \Program.exe as admin.
+	app = QString("\"%1\"").arg(app);
+#endif
 
 	if (appConfig().logToFile())
 	{
@@ -574,7 +592,7 @@ void MainWindow::stopSynergy()
 	m_pTempConfigFile = NULL;
 
 	// reset so that new connects cause auto-hide.
-	m_alreadyHidden = false;
+	m_AlreadyHidden = false;
 }
 
 void MainWindow::stopService()
@@ -624,21 +642,17 @@ void MainWindow::setSynergyState(qSynergyState state)
 		disconnect (m_pButtonToggleStart, SIGNAL(clicked()), m_pActionStartSynergy, SLOT(trigger()));
 		connect (m_pButtonToggleStart, SIGNAL(clicked()), m_pActionStopSynergy, SLOT(trigger()));
 		m_pButtonToggleStart->setText(tr("&Stop"));
+		m_pButtonApply->setEnabled(true);
 	}
 	else
 	{
 		disconnect (m_pButtonToggleStart, SIGNAL(clicked()), m_pActionStopSynergy, SLOT(trigger()));
 		connect (m_pButtonToggleStart, SIGNAL(clicked()), m_pActionStartSynergy, SLOT(trigger()));
 		m_pButtonToggleStart->setText(tr("&Start"));
+		m_pButtonApply->setEnabled(false);
 	}
 
 	bool connected = state == synergyConnected;
-
-	// only disable controls in desktop mode. in service mode, we can use the apply button.
-	if (appConfig().processMode() == Desktop)
-	{
-		setFormEnabled(!connected);
-	}
 
 	m_pActionStartSynergy->setEnabled(!connected);
 	m_pActionStopSynergy->setEnabled(connected);
@@ -646,8 +660,7 @@ void MainWindow::setSynergyState(qSynergyState state)
 	switch (state)
 	{
 	case synergyConnected: {
-		QString mode(appConfig().processMode() == Service ? tr("service mode") : tr("desktop mode"));
-		setStatus(tr("Synergy is running (%1).").arg(mode));
+		setStatus(tr("Synergy is running."));
 		break;
 	}
 	case synergyConnecting:
@@ -661,21 +674,21 @@ void MainWindow::setSynergyState(qSynergyState state)
 	setIcon(state);
 
 	m_SynergyState = state;
-}
 
-void MainWindow::setFormEnabled(bool enabled)
-{
-	m_pGroupClient->setEnabled(enabled);
-	m_pGroupServer->setEnabled(enabled);
+	// if in desktop mode, hide synergy. in service mode the gui can
+	// just be closed.
+	if ((appConfig().processMode() == Desktop) && (state == synergyConnected)) {
+		hide();
+	}
 }
 
 void MainWindow::setVisible(bool visible)
 {
+	QMainWindow::setVisible(visible);
 	m_pActionMinimize->setEnabled(visible);
 	m_pActionRestore->setEnabled(!visible);
-	QMainWindow::setVisible(visible);
 
-#if MAC_OS_X_VERSION_10_7
+#if __MAC_OS_X_VERSION_MIN_REQUIRED >= 1070 // lion
 	// dock hide only supported on lion :(
 	ProcessSerialNumber psn = { 0, kCurrentProcess };
 	GetCurrentProcess(&psn);
@@ -727,6 +740,38 @@ QString MainWindow::getScreenName()
 	}
 	else {
 		return appConfig().screenName();
+	}
+}
+
+void MainWindow::changeEvent(QEvent* event)
+{
+	if (event != 0)
+	{
+		switch (event->type())
+		{
+		case QEvent::LanguageChange:
+			retranslateUi(this);
+			retranslateMenuBar();
+			updatePremiumInfo();
+			break;
+
+		default:
+			QMainWindow::changeEvent(event);
+		}
+	}
+}
+
+void MainWindow::updatePremiumInfo()
+{
+	if (m_AppConfig.isPremium())
+	{
+		m_pWidgetPremium->hide();
+		setWindowTitle(tr("Synergy Premium"));
+	}
+	else
+	{
+		m_pWidgetPremium->show();
+		setWindowTitle(tr("Synergy"));
 	}
 }
 
@@ -783,7 +828,9 @@ void MainWindow::on_m_pButtonConfigureServer_clicked()
 
 void MainWindow::on_m_pActionWizard_triggered()
 {
-	m_SetupWizard->show();
+	SetupWizard wizard(*this, false);
+	wizard.exec();
+	updatePremiumInfo();
 }
 
 void MainWindow::on_m_pElevateCheckBox_toggled(bool checked)

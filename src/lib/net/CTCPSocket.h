@@ -28,6 +28,8 @@
 class CMutex;
 class CThread;
 class ISocketMultiplexerJob;
+class IEventQueue;
+class CSocketMultiplexer;
 
 //! TCP data socket
 /*!
@@ -35,8 +37,8 @@ A data socket using TCP.
 */
 class CTCPSocket : public IDataSocket {
 public:
-	CTCPSocket();
-	CTCPSocket(CArchSocket);
+	CTCPSocket(IEventQueue* events, CSocketMultiplexer* socketMultiplexer);
+	CTCPSocket(IEventQueue* events, CSocketMultiplexer* socketMultiplexer, CArchSocket socket);
 	~CTCPSocket();
 
 	// ISocket overrides
@@ -85,6 +87,8 @@ private:
 	bool				m_connected;
 	bool				m_readable;
 	bool				m_writable;
+	IEventQueue*		m_events;
+	CSocketMultiplexer* m_socketMultiplexer;
 };
 
 #endif

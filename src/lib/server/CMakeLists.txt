@@ -23,6 +23,7 @@ set(inc
 	CClientProxy1_2.h
 	CClientProxy1_3.h
 	CClientProxy1_4.h
+	CClientProxy1_5.h
 	CClientProxyUnknown.h
 	CConfig.h
 	CInputFilter.h
@@ -39,6 +40,7 @@ set(src
 	CClientProxy1_2.cpp
 	CClientProxy1_3.cpp
 	CClientProxy1_4.cpp
+	CClientProxy1_5.cpp
 	CClientProxyUnknown.cpp
 	CConfig.cpp
 	CInputFilter.cpp
@@ -69,12 +71,6 @@ endif()
 
 include_directories(${inc})
 add_library(server STATIC ${src})
-
-if (WIN32)
-	if (GAME_DEVICE_SUPPORT)
-		include_directories($ENV{DXSDK_DIR}/Include)
-	endif()
-endif()
 
 if (UNIX)
 	target_link_libraries(server synergy)

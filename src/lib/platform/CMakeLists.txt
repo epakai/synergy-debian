@@ -29,11 +29,11 @@ if (WIN32)
 		CMSWindowsScreen.h
 		CMSWindowsScreenSaver.h
 		CMSWindowsUtil.h
-		CMSWindowsRelauncher.h
+		CMSWindowsWatchdog.h
 		CMSWindowsHookLibraryLoader.h
 		IMSWindowsClipboardFacade.h
 		CMSWindowsDebugOutputter.h
-		CMSWindowsXInput.h
+		CMSWindowsSession.h
 	)
 
 	set(src
@@ -50,54 +50,15 @@ if (WIN32)
 		CMSWindowsScreen.cpp
 		CMSWindowsScreenSaver.cpp
 		CMSWindowsUtil.cpp
-		CMSWindowsRelauncher.cpp
+		CMSWindowsWatchdog.cpp
 		CMSWindowsHookLibraryLoader.cpp
 		CMSWindowsDebugOutputter.cpp
+		CMSWindowsSession.cpp
 	)
-	
-	set(inc_hook
-		CSynergyHook.h
+
+	list(APPEND src
+		${inc}
 	)
-	
-	set(src_hook
-		CSynergyHook.cpp
-	)
-  
-  if (GAME_DEVICE_SUPPORT)
-
-    list(APPEND inc
-      CMSWindowsXInput.h
-    )
-
-    list(APPEND src
-      CMSWindowsXInput.cpp
-    )
-      
-  
-    set(inc_xinhook
-      XInputHook.h
-      HookDLL.h
-    )
-    
-    set(src_xinhook
-      XInputHook.cpp
-      HookDLL.cpp
-    )
-
-    set(inc_xinproxy13
-      XInput13.h
-      XInputProxy13.h
-    )
-
-    set(src_xinproxy13
-      XInputProxy13.cpp
-    )
-  
-  endif()
-  
-  list(APPEND src
-    ${inc}
-  )
 
 elseif (APPLE)
 
@@ -111,6 +72,9 @@ elseif (APPLE)
 		COSXScreen.cpp
 		COSXScreenSaver.cpp
 		COSXScreenSaverUtil.m
+		COSXPasteboardPeeker.m
+		COSXDragSimulator.m
+		COSXDragView.m
 	)
 	
 elseif (UNIX)
@@ -141,6 +105,10 @@ set(inc
 	../ipc
 	../net
 	../io
+	../server
+	../client
+	../synwinhk
+	../synwinxt
 )
 
 if (UNIX)
@@ -149,51 +117,21 @@ if (UNIX)
 	)
 endif()
 
-include_directories(${inc})
-add_library(platform STATIC ${src})
-
-if (WIN32)
-	add_library(synrgyhk SHARED ${inc_hook} ${src_hook})
-
-	# copy the dlls (and supporting files) from the lib dir to 
-	# the bin dir, so that synergyc and synergys can easily find them.
-	# we should leave the other libraries compiling to the lib dir,
-	# so that the bin dir remains tidy. the path is relative to the
-	# build dir (in this case, that's: build\src\lib\platform).
-	add_custom_command(
-		TARGET synrgyhk 
-		POST_BUILD
-		COMMAND xcopy /Y /Q
-			..\\..\\..\\..\\lib\\${CMAKE_CFG_INTDIR}\\synrgyhk.*
-			..\\..\\..\\..\\bin\\${CMAKE_CFG_INTDIR}\\
+if (APPLE)
+	list(APPEND inc
+		/System/Library/Frameworks
 	)
-
-	if (GAME_DEVICE_SUPPORT)
-		include_directories($ENV{DXSDK_DIR}/Include)
-		add_library(synxinhk SHARED ${inc_xinhook} ${src_xinhook})
-
-		add_custom_command(
-			TARGET synxinhk
-			POST_BUILD
-			COMMAND xcopy /Y /Q
-				..\\..\\..\\..\\lib\\${CMAKE_CFG_INTDIR}\\synxinhk.*
-				..\\..\\..\\..\\bin\\${CMAKE_CFG_INTDIR}\\
-			)
-
-		# synergy xinput1_3.dll proxy
-		include_directories($ENV{DXSDK_DIR}/Include)
-		add_library(sxinpx13 SHARED ${inc_xinproxy13} ${src_xinproxy13})
-		target_link_libraries(sxinpx13 synxinhk)
-		add_custom_command(
-			TARGET sxinpx13
-			POST_BUILD
-			COMMAND xcopy /Y /Q
-				..\\..\\..\\..\\lib\\${CMAKE_CFG_INTDIR}\\sxinpx13.*
-				..\\..\\..\\..\\bin\\${CMAKE_CFG_INTDIR}\\
-			)
-	endif()
 endif()
 
+include_directories(${inc})
+add_library(platform STATIC ${src})
+target_link_libraries(platform client ${libs})
+
 if (UNIX)
-	target_link_libraries(platform io net ipc synergy ${libs})
+	target_link_libraries(platform io net ipc synergy client ${libs})
+endif()
+
+if (APPLE)
+	FIND_LIBRARY(COCOA_LIBRARY Cocoa)
+	target_link_libraries(platform ${COCOA_LIBRARY})
 endif()

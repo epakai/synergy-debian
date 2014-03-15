@@ -24,6 +24,7 @@ set(src
 if (WIN32)
 
 	set(inc
+		CArch.h
 		CArchConsoleWindows.h
 		CArchDaemonWindows.h
 		CArchFileWindows.h
@@ -43,6 +44,7 @@ if (WIN32)
 		XArch.h
 		IArchPlugin.h
 		CArchPluginWindows.h
+		CArchInternetWindows.h
 	)
 
 	list(APPEND src
@@ -61,6 +63,7 @@ if (WIN32)
 		CArchTimeWindows.cpp
 		XArchWindows.cpp
 		CArchPluginWindows.cpp
+		CArchInternetWindows.cpp
 	)
 	
 elseif (UNIX)
@@ -80,6 +83,7 @@ elseif (UNIX)
 		XArchUnix.cpp
 		CArchDaemonNone.cpp
 		CArchPluginUnix.cpp
+		CArchInternetUnix.cpp
 	)
 	
 endif()
@@ -101,9 +105,3 @@ endif()
 
 include_directories(${inc})
 add_library(arch STATIC ${src})
-
-if (WIN32)
-	if (GAME_DEVICE_SUPPORT)
-		target_link_libraries(arch synxinhk)
-	endif()
-endif()

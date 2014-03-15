@@ -22,7 +22,8 @@
 #include "ClipboardTypes.h"
 #include "KeyTypes.h"
 #include "CEvent.h"
-#include "GameDeviceTypes.h"
+#include "CStopwatch.h"
+#include "CString.h"
 
 class CClient;
 class CClientInfo;
@@ -42,7 +43,7 @@ public:
 	Process messages from the server on \p stream and forward to
 	\p client.
 	*/
-	CServerProxy(CClient* client, synergy::IStream* stream, IEventQueue* eventQueue);
+	CServerProxy(CClient* client, synergy::IStream* stream, IEventQueue* events);
 	~CServerProxy();
 
 	//! @name manipulators
@@ -51,11 +52,15 @@ public:
 	void				onInfoChanged();
 	bool				onGrabClipboard(ClipboardID);
 	void				onClipboardChanged(ClipboardID, const IClipboard*);
-	void				onGameDeviceTimingResp(UInt16 freq);
-	void				onGameDeviceFeedback(GameDeviceID id, UInt16 m1, UInt16 m2);
 
 	//@}
 
+	// sending file chunk to server
+	void				fileChunkSending(UInt8 mark, char* data, size_t dataSize);
+
+	// sending dragging information to server
+	void				draggingInfoSending(UInt32 fileCount, const char* data, size_t dataSize);
+	
 #ifdef TEST_ENV
 	void				handleDataForTest() { handleData(CEvent(), NULL); }
 #endif
@@ -95,22 +100,20 @@ private:
 	void				mouseMove();
 	void				mouseRelativeMove();
 	void				mouseWheel();
-	void				gameDeviceButtons();
-	void				gameDeviceSticks();
-	void				gameDeviceTriggers();
-	void				gameDeviceTimingReq();
 	void				cryptoIv();
 	void				screensaver();
 	void				resetOptions();
 	void				setOptions();
 	void				queryInfo();
 	void				infoAcknowledgment();
+	void				fileChunkReceived();
+	void				dragInfoReceived();
 
 private:
 	typedef EResult (CServerProxy::*MessageParser)(const UInt8*);
 
 	CClient*			m_client;
-	synergy::IStream*		m_stream;
+	synergy::IStream*	m_stream;
 
 	UInt32				m_seqNum;
 
@@ -121,13 +124,18 @@ private:
 
 	bool				m_ignoreMouse;
 
-	KeyModifierID			m_modifierTranslationTable[kKeyModifierIDLast];
+	KeyModifierID		m_modifierTranslationTable[kKeyModifierIDLast];
 
 	double				m_keepAliveAlarm;
-	CEventQueueTimer*		m_keepAliveAlarmTimer;
+	CEventQueueTimer*	m_keepAliveAlarmTimer;
 
-	MessageParser			m_parser;
-	IEventQueue*			m_eventQueue;
+	MessageParser		m_parser;
+	IEventQueue*		m_events;
+
+	CStopwatch			m_stopwatch;
+	double				m_elapsedTime;
+	size_t				m_receivedDataSize;
+	static const UInt16	m_intervalThreshold;
 };
 
 #endif

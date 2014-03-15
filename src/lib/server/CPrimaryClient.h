@@ -38,6 +38,10 @@ public:
 	CPrimaryClient(const CString& name, CScreen* screen);
 	~CPrimaryClient();
 
+#ifdef TEST_ENV
+	CPrimaryClient() : CBaseClientProxy(""), m_mock(true) { }
+#endif
+
 	//! @name manipulators
 	//@{
 
@@ -45,20 +49,20 @@ public:
 	/*!
 	Handles reconfiguration of jump zones.
 	*/
-	void				reconfigure(UInt32 activeSides);
+	virtual void		reconfigure(UInt32 activeSides);
 
 	//! Register a system hotkey
 	/*!
 	Registers a system-wide hotkey for key \p key with modifiers \p mask.
 	Returns an id used to unregister the hotkey.
 	*/
-	UInt32				registerHotKey(KeyID key, KeyModifierMask mask);
+	virtual UInt32		registerHotKey(KeyID key, KeyModifierMask mask);
 
 	//! Unregister a system hotkey
 	/*!
 	Unregisters a previously registered hot key.
 	*/
-	void				unregisterHotKey(UInt32 id);
+	virtual void		unregisterHotKey(UInt32 id);
 
 	//! Prepare to synthesize input on primary screen
 	/*!
@@ -98,7 +102,8 @@ public:
 	/*!
 	Returns the primary screen's current toggle modifier key state.
 	*/
-	KeyModifierMask		getToggleMask() const;
+	virtual KeyModifierMask		
+						getToggleMask() const;
 
 	//! Get screen lock state
 	/*!
@@ -136,18 +141,17 @@ public:
 	virtual void		mouseMove(SInt32 xAbs, SInt32 yAbs);
 	virtual void		mouseRelativeMove(SInt32 xRel, SInt32 yRel);
 	virtual void		mouseWheel(SInt32 xDelta, SInt32 yDelta);
-	virtual void		gameDeviceButtons(GameDeviceID id, GameDeviceButton buttons);
-	virtual void		gameDeviceSticks(GameDeviceID id, SInt16 x1, SInt16 y1, SInt16 x2, SInt16 y2);
-	virtual void		gameDeviceTriggers(GameDeviceID id, UInt8 t1, UInt8 t2);
-	virtual void		gameDeviceTimingReq();
 	virtual void		screensaver(bool activate);
 	virtual void		resetOptions();
 	virtual void		setOptions(const COptionsList& options);
+	virtual void		draggingInfoSending(UInt32 fileCount, const char* data, size_t dataSize);
+	virtual void		fileChunkSending(UInt8 mark, char* data, size_t dataSize);
 
 private:
 	CScreen*			m_screen;
 	bool				m_clipboardDirty[kClipboardEnd];
 	SInt32				m_fakeInputCount;
+	bool				m_mock;
 };
 
 #endif

@@ -35,8 +35,7 @@
 
 !include "MUI2.nsh"
 !include "DefineIfExist.nsh"
-
-${!defineifexist} gameDeviceSupport "${binDir}\Release\synxinhk.dll"
+!include "Library.nsh"
 
 !insertmacro MUI_PAGE_LICENSE "..\\res\\License.rtf"
 
@@ -62,7 +61,10 @@ InstallDirRegKey HKEY_LOCAL_MACHINE "SOFTWARE\${product}" ""
   Delete "${dir}\synergyd.exe"
   Delete "${dir}\synergyd.log"
   Delete "${dir}\launcher.exe"
+  Delete "${dir}\syntool.exe"
   Delete "${dir}\synrgyhk.dll"
+  Delete "${dir}\synwinhk.dll"
+  Delete "${dir}\synwinxt.dll"
   Delete "${dir}\libgcc_s_dw2-1.dll"
   Delete "${dir}\mingwm10.dll"
   Delete "${dir}\QtCore4.dll"
@@ -70,8 +72,6 @@ InstallDirRegKey HKEY_LOCAL_MACHINE "SOFTWARE\${product}" ""
   Delete "${dir}\QtNetwork4.dll"
   Delete "${dir}\Uninstall.exe"
   Delete "${dir}\uninstall.exe"
-  Delete "${dir}\synxinhk.dll"
-  Delete "${dir}\sxinpx13.dll"
   
   RMDir "${dir}"
 
@@ -108,6 +108,7 @@ Section
   nsExec::Exec "taskkill /f /im synergys.exe"
   nsExec::Exec "taskkill /f /im synergyc.exe"
   nsExec::Exec "taskkill /f /im synergyd.exe"
+  nsExec::Exec "taskkill /f /im syntool.exe"
 
   ; clean up legacy files that may exist (but leave user files)
   !insertmacro DeleteFiles "$PROGRAMFILES32\${product}\bin"
@@ -165,33 +166,35 @@ Section "Server and Client" core
   File "${binDir}\Release\synergys.exe"
   File "${binDir}\Release\synergyc.exe"
   File "${binDir}\Release\synergyd.exe"
+  File "${binDir}\Release\syntool.exe"
   
   ; if the hook file exists, skip, assuming it couldn't be deleted
   ; because it was in use by some process.
-  ${If} ${FileExists} "synrgyhk.dll"
-    DetailPrint "Skipping synrgyhk.dll, file already exists."
+  ${If} ${FileExists} "synwinhk.dll"
+    DetailPrint "Skipping synwinhk.dll, file already exists."
   ${Else}
-    File "${binDir}\Release\synrgyhk.dll"
+    File "${binDir}\Release\synwinhk.dll"
+  ${EndIf}
+  
+  ; if the shell ex file exists, skip, assuming it couldn't be deleted
+  ; because it was in use by some process.
+  ${If} ${FileExists} "synwinxt.dll"
+    DetailPrint "Skipping synwinxt.dll, file already exists."
+  ${Else}
+    File "${binDir}\Release\synwinxt.dll"
   ${EndIf}
   
   ; windows firewall exception
   DetailPrint "Adding firewall exception"
   nsExec::ExecToStack "netsh firewall add allowedprogram $\"$INSTDIR\synergys.exe$\" Synergy ENABLE"
   
+	; install the windows shell extension
+	ExecWait "regsvr32 /s $\"$INSTDIR\synwinxt.dll$\""
+	
   ; install and run the service
   ExecWait "$INSTDIR\synergyd.exe /install"
 
 SectionEnd
-
-!ifdef gameDeviceSupport
-Section "Game Device Support" gamedev
-
-  ; files for xinput support
-  File "${binDir}\Release\synxinhk.dll"
-  File "${binDir}\Release\sxinpx13.dll"
-
-SectionEnd
-!endif
 
 Section "Graphical User Interface" gui
 
@@ -226,6 +229,7 @@ Section Uninstall
   nsExec::Exec "taskkill /f /im synergys.exe"
   nsExec::Exec "taskkill /f /im synergyc.exe"
   nsExec::Exec "taskkill /f /im synergyd.exe"
+  nsExec::Exec "taskkill /f /im syntool.exe"
 
   ; delete start menu shortcut
   Delete "$SMPROGRAMS\${product}.lnk"
@@ -233,6 +237,9 @@ Section Uninstall
   ; delete all registry keys
   DeleteRegKey HKLM "SOFTWARE\${product}"
   DeleteRegKey HKLM "${controlPanelReg}\${product}"
+	
+	; uninstall the windows shell extension
+	ExecWait "regsvr32 /s /u $\"$INSTDIR\synwinxt.dll$\""
 
   ; note: edit macro to delete more files.
   !insertmacro DeleteFiles $INSTDIR

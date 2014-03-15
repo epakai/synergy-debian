@@ -20,13 +20,19 @@ set(inc
 	IStream.h
 	IStreamFilterFactory.h
 	XIO.h
+	CCryptoStream.h
+	CCryptoMode.h
+	ECryptoMode.h
+	CCryptoOptions.h
 )
 
 set(src
 	CStreamBuffer.cpp
 	CStreamFilter.cpp
-	IStream.cpp
 	XIO.cpp
+	CCryptoStream.cpp
+	CCryptoMode.cpp
+	CCryptoOptions.cpp
 )
 
 if (WIN32)
@@ -37,6 +43,8 @@ set(inc
 	../arch
 	../base
 	../common
+	../..
+	../../../tools
 )
 
 if (UNIX)
@@ -47,3 +55,7 @@ endif()
 
 include_directories(${inc})
 add_library(io STATIC ${src})
+
+if (UNIX)
+	target_link_libraries(io cryptopp)
+endif()

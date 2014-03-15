@@ -43,8 +43,9 @@
 #include "XArchWindows.h"
 #include "CScreen.h"
 #include "CMSWindowsScreen.h"
-#include "CMSWindowsRelauncher.h"
 #include "CMSWindowsDebugOutputter.h"
+#include "CMSWindowsWatchdog.h"
+#include "CMSWindowsEventQueueBuffer.h"
 
 #define WIN32_LEAN_AND_MEAN
 #include <Windows.h>
@@ -77,11 +78,12 @@ winMainLoopStatic(int, const char**)
 #endif
 
 CDaemonApp::CDaemonApp() :
-m_ipcServer(nullptr),
-m_ipcLogOutputter(nullptr)
-#if SYSAPI_WIN32
-,m_relauncher(nullptr)
-#endif
+	m_events(nullptr),
+	m_ipcServer(nullptr),
+	m_ipcLogOutputter(nullptr)
+	#if SYSAPI_WIN32
+	,m_watchdog(nullptr)
+	#endif
 {
 	s_instance = this;
 }
@@ -103,6 +105,7 @@ CDaemonApp::run(int argc, char** argv)
 
 	CLog log;
 	CEventQueue events;
+	m_events = &events;
 
 	bool uninstall = false;
 	try
@@ -189,10 +192,7 @@ CDaemonApp::mainLoop(bool logToFile)
 	try
 	{
 		DAEMON_RUNNING(true);
-		/*while (true)
-		{
-		}*/
-
+		
 		if (logToFile)
 			CLOG->insert(new CFileLogOutputter(logPath().c_str()));
 
@@ -201,53 +201,50 @@ CDaemonApp::mainLoop(bool logToFile)
 		CSocketMultiplexer multiplexer;
 
 		// uses event queue, must be created here.
-		m_ipcServer = new CIpcServer();
+		m_ipcServer = new CIpcServer(m_events, &multiplexer);
 
 		// send logging to gui via ipc, log system adopts outputter.
 		m_ipcLogOutputter = new CIpcLogOutputter(*m_ipcServer);
 		CLOG->insert(m_ipcLogOutputter);
-
+		
 #if SYSAPI_WIN32
-		m_relauncher = new CMSWindowsRelauncher(false, *m_ipcServer, *m_ipcLogOutputter);
+		m_watchdog = new CMSWindowsWatchdog(false, *m_ipcServer, *m_ipcLogOutputter);
 #endif
-
-		EVENTQUEUE->adoptHandler(
-			CIpcServer::getMessageReceivedEvent(), m_ipcServer,
+		
+		m_events->adoptHandler(
+			m_events->forCIpcServer().messageReceived(), m_ipcServer,
 			new TMethodEventJob<CDaemonApp>(this, &CDaemonApp::handleIpcMessage));
 
 		m_ipcServer->listen();
-
+		
 #if SYSAPI_WIN32
-		// HACK: create a dummy screen, which can handle system events 
-		// (such as a stop request from the service controller).
-		CMSWindowsScreen::init(CArchMiscWindows::instanceWin32());
-		CGameDeviceInfo gameDevice;
-		CScreen dummyScreen(new CMSWindowsScreen(false, true, gameDevice, false));
+
+		// install the platform event queue to handle service stop events.
+		m_events->adoptBuffer(new CMSWindowsEventQueueBuffer(m_events));
 		
 		CString command = ARCH->setting("Command");
 		bool elevate = ARCH->setting("Elevate") == "1";
 		if (command != "") {
 			LOG((CLOG_INFO "using last known command: %s", command.c_str()));
-			m_relauncher->command(command, elevate);
+			m_watchdog->setCommand(command, elevate);
 		}
 
-		m_relauncher->startAsync();
+		m_watchdog->startAsync();
 #endif
-
-		EVENTQUEUE->loop();
+		m_events->loop();
 
 #if SYSAPI_WIN32
-		m_relauncher->stop();
-		delete m_relauncher;
+		m_watchdog->stop();
+		delete m_watchdog;
 #endif
 
-		EVENTQUEUE->removeHandler(
-			CIpcServer::getMessageReceivedEvent(), m_ipcServer);
+		m_events->removeHandler(
+			m_events->forCIpcServer().messageReceived(), m_ipcServer);
 		
 		CLOG->remove(m_ipcLogOutputter);
 		delete m_ipcLogOutputter;
 		delete m_ipcServer;
-
+		
 		DAEMON_RUNNING(false);
 	}
 	catch (XArch& e) {
@@ -297,24 +294,35 @@ CDaemonApp::handleIpcMessage(const CEvent& e, void*)
 		case kIpcCommand: {
 			CIpcCommandMessage* cm = static_cast<CIpcCommandMessage*>(m);
 			CString command = cm->command();
-			LOG((CLOG_DEBUG "new command, elevate=%d command=%s", cm->elevate(), command.c_str()));
 
-			CString debugArg("--debug");
-			UInt32 debugArgPos = static_cast<UInt32>(command.find(debugArg));
-			if (debugArgPos != CString::npos) {
-				UInt32 from = debugArgPos + static_cast<UInt32>(debugArg.size()) + 1;
-				UInt32 nextSpace = static_cast<UInt32>(command.find(" ", from));
-				CString logLevel(command.substr(from, nextSpace - from));
+			// if empty quotes, clear.
+			if (command == "\"\"") {
+				command.clear();
+			}
+
+			if (!command.empty()) {
+				LOG((CLOG_DEBUG "new command, elevate=%d command=%s", cm->elevate(), command.c_str()));
+
+				CString debugArg("--debug");
+				UInt32 debugArgPos = static_cast<UInt32>(command.find(debugArg));
+				if (debugArgPos != CString::npos) {
+					UInt32 from = debugArgPos + static_cast<UInt32>(debugArg.size()) + 1;
+					UInt32 nextSpace = static_cast<UInt32>(command.find(" ", from));
+					CString logLevel(command.substr(from, nextSpace - from));
 				
-				try {
-					// change log level based on that in the command string
-					// and change to that log level now.
-					ARCH->setting("LogLevel", logLevel);
-					CLOG->setFilter(logLevel.c_str());
+					try {
+						// change log level based on that in the command string
+						// and change to that log level now.
+						ARCH->setting("LogLevel", logLevel);
+						CLOG->setFilter(logLevel.c_str());
+					}
+					catch (XArch& e) {
+						LOG((CLOG_ERR "failed to save LogLevel setting, %s", e.what().c_str()));
+					}
 				}
-				catch (XArch& e) {
-					LOG((CLOG_ERR "failed to save LogLevel setting, %s", e.what().c_str()));
-				}
+			}
+			else {
+				LOG((CLOG_DEBUG "empty command, elevate=%d", cm->elevate()));
 			}
 
 			try {
@@ -333,12 +341,27 @@ CDaemonApp::handleIpcMessage(const CEvent& e, void*)
 			// tell the relauncher about the new command. this causes the
 			// relauncher to stop the existing command and start the new
 			// command.
-			m_relauncher->command(command, cm->elevate());
+			m_watchdog->setCommand(command, cm->elevate());
 #endif
 			break;
 		}
 
 		case kIpcHello:
+			CIpcHelloMessage* hm = static_cast<CIpcHelloMessage*>(m);
+			CString type;
+			switch (hm->clientType()) {
+				case kIpcClientGui: type = "gui"; break;
+				case kIpcClientNode: type = "node"; break;
+				default: type = "unknown"; break;
+			}
+
+			LOG((CLOG_DEBUG "ipc hello, type=%s", type.c_str()));
+
+#if SYSAPI_WIN32
+			CString watchdogStatus = m_watchdog->isProcessActive() ? "ok" : "error";
+			LOG((CLOG_INFO "watchdog status: %s", watchdogStatus.c_str()));
+#endif
+
 			m_ipcLogOutputter->notifyBuffer();
 			break;
 	}

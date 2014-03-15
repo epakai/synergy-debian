@@ -17,12 +17,15 @@
  */
 
 #include "SettingsDialog.h"
+#include "SynergyLocale.h"
+#include "QSynergyApplication.h"
+#include "QUtility.h"
+#include "AppConfig.h"
 
 #include <QtCore>
 #include <QtGui>
-#include <QCryptographicHash>
-
-#include "AppConfig.h"
+#include <QMessageBox>
+#include <QFileDialog>
 
 SettingsDialog::SettingsDialog(QWidget* parent, AppConfig& config) :
 	QDialog(parent, Qt::WindowTitleHint | Qt::WindowSystemMenuHint),
@@ -31,25 +34,27 @@ SettingsDialog::SettingsDialog(QWidget* parent, AppConfig& config) :
 {
 	setupUi(this);
 
-	m_pCheckBoxAutoConnect->setChecked(appConfig().autoConnect());
+	m_Locale.fillLanguageComboBox(m_pComboLanguage);
+
 	m_pLineEditScreenName->setText(appConfig().screenName());
 	m_pSpinBoxPort->setValue(appConfig().port());
 	m_pLineEditInterface->setText(appConfig().interface());
-	m_pComboProcessMode->setCurrentIndex(appConfig().processMode());
 	m_pComboLogLevel->setCurrentIndex(appConfig().logLevel());
 	m_pCheckBoxLogToFile->setChecked(appConfig().logToFile());
 	m_pLineEditLogFilename->setText(appConfig().logFilename());
-	m_pCheckBoxAutoStart->setChecked(appConfig().autoStart());
-	m_pCheckBoxAutoHide->setChecked(appConfig().autoHide());
-	m_pComboCryptoMode->setCurrentIndex(getCryptoModeIndex(appConfig().cryptoMode()));
-	m_pLineEditCryptoPass->setText(appConfig().cryptoPass());
+	m_pCheckBoxEnableCrypto->setChecked(appConfig().cryptoEnabled());
+	setIndexFromItemData(m_pComboLanguage, appConfig().language());
+	if (appConfig().cryptoEnabled())
+	{
+		m_pLineEditCryptoPass->setText(appConfig().cryptoPass());
+	}
 }
 
 void SettingsDialog::accept()
 {
 	const QString& cryptoPass = m_pLineEditCryptoPass->text();
-	CryptoMode cryptoMode = parseCryptoMode(m_pComboCryptoMode->currentText());
-	if ((cryptoMode != Disabled) && cryptoPass.isEmpty())
+	bool cryptoEnabled = m_pCheckBoxEnableCrypto->isChecked();
+	if (cryptoEnabled && cryptoPass.isEmpty())
 	{
 		QMessageBox message;
 		message.setWindowTitle("Settings");
@@ -59,20 +64,47 @@ void SettingsDialog::accept()
 		return;
 	}
 
-	appConfig().setAutoConnect(m_pCheckBoxAutoConnect->isChecked());
 	appConfig().setScreenName(m_pLineEditScreenName->text());
 	appConfig().setPort(m_pSpinBoxPort->value());
 	appConfig().setInterface(m_pLineEditInterface->text());
-	appConfig().setProcessMode((ProcessMode)m_pComboProcessMode->currentIndex());
 	appConfig().setLogLevel(m_pComboLogLevel->currentIndex());
 	appConfig().setLogToFile(m_pCheckBoxLogToFile->isChecked());
 	appConfig().setLogFilename(m_pLineEditLogFilename->text());
-	appConfig().setAutoStart(m_pCheckBoxAutoStart->isChecked());
-	appConfig().setAutoHide(m_pCheckBoxAutoHide->isChecked());
-	appConfig().setCryptoMode(cryptoMode);
+	appConfig().setCryptoEnabled(cryptoEnabled);
 	appConfig().setCryptoPass(cryptoPass);
+	appConfig().setLanguage(m_pComboLanguage->itemData(m_pComboLanguage->currentIndex()).toString());
 	appConfig().saveSettings();
 	QDialog::accept();
+}
+
+void SettingsDialog::reject()
+{
+	QSynergyApplication::getInstance()->switchTranslator(appConfig().language());
+	QDialog::reject();
+}
+
+void SettingsDialog::changeEvent(QEvent* event)
+{
+	if (event != 0)
+	{
+		switch (event->type())
+		{
+		case QEvent::LanguageChange:
+			{
+				int logLevelIndex = m_pComboLogLevel->currentIndex();
+
+				m_pComboLanguage->blockSignals(true);
+				retranslateUi(this);
+				m_pComboLanguage->blockSignals(false);
+
+				m_pComboLogLevel->setCurrentIndex(logLevelIndex);
+				break;
+			}
+
+		default:
+			QDialog::changeEvent(event);
+		}
+	}
 }
 
 void SettingsDialog::on_m_pCheckBoxLogToFile_stateChanged(int i)
@@ -96,55 +128,19 @@ void SettingsDialog::on_m_pButtonBrowseLog_clicked()
 	}
 }
 
-void SettingsDialog::on_m_pComboCryptoMode_currentIndexChanged(int index)
+void SettingsDialog::on_m_pCheckBoxEnableCrypto_stateChanged(int )
 {
-	bool enabled = parseCryptoMode(m_pComboCryptoMode->currentText()) != Disabled;
-	m_pLineEditCryptoPass->setEnabled(enabled);
-	if (!enabled)
+	bool cryptoEnabled = m_pCheckBoxEnableCrypto->isChecked();
+	m_pLineEditCryptoPass->setEnabled(cryptoEnabled);
+
+	if (!cryptoEnabled)
 	{
 		m_pLineEditCryptoPass->clear();
 	}
 }
 
-int SettingsDialog::getCryptoModeIndex(const CryptoMode& mode) const
+void SettingsDialog::on_m_pComboLanguage_currentIndexChanged(int index)
 {
-	switch (mode)
-	{
-	case OFB:
-		return m_pComboCryptoMode->findText("OFB", Qt::MatchStartsWith);
-
-	case CFB:
-		return m_pComboCryptoMode->findText("CFB", Qt::MatchStartsWith);
-
-	case CTR:
-		return m_pComboCryptoMode->findText("CTR", Qt::MatchStartsWith);
-
-	case GCM:
-		return m_pComboCryptoMode->findText("GCM", Qt::MatchStartsWith);
-
-	default:
-		return m_pComboCryptoMode->findText("Disable", Qt::MatchStartsWith);
-	}
-}
-
-CryptoMode SettingsDialog::parseCryptoMode(const QString& s)
-{
-	if (s.startsWith("OFB"))
-	{
-		return OFB;
-	}
-	else if (s.startsWith("CFB"))
-	{
-		return CFB;
-	}
-	else if (s.startsWith("CTR"))
-	{
-		return CTR;
-	}
-	else if (s.startsWith("GCM"))
-	{
-		return GCM;
-	}
-
-	return Disabled;
+	QString ietfCode = m_pComboLanguage->itemData(index).toString();
+	QSynergyApplication::getInstance()->switchTranslator(ietfCode);
 }

@@ -26,6 +26,7 @@
 #include "IArchMultithread.h"
 #include "CArgsBase.h"
 #include <map>
+#include "CEventTypes.h"
 
 enum EServerState {
 	kUninitialized,
@@ -41,7 +42,7 @@ class CScreen;
 class CClientListener;
 class CEventQueueTimer;
 class ILogOutputter;
-class CVncClient;
+class IEventQueue;
 
 class CServerApp : public CApp {
 public:
@@ -56,7 +57,7 @@ public:
 		CConfig* m_config;
 	};
 
-	CServerApp(CreateTaskBarReceiverFunc createTaskBarReceiver);
+	CServerApp(IEventQueue* events, CreateTaskBarReceiverFunc createTaskBarReceiver);
 	virtual ~CServerApp();
 	
 	// Parse server specific command line arguments.
@@ -73,15 +74,12 @@ public:
 
 	// TODO: Document these functions.
 	static void reloadSignalHandler(CArch::ESignal, void*);
-	static CEvent::Type getReloadConfigEvent();
 
 	void reloadConfig(const CEvent&, void*);
 	void loadConfig();
 	bool loadConfig(const CString& pathname);
 	void forceReconnect(const CEvent&, void*);
-	CEvent::Type getForceReconnectEvent();
 	void resetServer(const CEvent&, void*);
-	CEvent::Type getResetServerEvent();
 	void handleClientConnected(const CEvent&, void* vlistener);
 	void handleClientsDisconnected(const CEvent&, void*);
 	void closeServer(CServer* server);
@@ -102,7 +100,7 @@ public:
 	void handleSuspend(const CEvent&, void*);
 	void handleResume(const CEvent&, void*);
 	CClientListener* openClientListener(const CNetworkAddress& address);
-	CServer* openServer(const CConfig& config, CPrimaryClient* primaryClient);
+	CServer* openServer(CConfig& config, CPrimaryClient* primaryClient);
 	void handleNoClients(const CEvent&, void*);
 	bool startServer();
 	int mainLoop();
@@ -113,23 +111,19 @@ public:
 
 	static CServerApp& instance() { return (CServerApp&)CApp::instance(); }
 
+	CServer* getServerPtr() { return s_server; }
+	
 	// TODO: change s_ to m_
-	CServer* s_server;
-	static CEvent::Type s_reloadConfigEvent;
-	CEvent::Type s_forceReconnectEvent;
-	CEvent::Type s_resetServerEvent;
-	EServerState s_serverState;
-	CScreen* s_serverScreen;
-	CPrimaryClient* s_primaryClient;
-	CClientListener* s_listener;
-	CEventQueueTimer* s_timer;
+	CServer*			s_server;
+	EServerState		s_serverState;
+	CScreen*			s_serverScreen;
+	CPrimaryClient*		s_primaryClient;
+	CClientListener*	s_listener;
+	CEventQueueTimer*	s_timer;
 
 private:
 	virtual bool parseArg(const int& argc, const char* const* argv, int& i);
-	void vncThread(void*);
 	void handleScreenSwitched(const CEvent&, void*  data);
-	std::map<CString, CVncClient*> m_vncClients;
-	CVncClient* m_vncClient;
 };
 
 // configuration file name

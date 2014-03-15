@@ -22,6 +22,10 @@ set(h
 	io/CMockStream.h
 	server/CMockServer.h
 	io/CMockCryptoStream.h
+	synergy/CMockScreen.h
+	server/CMockConfig.h
+	server/CMockPrimaryClient.h
+	server/CMockInputFilter.h
 )
 
 set(src
@@ -56,12 +60,6 @@ if (UNIX)
 	list(APPEND inc
 		../../..
 	)
-endif()
-
-if (WIN32)
-	if (GAME_DEVICE_SUPPORT)
-		link_directories("$ENV{DXSDK_DIR}/Lib/x86")
-	endif()
 endif()
 
 include_directories(${inc})
