@@ -1,3 +1,9 @@
+synergy (1.4.16-1) UNRELEASED; urgency=medium
+
+  * New upstream version.
+
+ -- Jeff Licquia <licquia@debian.org>  Sat, 15 Mar 2014 20:36:23 +0000
+
 synergy (1.4.12-3) unstable; urgency=low
 
   * Make GUI build and rest-of-synergy build separately targetable
