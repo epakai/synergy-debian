@@ -24,7 +24,7 @@
 //! Proxy for client implementing protocol version 1.3
 class CClientProxy1_3 : public CClientProxy1_2 {
 public:
-	CClientProxy1_3(const CString& name, synergy::IStream* adoptedStream, IEventQueue* eventQueue);
+	CClientProxy1_3(const CString& name, synergy::IStream* adoptedStream, IEventQueue* events);
 	~CClientProxy1_3();
 
 	// IClient overrides
@@ -38,14 +38,15 @@ protected:
 	virtual void		resetHeartbeatTimer();
 	virtual void		addHeartbeatTimer();
 	virtual void		removeHeartbeatTimer();
+	virtual void		keepAlive();
 
 private:
 	void				handleKeepAlive(const CEvent&, void*);
 
-
 private:
 	double				m_keepAliveRate;
 	CEventQueueTimer*	m_keepAliveTimer;
+	IEventQueue*		m_events;
 };
 
 #endif

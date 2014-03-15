@@ -43,17 +43,13 @@ set(inc
 	ProtocolTypes.h
 	XScreen.h
 	XSynergy.h
-	GameDeviceTypes.h
 	CDaemonApp.h
 	CAppUtil.h
 	CArgsBase.h
 	IAppUtil.h
-	CEventGameDevice.h
-	CVncClient.h
-	CCryptoStream.h
-	CCryptoMode.h
-	ECryptoMode.h
-	CCryptoOptions.h
+	CFileChunker.h
+	CDragInformation.h
+	CToolApp.h
 )
 
 set(src
@@ -73,27 +69,21 @@ set(src
 	IClipboard.cpp
 	IKeyState.cpp
 	IPrimaryScreen.cpp
-	IScreen.cpp
 	KeyTypes.cpp
 	ProtocolTypes.cpp
 	XScreen.cpp
 	XSynergy.cpp
-	ISecondaryScreen.cpp
 	CDaemonApp.cpp
 	CAppUtil.cpp
 	CArgsBase.cpp
-	CEventGameDevice.cpp
-	CVncClient.cpp
-	CGameDevice.cpp
-	CCryptoStream.cpp
-	CCryptoMode.cpp
-	CCryptoOptions.cpp
+	CFileChunker.cpp
+	CDragInformation.cpp
+	CToolApp.cpp
 )
 
 if (WIN32)
 	list(APPEND inc
 		CAppUtilWindows.h
-		CGameDevice.h
 	)	
 
 	list(APPEND src
@@ -118,6 +108,8 @@ set(inc
 	../platform
 	../server
 	../synergy
+	../synwinhk
+	../synwinxt
 	../..
 	../../../tools
 )
@@ -126,15 +118,11 @@ if (UNIX)
 	list(APPEND inc
 		../../..
 	)
-elseif (WIN32)
-	list(APPEND inc
-		../../vnc/win
-	)
 endif()
 
 include_directories(${inc})
 add_library(synergy STATIC ${src})
 
 if (UNIX)
-	target_link_libraries(synergy arch client ipc net base platform mt server cryptopp)
+	target_link_libraries(synergy arch client ipc net base platform mt server)
 endif()

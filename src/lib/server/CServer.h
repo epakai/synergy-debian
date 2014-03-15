@@ -30,12 +30,16 @@
 #include "stdset.h"
 #include "stdvector.h"
 #include "INode.h"
+#include "CEventTypes.h"
+#include "CDragInformation.h"
 
 class CBaseClientProxy;
 class CEventQueueTimer;
 class CPrimaryClient;
 class CInputFilter;
 class CScreen;
+class IEventQueue;
+class CThread;
 
 //! Synergy server
 /*!
@@ -101,11 +105,12 @@ public:
 	client (local screen) \p primaryClient.  The client retains
 	ownership of \p primaryClient.
 	*/
-	CServer(const CConfig& config, CPrimaryClient* primaryClient, CScreen* screen);
+	CServer(CConfig& config, CPrimaryClient* primaryClient, CScreen* screen, IEventQueue* events, bool enableDragDrop);
 	~CServer();
-	
+
 #ifdef TEST_ENV
-	CServer() { }
+	CServer() : m_mock(true), m_config(NULL) { }
+	void setActive(CBaseClientProxy* active) {	m_active = active; }
 #endif
 
 	//! @name manipulators
@@ -135,12 +140,27 @@ public:
 	*/
 	void				disconnect();
 
-	//! Notify of game device timing response
-	void				gameDeviceTimingResp(UInt16 freq);
+	//! Clears the file buffer
+	void				clearReceivedFileData();
 
-	//! Notify of game device feedback
-	void				gameDeviceFeedback(GameDeviceID id, UInt16 m1, UInt16 m2);
+	//! Set the expected size of receiving file
+	void				setExpectedFileSize(CString data);
 
+	//! Set file transder destination
+	void				setFileTransferDes(CString& des) { m_fileTransferDes = des; }
+	
+	//! Received a chunk of file data
+	void				fileChunkReceived(CString data);
+
+	//! Create a new thread and use it to send file to client
+	void				sendFileToClient(const char* filename);
+
+	//! Received dragging information from client
+	void				dragInfoReceived(UInt32 fileNum, CString content);
+	
+	//! Send dragging file information to client
+	void				draggingInfoSending(UInt32 fileCount, CString& fileList, size_t size);
+	
 	//@}
 	//! @name accessors
 	//@{
@@ -156,67 +176,12 @@ public:
 	Set the \c list to the names of the currently connected clients.
 	*/
 	void				getClients(std::vector<CString>& list) const;
+	
+	//! Return true if recieved file size is valid
+	bool				isReceivedFileSizeValid();
 
-	//! Get error event type
-	/*!
-	Returns the error event type.  This is sent when the server fails
-	for some reason.
-	*/
-	static CEvent::Type	getErrorEvent();
-
-	//! Get connected event type
-	/*!
-	Returns the connected event type.  This is sent when a client screen
-	has connected.  The event data is a \c CScreenConnectedInfo* that
-	indicates the connected screen.
-	*/
-	static CEvent::Type	getConnectedEvent();
-
-	//! Get disconnected event type
-	/*!
-	Returns the disconnected event type.  This is sent when all the
-	clients have disconnected.
-	*/
-	static CEvent::Type	getDisconnectedEvent();
-
-	//! Get switch to screen event type
-	/*!
-	Returns the switch to screen event type.  The server responds to this
-	by switching screens.  The event data is a \c CSwitchToScreenInfo*
-	that indicates the target screen.
-	*/
-	static CEvent::Type	getSwitchToScreenEvent();
-
-	//! Get switch in direction event type
-	/*!
-	Returns the switch in direction event type.  The server responds to this
-	by switching screens.  The event data is a \c CSwitchInDirectionInfo*
-	that indicates the target direction.
-	*/
-	static CEvent::Type	getSwitchInDirectionEvent();
-
-	//! Get keyboard broadcast event type
-	/*!
-	Returns the keyboard broadcast event type.  The server responds
-	to this by turning on keyboard broadcasting or turning it off.  The
-	event data is a \c CKeyboardBroadcastInfo*.
-	*/
-	static CEvent::Type getKeyboardBroadcastEvent();
-
-	//! Get lock cursor event type
-	/*!
-	Returns the lock cursor event type.  The server responds to this
-	by locking the cursor to the active screen or unlocking it.  The
-	event data is a \c CLockCursorToScreenInfo*.
-	*/
-	static CEvent::Type	getLockCursorToScreenEvent();
-
-	//! Get screen switched event type
-	/*!
-	Returns the screen switched event type.  This is raised when the
-	screen has been switched to a client.
-	*/
-	static CEvent::Type	getScreenSwitchedEvent();
+	//! Return expected file size
+	size_t				getExpectedFileSize() { return m_expectedFileSize; }
 
 	//@}
 
@@ -341,10 +306,6 @@ private:
 	void				handleMotionPrimaryEvent(const CEvent&, void*);
 	void				handleMotionSecondaryEvent(const CEvent&, void*);
 	void				handleWheelEvent(const CEvent&, void*);
-	void				handleGameDeviceButtons(const CEvent&, void*);
-	void				handleGameDeviceSticks(const CEvent&, void*);
-	void				handleGameDeviceTriggers(const CEvent&, void*);
-	void				handleGameDeviceTimingReq(const CEvent&, void*);
 	void				handleScreensaverActivatedEvent(const CEvent&, void*);
 	void				handleScreensaverDeactivatedEvent(const CEvent&, void*);
 	void				handleSwitchWaitTimeout(const CEvent&, void*);
@@ -356,6 +317,8 @@ private:
 	void				handleLockCursorToScreenEvent(const CEvent&, void*);
 	void				handleFakeInputBeginEvent(const CEvent&, void*);
 	void				handleFakeInputEndEvent(const CEvent&, void*);
+	void				handleFileChunkSendingEvent(const CEvent&, void*);
+	void				handleFileRecieveCompletedEvent(const CEvent&, void*);
 
 	// event processing
 	void				onClipboardChanged(CBaseClientProxy* sender,
@@ -371,10 +334,8 @@ private:
 	bool				onMouseMovePrimary(SInt32 x, SInt32 y);
 	void				onMouseMoveSecondary(SInt32 dx, SInt32 dy);
 	void				onMouseWheel(SInt32 xDelta, SInt32 yDelta);
-	void				onGameDeviceButtons(GameDeviceID id, GameDeviceButton buttons);
-	void				onGameDeviceSticks(GameDeviceID id, SInt16 x1, SInt16 y1, SInt16 x2, SInt16 y2);
-	void				onGameDeviceTriggers(GameDeviceID id, UInt8 t1, UInt8 t2);
-	void				onGameDeviceTimingReq();
+	void				onFileChunkSending(const void* data);
+	void				onFileRecieveCompleted();
 
 	// add client to list and attach event handlers for client
 	bool				addClient(CBaseClientProxy*);
@@ -399,6 +360,12 @@ private:
 	// force the cursor off of \p client
 	void				forceLeaveClient(CBaseClientProxy* client);
 	
+	// thread funciton for sending file
+	void				sendFileThread(void*);
+	
+	// thread function for writing file to drop directory
+	void				writeToDropDirThread(void*);
+
 public:
 	bool				m_mock;
 
@@ -445,7 +412,7 @@ private:
 	SInt32				m_xDelta2, m_yDelta2;
 
 	// current configuration
-	CConfig				m_config;
+	CConfig*			m_config;
 
 	// input filter (from m_config);
 	CInputFilter*		m_inputFilter;
@@ -493,14 +460,19 @@ private:
 	// server screen
 	CScreen*			m_screen;
 
-	static CEvent::Type	s_errorEvent;
-	static CEvent::Type	s_connectedEvent;
-	static CEvent::Type	s_disconnectedEvent;
-	static CEvent::Type	s_switchToScreen;
-	static CEvent::Type	s_switchInDirection;
-	static CEvent::Type s_keyboardBroadcast;
-	static CEvent::Type s_lockCursorToScreen;
-	static CEvent::Type s_screenSwitched;
+	IEventQueue*		m_events;
+
+	// file transfer
+	size_t				m_expectedFileSize;
+	CString				m_receivedFileData;
+	CString				m_fileTransferSrc;
+	CString				m_fileTransferDes;
+	CDragFileList		m_dragFileList;
+	CThread*			m_sendFileThread;
+	CThread*			m_writeToDropDirThread;
+	CString				m_dragFileExt;
+	bool				m_ignoreFileTransfer;
+	bool				m_enableDragDrop;
 };
 
 #endif

@@ -27,9 +27,9 @@
 // 1.2:  adds mouse relative motion
 // 1.3:  adds keep alive and deprecates heartbeats,
 //       adds horizontal mouse scrolling
-// 1.4:  adds game device support
+// 1.4:  adds crypto support (game device support added then removed)
 static const SInt16		kProtocolMajorVersion = 1;
-static const SInt16		kProtocolMinorVersion = 4;
+static const SInt16		kProtocolMinorVersion = 5;
 
 // default contact port number
 static const UInt16		kDefaultPort = 24800;
@@ -66,6 +66,13 @@ enum EDirectionMask {
 	kRightMask  = 1 << kRight,
 	kTopMask    = 1 << kTop,
 	kBottomMask = 1 << kBottom
+};
+
+// file transfer constants
+enum EFileTransfer {
+	kFileStart = 1,
+	kFileChunk = 2,
+	kFileEnd = 3
 };
 
 
@@ -156,20 +163,6 @@ extern const char*		kMsgCInfoAck;
 // defined by an option.
 extern const char*		kMsgCKeepAlive;
 
-// game device timing:  primary -> secondary
-// periodically, sent from primary to secondary when game device device is polled.
-// this causes a game timing response to be queued, which is dequeued when
-// the device is next faked.
-extern const char*		kMsgCGameTimingReq;
-
-// game device timing:  primary <- secondary
-// in response, sent from secondary to primary when game device device is faked.
-// the difference between when the message was sent and received is a
-// measurement of time it took for the game device device state to reach the
-// game device device user. a timing request is not retransmitted until after 
-// the pending timing response is received.
-extern const char*		kMsgCGameTimingResp;
-
 //
 // data codes
 //
@@ -230,31 +223,6 @@ extern const char*		kMsgDMouseWheel;
 // like as kMsgDMouseWheel except only sends $1 = yDelta.
 extern const char*		kMsgDMouseWheel1_0;
 
-// game device buttons:  primary -> secondary
-// $1 = device id
-// $2 = buttons bit mask
-extern const char*		kMsgDGameButtons;
-
-// game device sticks:  primary -> secondary
-// $1 = device id
-// $2 = x1
-// $3 = y1
-// $4 = x2
-// $5 = y2
-extern const char*		kMsgDGameSticks;
-
-// game device triggers:  primary -> secondary
-// $1 = device id
-// $2 = t1
-// $3 = t2
-extern const char*		kMsgDGameTriggers;
-
-// game device feedback: secondary -> primary
-// $1 = device id
-// $2 = motor 1
-// $3 = motor 2
-extern const char*		kMsgDGameFeedback;
-
 // clipboard data:  primary <-> secondary
 // $2 = sequence number, $3 = clipboard data.  the sequence number
 // is 0 when sent by the primary.  secondary screens should use the
@@ -287,6 +255,19 @@ extern const char*		kMsgDSetOptions;
 // sends a new iv (initialization vector) to the client for the
 // cryptography stream.
 extern const char*		kMsgDCryptoIv;
+
+// file data:  primary <-> secondary
+// transfer file data. A mark is used in the first byte.
+// 0 means the content followed is the file size.
+// 1 means the content followed is the chunk data.
+// 2 means the file transfer is finished.
+extern const char*		kMsgDFileTransfer;
+
+// drag infomation:  primary <-> secondary
+// transfer drag infomation. The first 2 bytes are used for storing
+// the number of dragging objects. Then the following string consists
+// of each object's directory.
+extern const char*		kMsgDDragInfo;
 
 //
 // query codes

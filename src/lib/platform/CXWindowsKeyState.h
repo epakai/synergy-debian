@@ -36,6 +36,8 @@
 #	endif
 #endif
 
+class IEventQueue;
+
 //! X Windows key state
 /*!
 A key state for X Windows.
@@ -48,9 +50,9 @@ public:
 		kGroupPollAndSet = -2
 	};
 
-	CXWindowsKeyState(Display*, bool useXKB);
+	CXWindowsKeyState(Display*, bool useXKB, IEventQueue* events);
 	CXWindowsKeyState(Display*, bool useXKB,
-		IEventQueue& eventQueue, CKeyMap& keyMap);
+		IEventQueue* events, CKeyMap& keyMap);
 	~CXWindowsKeyState();
 
 	//! @name modifiers

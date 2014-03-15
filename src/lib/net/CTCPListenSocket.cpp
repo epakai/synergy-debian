@@ -33,7 +33,9 @@
 // CTCPListenSocket
 //
 
-CTCPListenSocket::CTCPListenSocket()
+CTCPListenSocket::CTCPListenSocket(IEventQueue* events, CSocketMultiplexer* socketMultiplexer) :
+	m_events(events),
+	m_socketMultiplexer(socketMultiplexer)
 {
 	m_mutex = new CMutex;
 	try {
@@ -48,7 +50,7 @@ CTCPListenSocket::~CTCPListenSocket()
 {
 	try {
 		if (m_socket != NULL) {
-			CSocketMultiplexer::getInstance()->removeSocket(this);
+			m_socketMultiplexer->removeSocket(this);
 			ARCH->closeSocket(m_socket);
 		}
 	}
@@ -66,7 +68,7 @@ CTCPListenSocket::bind(const CNetworkAddress& addr)
 		ARCH->setReuseAddrOnSocket(m_socket, true);
 		ARCH->bindSocket(m_socket, addr.getAddress());
 		ARCH->listenOnSocket(m_socket);
-		CSocketMultiplexer::getInstance()->addSocket(this,
+		m_socketMultiplexer->addSocket(this,
 							new TSocketMultiplexerMethodJob<CTCPListenSocket>(
 								this, &CTCPListenSocket::serviceListening,
 								m_socket, true, false));
@@ -87,7 +89,7 @@ CTCPListenSocket::close()
 		throw XIOClosed();
 	}
 	try {
-		CSocketMultiplexer::getInstance()->removeSocket(this);
+		m_socketMultiplexer->removeSocket(this);
 		ARCH->closeSocket(m_socket);
 		m_socket = NULL;
 	}
@@ -107,9 +109,9 @@ CTCPListenSocket::accept()
 {
 	IDataSocket* socket = NULL;
 	try {
-		socket = new CTCPSocket(ARCH->acceptSocket(m_socket, NULL));
+		socket = new CTCPSocket(m_events, m_socketMultiplexer, ARCH->acceptSocket(m_socket, NULL));
 		if (socket != NULL) {
-			CSocketMultiplexer::getInstance()->addSocket(this,
+			m_socketMultiplexer->addSocket(this,
 							new TSocketMultiplexerMethodJob<CTCPListenSocket>(
 								this, &CTCPListenSocket::serviceListening,
 								m_socket, true, false));
@@ -139,7 +141,7 @@ CTCPListenSocket::serviceListening(ISocketMultiplexerJob* job,
 		return NULL;
 	}
 	if (read) {
-		EVENTQUEUE->addEvent(CEvent(getConnectingEvent(), this, NULL));
+		m_events->addEvent(CEvent(m_events->forIListenSocket().connecting(), this, NULL));
 		// stop polling on this socket until the client accepts
 		return NULL;
 	}

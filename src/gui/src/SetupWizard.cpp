@@ -17,9 +17,17 @@
  
 #include "SetupWizard.h"
 #include "MainWindow.h"
+#include "QSynergyApplication.h"
+#include "QUtility.h"
+#include "PremiumAuth.h"
 
 #include <QMessageBox>
-#include <iostream>
+#include <QDesktopServices>
+#include <QUrl>
+#include <QNetworkRequest>
+#include <QNetworkReply>
+
+#define PREMIUM_REGISTER_URL "http://synergy-foss.org/donate/?source=gui-wizard"
 
 SetupWizard::SetupWizard(MainWindow& mainWindow, bool startMain) :
 	m_MainWindow(mainWindow),
@@ -45,9 +53,18 @@ SetupWizard::SetupWizard(MainWindow& mainWindow, bool startMain) :
 
 #endif
 
-	connect(this, SIGNAL(finished(int)), this, SLOT(handleFinished()));
 	connect(m_pServerRadioButton, SIGNAL(toggled(bool)), m_MainWindow.m_pGroupServer, SLOT(setChecked(bool)));
 	connect(m_pClientRadioButton, SIGNAL(toggled(bool)), m_MainWindow.m_pGroupClient, SLOT(setChecked(bool)));
+
+	m_Locale.fillLanguageComboBox(m_pComboLanguage);
+	setIndexFromItemData(m_pComboLanguage, m_MainWindow.appConfig().language());
+	AppConfig& appConfig = m_MainWindow.appConfig();
+	QString premiumEmail = appConfig.premiumEmail();
+	if (!premiumEmail.isEmpty())
+	{
+		m_pRadioButtonPremiumLogin->setChecked(true);
+		m_pLineEditPremiumEmail->setText(premiumEmail);
+	}
 }
 
 SetupWizard::~SetupWizard()
@@ -72,26 +89,51 @@ bool SetupWizard::validateCurrentPage()
 			return false;
 		}
 	}
-	else if (currentPage() == m_pCryptoPage)
+	else if (currentPage() == m_pPremiumUserPage)
 	{
-		QString modeText = m_pComboCryptoMode->currentText();
-		if (modeText.isEmpty())
+		if (m_pRadioButtonPremiumLogin->isChecked())
 		{
-			message.setText(tr("Encryption mode required."));
+			if (m_pLineEditPremiumEmail->text().isEmpty() ||
+				m_pLineEditPremiumPassword->text().isEmpty())
+			{
+				message.setText(tr("Please enter your email address and password."));
+				message.exec();
+				return false;
+			}
+			else if (!isPremiumLoginValid(message))
+			{
+				return false;
+			}
+		}
+		else if (m_pRadioButtonPremiumRegister->isChecked())
+		{
+			const QUrl url(QString(PREMIUM_REGISTER_URL));
+			QDesktopServices::openUrl(url);
+			m_pRadioButtonPremiumLogin->setChecked(true);
+			return false;
+		}
+		else if (m_pRadioButtonPremiumLater->isChecked())
+		{
+			return true;
+		}
+		else {
+			message.setText(tr("Please select an option."));
 			message.exec();
 			return false;
 		}
-
-		if (parseCryptoMode(modeText) != Disabled)
+	}
+	else if (currentPage() == m_pCryptoPage)
+	{
+		if (m_pCheckBoxEnableCrypto->isChecked())
 		{
-			if (m_pLineEditCryptoPass->text().isEmpty())
+			if (m_pLineEditCryptoPassword1->text().isEmpty())
 			{
 				message.setText(tr("Encryption password required."));
 				message.exec();
 				return false;
 			}
 
-			if (m_pLineEditCryptoPass->text() != m_pLineEditCryptoPassConfirm->text())
+			if (m_pLineEditCryptoPassword1->text() != m_pLineEditCryptoPassword2->text())
 			{
 				message.setText(tr("Encryption password and confirmation do not match."));
 				message.exec();
@@ -103,14 +145,46 @@ bool SetupWizard::validateCurrentPage()
 	return true;
 }
 
-void SetupWizard::handleFinished()
+void SetupWizard::changeEvent(QEvent* event)
 {
-	close();
+	if (event != 0)
+	{
+		switch (event->type())
+		{
+		case QEvent::LanguageChange:
+			{
+				m_pComboLanguage->blockSignals(true);
+				retranslateUi(this);
+				m_pComboLanguage->blockSignals(false);
+				break;
+			}
 
+		default:
+			QWizard::changeEvent(event);
+		}
+	}
+}
+
+void SetupWizard::accept()
+{
 	AppConfig& appConfig = m_MainWindow.appConfig();
 
-	appConfig.setCryptoMode(parseCryptoMode(m_pComboCryptoMode->currentText()));
-	appConfig.setCryptoPass(m_pLineEditCryptoPass->text());
+	appConfig.setCryptoEnabled(m_pCheckBoxEnableCrypto->isChecked());
+	appConfig.setCryptoPass(m_pLineEditCryptoPassword1->text());
+	appConfig.setLanguage(m_pComboLanguage->itemData(m_pComboLanguage->currentIndex()).toString());
+	appConfig.setPremiumEmail(m_pLineEditPremiumEmail->text());
+
+	if (!m_pRadioButtonPremiumLogin->isChecked())
+	{
+		appConfig.setPremiumToken("");
+	}
+	else
+	{
+		QString mac = getFirstMacAddress();
+		QString hashSrc = m_pLineEditPremiumEmail->text() + mac;
+		QString hashResult = hash(hashSrc);
+		appConfig.setPremiumToken(hashResult);
+	}
 
 	appConfig.setWizardHasRun();
 	appConfig.saveSettings();
@@ -131,35 +205,88 @@ void SetupWizard::handleFinished()
 
 	if (m_StartMain)
 	{
-		m_MainWindow.start(true);
+		m_MainWindow.start();
+	}
+
+	QWizard::accept();
+}
+
+void SetupWizard::reject()
+{
+	QSynergyApplication::getInstance()->switchTranslator(m_MainWindow.appConfig().language());
+
+	if (m_StartMain)
+	{
+		m_MainWindow.start();
+	}
+
+	QWizard::reject();
+}
+
+void SetupWizard::on_m_pCheckBoxEnableCrypto_stateChanged(int )
+{
+	bool enabled = m_pCheckBoxEnableCrypto->isChecked();
+	m_pLineEditCryptoPassword1->setEnabled(enabled);
+	m_pLineEditCryptoPassword2->setEnabled(enabled);
+	if (!enabled)
+	{
+		m_pLineEditCryptoPassword1->clear();
+		m_pLineEditCryptoPassword2->clear();
 	}
 }
 
-void SetupWizard::on_m_pComboCryptoMode_currentIndexChanged(int index)
+void SetupWizard::on_m_pComboLanguage_currentIndexChanged(int index)
 {
-	bool enabled = parseCryptoMode(m_pComboCryptoMode->currentText()) != Disabled;
-	m_pLineEditCryptoPass->setEnabled(enabled);
-	m_pLineEditCryptoPassConfirm->setEnabled(enabled);
+	QString ietfCode = m_pComboLanguage->itemData(index).toString();
+	QSynergyApplication::getInstance()->switchTranslator(ietfCode);
 }
 
-CryptoMode SetupWizard::parseCryptoMode(const QString& s)
+void SetupWizard::on_m_pRadioButtonPremiumLogin_toggled(bool checked)
 {
-	if (s.startsWith("OFB"))
-	{
-		return OFB;
-	}
-	else if (s.startsWith("CFB"))
-	{
-		return CFB;
-	}
-	else if (s.startsWith("CTR"))
-	{
-		return CTR;
-	}
-	else if (s.startsWith("GCM"))
-	{
-		return GCM;
+	m_pLineEditPremiumEmail->setEnabled(checked);
+	m_pLineEditPremiumPassword->setEnabled(checked);
+}
+
+bool SetupWizard::isPremiumLoginValid(QMessageBox& message)
+{
+	QString email = m_pLineEditPremiumEmail->text();
+	QString password = m_pLineEditPremiumPassword->text();
+
+	PremiumAuth auth;
+	QString responseJson = auth.request(email, password);
+
+	if (responseJson.trimmed() == "") {
+		message.setText(tr("Login failed, could not communicate with server."));
+		message.exec();
+		return false;
 	}
 
-	return Disabled;
+	QRegExp resultRegex(".*\"result\".*:.*(true|false).*");
+	if (resultRegex.exactMatch(responseJson)) {
+		QString boolString = resultRegex.cap(1);
+		if (boolString == "true") {
+			return true;
+		}
+		else if (boolString == "false") {
+			message.setText(tr("Login failed, invalid email or password."));
+			message.exec();
+			return false;
+		}
+	}
+	else {
+		QRegExp errorRegex(".*\"error\".*:.*\"(.+)\".*");
+		if (errorRegex.exactMatch(responseJson)) {
+
+			// replace "\n" with real new lines.
+			QString error = errorRegex.cap(1).replace("\\n", "\n");
+
+			message.setText(tr("Login failed, an error occurred.\n\n%1").arg(error));
+			message.exec();
+			return false;
+		}
+	}
+
+	message.setText(tr("Login failed, an error occurred.\n\nServer response:\n\n%1").arg(responseJson));
+	message.exec();
+	return false;
 }

@@ -32,6 +32,7 @@
 
 class CConfig;
 class CConfigReadContext;
+class IEventQueue;
 
 namespace std {
 template <>
@@ -172,8 +173,12 @@ public:
 		internal_const_iterator	m_i;
 	};
 
-	CConfig();
+	CConfig(IEventQueue* events);
 	virtual ~CConfig();
+
+#ifdef TEST_ENV
+	CConfig() : m_inputFilter(NULL) { }
+#endif
 
 	//! @name manipulators
 	//@{
@@ -312,7 +317,8 @@ public:
 	Returns the hot key input filter.  Clients can modify hotkeys using
 	that object.
 	*/
-	CInputFilter*		getInputFilter();
+	virtual CInputFilter*
+						getInputFilter();
 
 	//@}
 	//! @name accessors
@@ -338,7 +344,7 @@ public:
 	/*!
 	Returns true iff \c name names a screen.
 	*/
-	bool				isScreen(const CString& name) const;
+	virtual bool		isScreen(const CString& name) const;
 
 	//! Test for canonical screen name
 	/*!
@@ -468,6 +474,7 @@ private:
 	CScreenOptions		m_globalOptions;
 	CInputFilter		m_inputFilter;
 	bool				m_hasLockToScreenAction;
+	IEventQueue*		m_events;
 };
 
 //! Configuration read context
@@ -484,7 +491,6 @@ public:
 	bool			readLine(CString&);
 	UInt32			getLineNumber() const;
 
-	operator void*() const;
 	bool			operator!() const;
 
 	OptionValue		parseBoolean(const CString&) const;
@@ -506,6 +512,7 @@ public:
 	IPlatformScreen::CButtonInfo*
 					parseMouse(const CString& mouse) const;
 	KeyModifierMask	parseModifier(const CString& modifiers) const;
+	std::istream&	getStream() const { return m_stream; };
 
 private:
 	// not implemented

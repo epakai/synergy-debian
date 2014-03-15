@@ -39,6 +39,12 @@ public:
 
 	//! @name manipulators
 	//@{
+	
+	//! Initialize
+	/*!
+	Useful for platform-specific initialisation from a specific thread.
+	*/
+	virtual	void		init() = 0;
 
 	//! Block waiting for an event
 	/*!

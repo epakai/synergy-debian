@@ -40,14 +40,6 @@
 
 #if SYSAPI_WIN32
 #include "CArchMiscWindows.h"
-#if VNC_SUPPORT
-#include "vnc/win/winvnc/winvnc.h"
-#endif
-#endif
-
-#if SYSAPI_WIN32 && GAME_DEVICE_SUPPORT
-#include <Windows.h>
-#include "XInputHook.h"
 #endif
 
 #if WINAPI_MSWINDOWS
@@ -58,23 +50,24 @@
 #include "COSXScreen.h"
 #endif
 
+#if defined(__APPLE__)
+#include "COSXDragSimulator.h"
+#endif
+
 #include <iostream>
 #include <stdio.h>
 
 #define RETRY_TIME 1.0
 
-CClientApp::CClientApp(CreateTaskBarReceiverFunc createTaskBarReceiver) :
-CApp(createTaskBarReceiver, new CArgs()),
-s_client(NULL),
-s_clientScreen(NULL),
-m_vncThread(NULL)
+CClientApp::CClientApp(IEventQueue* events, CreateTaskBarReceiverFunc createTaskBarReceiver) :
+	CApp(events, createTaskBarReceiver, new CArgs()),
+	s_client(NULL),
+	s_clientScreen(NULL)
 {
 }
 
 CClientApp::~CClientApp()
 {
-	if (m_vncThread)
-		delete m_vncThread;
 }
 
 CClientApp::CArgs::CArgs() :
@@ -162,6 +155,10 @@ CClientApp::parseArgs(int argc, const char* const* argv)
 
 	// identify system
 	LOG((CLOG_INFO "%s Client on %s %s", kAppVersion, ARCH->getOSName().c_str(), ARCH->getPlatformName().c_str()));
+	
+	if (args().m_enableDragDrop) {
+		LOG((CLOG_INFO "drag and drop enabled"));
+	}
 
 	loggingFilterWarning();
 }
@@ -235,13 +232,13 @@ CClientApp::createScreen()
 {
 #if WINAPI_MSWINDOWS
 	return new CScreen(new CMSWindowsScreen(
-		false, args().m_noHooks, args().m_gameDevice, args().m_stopOnDeskSwitch));
+		false, args().m_noHooks, args().m_stopOnDeskSwitch, m_events), m_events);
 #elif WINAPI_XWINDOWS
 	return new CScreen(new CXWindowsScreen(
 		args().m_display, false, args().m_disableXInitThreads,
-		args().m_yscroll, *EVENTQUEUE));
+		args().m_yscroll, m_events), m_events);
 #elif WINAPI_CARBON
-	return new CScreen(new COSXScreen(false));
+	return new CScreen(new COSXScreen(m_events, false), m_events);
 #endif
 }
 
@@ -297,7 +294,7 @@ void
 CClientApp::handleScreenError(const CEvent&, void*)
 {
 	LOG((CLOG_CRIT "error on screen"));
-	EVENTQUEUE->addEvent(CEvent(CEvent::kQuit));
+	m_events->addEvent(CEvent(CEvent::kQuit));
 }
 
 
@@ -305,7 +302,8 @@ CScreen*
 CClientApp::openClientScreen()
 {
 	CScreen* screen = createScreen();
-	EVENTQUEUE->adoptHandler(IScreen::getErrorEvent(),
+	screen->setEnableDragDrop(argsBase().m_enableDragDrop);
+	m_events->adoptHandler(m_events->forIScreen().error(),
 		screen->getEventTarget(),
 		new TMethodEventJob<CClientApp>(
 		this, &CClientApp::handleScreenError));
@@ -317,7 +315,7 @@ void
 CClientApp::closeClientScreen(CScreen* screen)
 {
 	if (screen != NULL) {
-		EVENTQUEUE->removeHandler(IScreen::getErrorEvent(),
+		m_events->removeHandler(m_events->forIScreen().error(),
 			screen->getEventTarget());
 		delete screen;
 	}
@@ -329,8 +327,8 @@ CClientApp::handleClientRestart(const CEvent&, void* vtimer)
 {
 	// discard old timer
 	CEventQueueTimer* timer = reinterpret_cast<CEventQueueTimer*>(vtimer);
-	EVENTQUEUE->deleteTimer(timer);
-	EVENTQUEUE->removeHandler(CEvent::kTimer, timer);
+	m_events->deleteTimer(timer);
+	m_events->removeHandler(CEvent::kTimer, timer);
 
 	// reconnect
 	startClient();
@@ -342,8 +340,8 @@ CClientApp::scheduleClientRestart(double retryTime)
 {
 	// install a timer and handler to retry later
 	LOG((CLOG_DEBUG "retry in %.0f seconds", retryTime));
-	CEventQueueTimer* timer = EVENTQUEUE->newOneShotTimer(retryTime, NULL);
-	EVENTQUEUE->adoptHandler(CEvent::kTimer, timer,
+	CEventQueueTimer* timer = m_events->newOneShotTimer(retryTime, NULL);
+	m_events->adoptHandler(CEvent::kTimer, timer,
 		new TMethodEventJob<CClientApp>(this, &CClientApp::handleClientRestart, timer));
 }
 
@@ -354,6 +352,14 @@ CClientApp::handleClientConnected(const CEvent&, void*)
 	LOG((CLOG_NOTE "connected to server"));
 	resetRestartTimeout();
 	updateStatus();
+
+	/*
+	// TODO: remove testing code for relase
+	CString fileFullDir = getFileTransferSrc();
+	if (!fileFullDir.empty()) {
+		s_client->sendFileToServer(getFileTransferSrc().c_str());
+	}
+	*/
 }
 
 
@@ -366,7 +372,7 @@ CClientApp::handleClientFailed(const CEvent& e, void*)
 	updateStatus(CString("Failed to connect to server: ") + info->m_what);
 	if (!args().m_restartable || !info->m_retry) {
 		LOG((CLOG_ERR "failed to connect to server: %s", info->m_what.c_str()));
-		EVENTQUEUE->addEvent(CEvent(CEvent::kQuit));
+		m_events->addEvent(CEvent(CEvent::kQuit));
 	}
 	else {
 		LOG((CLOG_WARN "failed to connect to server: %s", info->m_what.c_str()));
@@ -383,7 +389,7 @@ CClientApp::handleClientDisconnected(const CEvent&, void*)
 {
 	LOG((CLOG_NOTE "disconnected from server"));
 	if (!args().m_restartable) {
-		EVENTQUEUE->addEvent(CEvent(CEvent::kQuit));
+		m_events->addEvent(CEvent(CEvent::kQuit));
 	}
 	else if (!m_suspended) {
 		s_client->connect();
@@ -396,21 +402,28 @@ CClient*
 CClientApp::openClient(const CString& name, const CNetworkAddress& address, CScreen* screen, const CCryptoOptions& crypto)
 {
 	CClient* client = new CClient(
-		EVENTQUEUE, name, address, new CTCPSocketFactory, NULL, screen, crypto);
+		m_events,
+		name,
+		address,
+		new CTCPSocketFactory(m_events, getSocketMultiplexer()),
+		NULL,
+		screen,
+		crypto,
+		args().m_enableDragDrop);
 
 	try {
-		EVENTQUEUE->adoptHandler(
-			CClient::getConnectedEvent(),
+		m_events->adoptHandler(
+			m_events->forCClient().connected(),
 			client->getEventTarget(),
 			new TMethodEventJob<CClientApp>(this, &CClientApp::handleClientConnected));
 
-		EVENTQUEUE->adoptHandler(
-			CClient::getConnectionFailedEvent(),
+		m_events->adoptHandler(
+			m_events->forCClient().connectionFailed(),
 			client->getEventTarget(),
 			new TMethodEventJob<CClientApp>(this, &CClientApp::handleClientFailed));
 
-		EVENTQUEUE->adoptHandler(
-			CClient::getDisconnectedEvent(),
+		m_events->adoptHandler(
+			m_events->forCClient().disconnected(),
 			client->getEventTarget(),
 			new TMethodEventJob<CClientApp>(this, &CClientApp::handleClientDisconnected));
 
@@ -430,9 +443,9 @@ CClientApp::closeClient(CClient* client)
 		return;
 	}
 
-	EVENTQUEUE->removeHandler(CClient::getConnectedEvent(), client);
-	EVENTQUEUE->removeHandler(CClient::getConnectionFailedEvent(), client);
-	EVENTQUEUE->removeHandler(CClient::getDisconnectedEvent(), client);
+	m_events->removeHandler(m_events->forCClient().connected(), client);
+	m_events->removeHandler(m_events->forCClient().connectionFailed(), client);
+	m_events->removeHandler(m_events->forCClient().disconnected(), client);
 	delete client;
 }
 
@@ -459,19 +472,8 @@ CClientApp::startClient()
 			LOG((CLOG_NOTE "started client"));
 		}
 
-#if SYSAPI_WIN32 && GAME_DEVICE_SUPPORT
-		if (args().m_gameDevice.m_mode == CGameDeviceInfo::kGameModeXInput)
-		{
-			// TODO: currently this is failing because we're not
-			// forcing compile with the DX XInput.h (so the win
-			// SDK is being used)... we need to figure out how to
-			// tell cmake to prefer the DX include path.
-			LOG((CLOG_DEBUG "installing xinput hook"));
-			InstallXInputHook();
-		}
-#endif
-
 		s_client->connect();
+
 		updateStatus();
 		return true;
 	}
@@ -506,14 +508,6 @@ CClientApp::startClient()
 void
 CClientApp::stopClient()
 {
-#if SYSAPI_WIN32 && GAME_DEVICE_SUPPORT
-	if (args().m_gameDevice.m_mode == CGameDeviceInfo::kGameModeXInput)
-	{
-		LOG((CLOG_DEBUG "removing xinput hook"));
-		RemoveXInputHook();
-	}
-#endif
-
 	closeClient(s_client);
 	closeClientScreen(s_clientScreen);
 	s_client       = NULL;
@@ -527,6 +521,7 @@ CClientApp::mainLoop()
 	// create socket multiplexer.  this must happen after daemonization
 	// on unix because threads evaporate across a fork().
 	CSocketMultiplexer multiplexer;
+	setSocketMultiplexer(&multiplexer);
 
 	// start client, etc
 	appUtil().startNode();
@@ -538,13 +533,28 @@ CClientApp::mainLoop()
 	}
 
 	// load all available plugins.
-	ARCH->plugin().init(s_clientScreen->getEventTarget());
+	ARCH->plugin().init(s_clientScreen->getEventTarget(), m_events);
 
 	// run event loop.  if startClient() failed we're supposed to retry
 	// later.  the timer installed by startClient() will take care of
 	// that.
 	DAEMON_RUNNING(true);
-	EVENTQUEUE->loop();
+	
+#if defined(MAC_OS_X_VERSION_10_7)
+	
+	CThread thread(
+		new TMethodJob<CClientApp>(
+			this, &CClientApp::runEventsLoop,
+			NULL));
+	
+	// HACK: sleep, allow queue to start.
+	ARCH->sleep(1);
+	
+	runCocoaApp();
+#else
+	m_events->loop();
+#endif
+	
 	DAEMON_RUNNING(false);
 
 	// close down
@@ -618,23 +628,10 @@ CClientApp::runInner(int argc, char** argv, ILogOutputter* outputter, StartupFun
 void 
 CClientApp::startNode()
 {
-	if (args().m_enableVnc) {
-		m_vncThread = new CThread(new TMethodJob<CClientApp>(
-			this, &CClientApp::vncThread, NULL));
-	}
-
 	// start the client.  if this return false then we've failed and
 	// we shouldn't retry.
 	LOG((CLOG_DEBUG1 "starting client"));
 	if (!startClient()) {
 		m_bye(kExitFailed);
 	}
-}
-
-void
-CClientApp::vncThread(void*)
-{
-#if VNC_SUPPORT
-	vncServerMain(0, NULL);
-#endif
 }

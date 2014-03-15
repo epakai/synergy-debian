@@ -24,6 +24,8 @@
 
 class CMutex;
 class ISocketMultiplexerJob;
+class IEventQueue;
+class CSocketMultiplexer;
 
 //! TCP listen socket
 /*!
@@ -31,7 +33,7 @@ A listen socket using TCP.
 */
 class CTCPListenSocket : public IListenSocket {
 public:
-	CTCPListenSocket();
+	CTCPListenSocket(IEventQueue* events, CSocketMultiplexer* socketMultiplexer);
 	~CTCPListenSocket();
 
 	// ISocket overrides
@@ -50,6 +52,8 @@ private:
 private:
 	CArchSocket			m_socket;
 	CMutex*				m_mutex;
+	IEventQueue*		m_events;
+	CSocketMultiplexer* m_socketMultiplexer;
 };
 
 #endif
