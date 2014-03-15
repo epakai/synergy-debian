@@ -1,6 +1,7 @@
 /*
  * synergy -- mouse and keyboard sharing utility
- * Copyright (C) 2002 Chris Schoeneman, Nick Bolton, Sorin Sbarnea
+ * Copyright (C) 2012 Bolton Software Ltd.
+ * Copyright (C) 2002 Chris Schoeneman
  * 
  * This package is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -21,37 +22,49 @@
 #include "IClient.h"
 #include "IClipboard.h"
 #include "CNetworkAddress.h"
+#include "INode.h"
+#include "CCryptoOptions.h"
 
 class CEventQueueTimer;
 class CScreen;
 class CServerProxy;
 class IDataSocket;
 class ISocketFactory;
-class IStream;
+namespace synergy { class IStream; }
 class IStreamFilterFactory;
+class IEventQueue;
+class CCryptoStream;
 
 //! Synergy client
 /*!
 This class implements the top-level client algorithms for synergy.
 */
-class CClient : public IClient {
+class CClient : public IClient, public INode {
 public:
 	class CFailInfo {
 	public:
+		CFailInfo(const char* what) : m_retry(false), m_what(what) { }
 		bool			m_retry;
-		char			m_what[1];
+		CString			m_what;
 	};
 
+public:
 	/*!
 	This client will attempt to connect to the server using \p name
 	as its name and \p address as the server's address and \p factory
 	to create the socket.  \p screen is	the local screen.
 	*/
-	CClient(const CString& name, const CNetworkAddress& address,
+	CClient(IEventQueue* eventQueue,
+							const CString& name, const CNetworkAddress& address,
 							ISocketFactory* socketFactory,
 							IStreamFilterFactory* streamFilterFactory,
-							CScreen* screen);
+							CScreen* screen,
+							const CCryptoOptions& crypto);
 	~CClient();
+	
+#ifdef TEST_ENV
+	CClient() { }
+#endif
 
 	//! @name manipulators
 	//@{
@@ -73,7 +86,10 @@ public:
 	/*!
 	Notifies the client that the connection handshake has completed.
 	*/
-	void				handshakeComplete();
+	virtual void		handshakeComplete();
+
+	//! Set crypto IV for decryption
+	virtual void		setDecryptIv(const UInt8* iv);
 
 	//@}
 	//! @name accessors
@@ -150,6 +166,10 @@ public:
 	virtual void		screensaver(bool activate);
 	virtual void		resetOptions();
 	virtual void		setOptions(const COptionsList& options);
+	virtual void		gameDeviceButtons(GameDeviceID id, GameDeviceButton buttons);
+	virtual void		gameDeviceSticks(GameDeviceID id, SInt16 x1, SInt16 y1, SInt16 x2, SInt16 y2);
+	virtual void		gameDeviceTriggers(GameDeviceID id, UInt8 t1, UInt8 t2);
+	virtual void		gameDeviceTimingReq();
 	virtual CString		getName() const;
 
 private:
@@ -174,28 +194,36 @@ private:
 	void				handleHello(const CEvent&, void*);
 	void				handleSuspend(const CEvent& event, void*);
 	void				handleResume(const CEvent& event, void*);
+	void				handleGameDeviceTimingResp(const CEvent& event, void*);
+	void				handleGameDeviceFeedback(const CEvent& event, void*);
 	
+public:
+	bool					m_mock;
+
 private:
 	CString					m_name;
 	CNetworkAddress			m_serverAddress;
 	ISocketFactory*			m_socketFactory;
 	IStreamFilterFactory*	m_streamFilterFactory;
 	CScreen*				m_screen;
-	IStream*				m_stream;
+	synergy::IStream*		m_stream;
 	CEventQueueTimer*		m_timer;
 	CServerProxy*			m_server;
 	bool					m_ready;
 	bool					m_active;
 	bool					m_suspended;
 	bool					m_connectOnResume;
-	bool				m_ownClipboard[kClipboardEnd];
-	bool				m_sentClipboard[kClipboardEnd];
-	IClipboard::Time	m_timeClipboard[kClipboardEnd];
-	CString				m_dataClipboard[kClipboardEnd];
+	bool					m_ownClipboard[kClipboardEnd];
+	bool					m_sentClipboard[kClipboardEnd];
+	IClipboard::Time		m_timeClipboard[kClipboardEnd];
+	CString					m_dataClipboard[kClipboardEnd];
+	IEventQueue*			m_eventQueue;
+	CCryptoStream*			m_cryptoStream;
+	CCryptoOptions			m_crypto;
 
-	static CEvent::Type	s_connectedEvent;
-	static CEvent::Type	s_connectionFailedEvent;
-	static CEvent::Type	s_disconnectedEvent;
+	static CEvent::Type		s_connectedEvent;
+	static CEvent::Type		s_connectionFailedEvent;
+	static CEvent::Type		s_disconnectedEvent;
 };
 
 #endif

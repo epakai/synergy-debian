@@ -1,6 +1,7 @@
 /*
  * synergy -- mouse and keyboard sharing utility
- * Copyright (C) 2002 Chris Schoeneman, Nick Bolton, Sorin Sbarnea
+ * Copyright (C) 2012 Bolton Software Ltd.
+ * Copyright (C) 2002 Chris Schoeneman
  * 
  * This package is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -61,7 +62,7 @@ public:
 	virtual bool		has(EFormat) const;
 	virtual CString		get(EFormat) const;
 
-	void setFacade(IMSWindowsClipboardFacade& facade) { m_facade = &facade; m_deleteFacade = false; }
+	void setFacade(IMSWindowsClipboardFacade& facade);
 
 private:
 	void				clearConverters();

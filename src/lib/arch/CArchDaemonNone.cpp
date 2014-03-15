@@ -1,6 +1,7 @@
 /*
  * synergy -- mouse and keyboard sharing utility
- * Copyright (C) 2002 Chris Schoeneman, Nick Bolton, Sorin Sbarnea
+ * Copyright (C) 2012 Bolton Software Ltd.
+ * Copyright (C) 2002 Chris Schoeneman
  * 
  * This package is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -66,4 +67,20 @@ bool
 CArchDaemonNone::isDaemonInstalled(const char*, bool)
 {
 	return false;
+}
+
+void
+CArchDaemonNone::installDaemon()
+{
+}
+
+void
+CArchDaemonNone::uninstallDaemon()
+{
+}
+
+std::string
+CArchDaemonNone::commandLine() const
+{
+	return "";
 }

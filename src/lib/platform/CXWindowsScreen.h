@@ -1,6 +1,7 @@
 /*
  * synergy -- mouse and keyboard sharing utility
- * Copyright (C) 2002 Chris Schoeneman, Nick Bolton, Sorin Sbarnea
+ * Copyright (C) 2012 Bolton Software Ltd.
+ * Copyright (C) 2002 Chris Schoeneman
  * 
  * This package is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -26,6 +27,7 @@
 #else
 #	include <X11/Xlib.h>
 #endif
+#include "CKeyMap.h"
 
 class CXWindowsClipboard;
 class CXWindowsKeyState;
@@ -34,7 +36,7 @@ class CXWindowsScreenSaver;
 //! Implementation of IPlatformScreen for X11
 class CXWindowsScreen : public CPlatformScreen {
 public:
-	CXWindowsScreen(const char* displayName, bool isPrimary, bool disableXInitThreads, int mouseScrollDelta=0);
+	CXWindowsScreen(const char* displayName, bool isPrimary, bool disableXInitThreads, int mouseScrollDelta, IEventQueue& eventQueue);
 	virtual ~CXWindowsScreen();
 
 	//! @name manipulators
@@ -59,12 +61,17 @@ public:
 	virtual SInt32		getJumpZoneSize() const;
 	virtual bool		isAnyMouseButtonDown() const;
 	virtual void		getCursorCenter(SInt32& x, SInt32& y) const;
+	virtual void		gameDeviceTimingResp(UInt16 freq) { }
 
 	// ISecondaryScreen overrides
-	virtual void		fakeMouseButton(ButtonID id, bool press) const;
+	virtual void		fakeMouseButton(ButtonID id, bool press);
 	virtual void		fakeMouseMove(SInt32 x, SInt32 y) const;
 	virtual void		fakeMouseRelativeMove(SInt32 dx, SInt32 dy) const;
 	virtual void		fakeMouseWheel(SInt32 xDelta, SInt32 yDelta) const;
+	virtual void		fakeGameDeviceButtons(GameDeviceID id, GameDeviceButton buttons) const { }
+	virtual void		fakeGameDeviceSticks(GameDeviceID id, SInt16 x1, SInt16 y1, SInt16 x2, SInt16 y2) const { }
+	virtual void		fakeGameDeviceTriggers(GameDeviceID id, UInt8 t1, UInt8 t2) const { }
+	virtual void		queueGameDeviceTimingReq() const { }
 
 	// IPlatformScreen overrides
 	virtual void		enable();
@@ -80,6 +87,7 @@ public:
 	virtual void		setOptions(const COptionsList& options);
 	virtual void		setSequenceNumber(UInt32);
 	virtual bool		isPrimary() const;
+	virtual void		gameDeviceFeedback(GameDeviceID id, UInt16 m1, UInt16 m2) { }
 
 protected:
 	// IPlatformScreen overrides
@@ -132,6 +140,10 @@ private:
 	void				onMouseRelease(const XButtonEvent&);
 	void				onMouseMove(const XMotionEvent&);
 
+	bool				detectXI2();
+#ifdef HAVE_XI2
+	void				selectXIRawMotion();
+#endif
 	void				selectEvents(Window) const;
 	void				doSelectEvents(Window) const;
 
@@ -228,6 +240,15 @@ private:
 	// XKB extension stuff
 	bool				m_xkb;
 	int					m_xkbEventBase;
+
+	bool				m_xi2detected;
+
+	// XRandR extension stuff
+	bool                m_xrandr;
+	int                 m_xrandrEventBase;
+
+	IEventQueue&		m_eventQueue;
+	CKeyMap				m_keyMap;
 
 	// pointer to (singleton) screen.  this is only needed by
 	// ioErrorHandler().

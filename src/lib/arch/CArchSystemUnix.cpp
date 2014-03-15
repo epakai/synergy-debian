@@ -1,6 +1,7 @@
 /*
  * synergy -- mouse and keyboard sharing utility
- * Copyright (C) 2004 Chris Schoeneman, Nick Bolton, Sorin Sbarnea
+ * Copyright (C) 2012 Bolton Software Ltd.
+ * Copyright (C) 2004 Chris Schoeneman
  * 
  * This package is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -60,4 +61,15 @@ CArchSystemUnix::getPlatformName() const
 	}
 #endif
 	return "unknown";
+}
+
+std::string
+CArchSystemUnix::setting(const std::string&) const
+{
+	return "";
+}
+
+void
+CArchSystemUnix::setting(const std::string&, const std::string&) const
+{
 }

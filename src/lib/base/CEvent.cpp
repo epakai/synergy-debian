@@ -1,6 +1,7 @@
 /*
  * synergy -- mouse and keyboard sharing utility
- * Copyright (C) 2004 Chris Schoeneman, Nick Bolton, Sorin Sbarnea
+ * Copyright (C) 2012 Bolton Software Ltd.
+ * Copyright (C) 2004 Chris Schoeneman
  * 
  * This package is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -26,7 +27,8 @@ CEvent::CEvent() :
 	m_type(kUnknown),
 	m_target(NULL),
 	m_data(NULL),
-	m_flags(0)
+	m_flags(0),
+	m_dataObject(nullptr)
 {
 	// do nothing
 }
@@ -35,7 +37,8 @@ CEvent::CEvent(Type type, void* target, void* data, Flags flags) :
 	m_type(type),
 	m_target(target),
 	m_data(data),
-	m_flags(flags)
+	m_flags(flags),
+	m_dataObject(nullptr)
 {
 	// do nothing
 }
@@ -58,6 +61,12 @@ CEvent::getData() const
 	return m_data;
 }
 
+CEventData*
+CEvent::getDataObject() const
+{
+	return m_dataObject;
+}
+
 CEvent::Flags
 CEvent::getFlags() const
 {
@@ -77,7 +86,15 @@ CEvent::deleteData(const CEvent& event)
 	default:
 		if ((event.getFlags() & kDontFreeData) == 0) {
 			free(event.getData());
+			delete event.getDataObject();
 		}
 		break;
 	}
+}
+
+void
+CEvent::setDataObject(CEventData* dataObject)
+{
+	assert(m_dataObject == nullptr);
+	m_dataObject = dataObject;
 }

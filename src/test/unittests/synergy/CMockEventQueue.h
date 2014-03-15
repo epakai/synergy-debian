@@ -1,6 +1,7 @@
 /*
  * synergy -- mouse and keyboard sharing utility
- * Copyright (C) 2011 Chris Schoeneman, Nick Bolton, Sorin Sbarnea
+ * Copyright (C) 2012 Bolton Software Ltd.
+ * Copyright (C) 2011 Nick Bolton
  * 
  * This package is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -24,6 +25,7 @@
 class CMockEventQueue : public IEventQueue
 {
 public:
+	MOCK_METHOD0(loop, void());
 	MOCK_METHOD2(newOneShotTimer, CEventQueueTimer*(double, void*));
 	MOCK_METHOD2(newTimer, CEventQueueTimer*(double, void*));
 	MOCK_METHOD2(getEvent, bool(CEvent&, double));
@@ -39,6 +41,7 @@ public:
 	MOCK_METHOD1(dispatchEvent, bool(const CEvent&));
 	MOCK_CONST_METHOD2(getHandler, IEventJob*(CEvent::Type, void*));
 	MOCK_METHOD1(deleteTimer, void(CEventQueueTimer*));
+	MOCK_CONST_METHOD1(getRegisteredType, CEvent::Type(const CString&));
 };
 
 #endif

@@ -1,6 +1,7 @@
 /*
  * synergy -- mouse and keyboard sharing utility
- * Copyright (C) 2011 Chris Schoeneman, Nick Bolton, Sorin Sbarnea
+ * Copyright (C) 2012 Bolton Software Ltd.
+ * Copyright (C) 2011 Nick Bolton
  * 
  * This package is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -16,10 +17,10 @@
  */
 
 #include <iostream>
+#include <fstream>
 #include <gtest/gtest.h>
 #include "CArch.h"
 #include "CLog.h"
-#include "LogOutputters.h"
 
 #if SYSAPI_WIN32
 #include "CArchMiscWindows.h"
@@ -35,7 +36,16 @@ void unlock(string lockFile);
 int
 main(int argc, char **argv)
 {
+#if SYSAPI_WIN32
+	// record window instance for tray icon, etc
+	CArchMiscWindows::setInstanceWin32(GetModuleHandle(NULL));
+#endif
+
 	CArch arch;
+	arch.init();
+	
+	CLog log;
+	log.setFilter(kDEBUG2);
 
 	string lockFile;
 	for (int i = 0; i < argc; i++) {
@@ -48,14 +58,6 @@ main(int argc, char **argv)
 		lock(lockFile);
 	}
 
-#if SYSAPI_WIN32
-	// only add std output logger for windows (unix
-	// already outputs to standard streams).
-	CStdLogOutputter stdLogOutputter;
-	CLOG->insert(&stdLogOutputter, true);
-#endif
-
-	CLOG->setFilter(kDEBUG2);
 
 	testing::InitGoogleTest(&argc, argv);
 
@@ -92,7 +94,6 @@ lock(string lockFile)
 	ofstream os(lockFile.c_str());
 	os.close();
 }
-
 
 void
 unlock(string lockFile) 

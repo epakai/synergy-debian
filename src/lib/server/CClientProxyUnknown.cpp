@@ -1,6 +1,7 @@
 /*
  * synergy -- mouse and keyboard sharing utility
- * Copyright (C) 2004 Chris Schoeneman, Nick Bolton, Sorin Sbarnea
+ * Copyright (C) 2012 Bolton Software Ltd.
+ * Copyright (C) 2004 Chris Schoeneman
  * 
  * This package is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -20,6 +21,7 @@
 #include "CClientProxy1_1.h"
 #include "CClientProxy1_2.h"
 #include "CClientProxy1_3.h"
+#include "CClientProxy1_4.h"
 #include "ProtocolTypes.h"
 #include "CProtocolUtil.h"
 #include "XSynergy.h"
@@ -29,6 +31,7 @@
 #include "CString.h"
 #include "IEventQueue.h"
 #include "TMethodEventJob.h"
+#include "CServer.h"
 
 //
 // CClientProxyUnknown
@@ -37,11 +40,14 @@
 CEvent::Type			CClientProxyUnknown::s_successEvent = CEvent::kUnknown;
 CEvent::Type			CClientProxyUnknown::s_failureEvent = CEvent::kUnknown;
 
-CClientProxyUnknown::CClientProxyUnknown(IStream* stream, double timeout) :
+CClientProxyUnknown::CClientProxyUnknown(synergy::IStream* stream, double timeout, CServer* server) :
 	m_stream(stream),
 	m_proxy(NULL),
-	m_ready(false)
+	m_ready(false),
+	m_server(server)
 {
+	assert(m_server != NULL);
+
 	EVENTQUEUE->adoptHandler(CEvent::kTimer, this,
 							new TMethodEventJob<CClientProxyUnknown>(this,
 								&CClientProxyUnknown::handleTimeout, NULL));
@@ -114,19 +120,19 @@ CClientProxyUnknown::addStreamHandlers()
 {
 	assert(m_stream != NULL);
 
-	EVENTQUEUE->adoptHandler(IStream::getInputReadyEvent(),
+	EVENTQUEUE->adoptHandler(m_stream->getInputReadyEvent(),
 							m_stream->getEventTarget(),
 							new TMethodEventJob<CClientProxyUnknown>(this,
 								&CClientProxyUnknown::handleData));
-	EVENTQUEUE->adoptHandler(IStream::getOutputErrorEvent(),
+	EVENTQUEUE->adoptHandler(m_stream->getOutputErrorEvent(),
 							m_stream->getEventTarget(),
 							new TMethodEventJob<CClientProxyUnknown>(this,
 								&CClientProxyUnknown::handleWriteError));
-	EVENTQUEUE->adoptHandler(IStream::getInputShutdownEvent(),
+	EVENTQUEUE->adoptHandler(m_stream->getInputShutdownEvent(),
 							m_stream->getEventTarget(),
 							new TMethodEventJob<CClientProxyUnknown>(this,
 								&CClientProxyUnknown::handleDisconnect));
-	EVENTQUEUE->adoptHandler(IStream::getOutputShutdownEvent(),
+	EVENTQUEUE->adoptHandler(m_stream->getOutputShutdownEvent(),
 							m_stream->getEventTarget(),
 							new TMethodEventJob<CClientProxyUnknown>(this,
 								&CClientProxyUnknown::handleWriteError));
@@ -151,13 +157,13 @@ void
 CClientProxyUnknown::removeHandlers()
 {
 	if (m_stream != NULL) {
-		EVENTQUEUE->removeHandler(IStream::getInputReadyEvent(),
+		EVENTQUEUE->removeHandler(m_stream->getInputReadyEvent(),
 							m_stream->getEventTarget());
-		EVENTQUEUE->removeHandler(IStream::getOutputErrorEvent(),
+		EVENTQUEUE->removeHandler(m_stream->getOutputErrorEvent(),
 							m_stream->getEventTarget());
-		EVENTQUEUE->removeHandler(IStream::getInputShutdownEvent(),
+		EVENTQUEUE->removeHandler(m_stream->getInputShutdownEvent(),
 							m_stream->getEventTarget());
-		EVENTQUEUE->removeHandler(IStream::getOutputShutdownEvent(),
+		EVENTQUEUE->removeHandler(m_stream->getOutputShutdownEvent(),
 							m_stream->getEventTarget());
 	}
 	if (m_proxy != NULL) {
@@ -213,19 +219,23 @@ CClientProxyUnknown::handleData(const CEvent&, void*)
 		if (major == 1) {
 			switch (minor) {
 			case 0:
-				m_proxy = new CClientProxy1_0(name, m_stream);
+				m_proxy = new CClientProxy1_0(name, m_stream, EVENTQUEUE);
 				break;
 
 			case 1:
-				m_proxy = new CClientProxy1_1(name, m_stream);
+				m_proxy = new CClientProxy1_1(name, m_stream, EVENTQUEUE);
 				break;
 
 			case 2:
-				m_proxy = new CClientProxy1_2(name, m_stream);
+				m_proxy = new CClientProxy1_2(name, m_stream, EVENTQUEUE);
 				break;
 
 			case 3:
-				m_proxy = new CClientProxy1_3(name, m_stream);
+				m_proxy = new CClientProxy1_3(name, m_stream, EVENTQUEUE);
+				break;
+
+			case 4:
+				m_proxy = new CClientProxy1_4(name, m_stream, m_server, EVENTQUEUE);
 				break;
 			}
 		}

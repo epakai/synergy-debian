@@ -1,6 +1,7 @@
 /*
  * synergy -- mouse and keyboard sharing utility
- * Copyright (C) 2003 Chris Schoeneman, Nick Bolton, Sorin Sbarnea
+ * Copyright (C) 2012 Bolton Software Ltd.
+ * Copyright (C) 2003 Chris Schoeneman
  * 
  * This package is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -56,4 +57,10 @@ const IArchTaskBarReceiver::Icon
 CXWindowsClientTaskBarReceiver::getIcon() const
 {
 	return NULL;
+}
+
+IArchTaskBarReceiver*
+createTaskBarReceiver(const CBufferedLogOutputter* logBuffer)
+{
+	return new CXWindowsClientTaskBarReceiver(logBuffer);
 }

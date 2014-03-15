@@ -1,6 +1,7 @@
 /*
  * synergy -- mouse and keyboard sharing utility
- * Copyright (C) 2002 Chris Schoeneman, Nick Bolton, Sorin Sbarnea
+ * Copyright (C) 2012 Bolton Software Ltd.
+ * Copyright (C) 2002 Chris Schoeneman
  * 
  * This package is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -27,7 +28,8 @@
 
 CArchDaemonWindows*		CArchDaemonWindows::s_daemon = NULL;
 
-CArchDaemonWindows::CArchDaemonWindows()
+CArchDaemonWindows::CArchDaemonWindows() :
+m_daemonThreadID(0)
 {
 	m_quitMessage = RegisterWindowMessage("SynergyDaemonExit");
 }
@@ -145,9 +147,12 @@ CArchDaemonWindows::installDaemon(const char* name,
 				throw XArchDaemonInstallFailed(new XArchEvalWindows(err));
 			}
 		}
+		else {
+			// done with service (but only try to close if not null)
+			CloseServiceHandle(service);
+		}
 
-		// done with service and manager
-		CloseServiceHandle(service);
+		// done with manager
 		CloseServiceHandle(mgr);
 
 		// open the registry key for this service
@@ -250,8 +255,18 @@ CArchDaemonWindows::uninstallDaemon(const char* name, bool allUsers)
 		CloseServiceHandle(service);
 		CloseServiceHandle(mgr);
 
+		// give windows a chance to remove the service before
+		// we check if it still exists.
+		ARCH->sleep(1);
+
 		// handle failure.  ignore error if service isn't installed anymore.
 		if (!okay && isDaemonInstalled(name, allUsers)) {
+			if (err == ERROR_SUCCESS) {
+				// this seems to occur even though the uninstall was successful.
+				// it could be a timing issue, i.e., isDaemonInstalled is
+				// called too soon. i've added a sleep to try and stop this.
+				return;
+			}
 			if (err == ERROR_IO_PENDING) {
 				// this seems to be a spurious error
 				return;
@@ -363,58 +378,22 @@ CArchDaemonWindows::canInstallDaemon(const char* /*name*/, bool allUsers)
 bool
 CArchDaemonWindows::isDaemonInstalled(const char* name, bool allUsers)
 {
-	// if not for all users then use the user's autostart registry.
-	// key.  if windows 95 family then use windows 95 services key.
-	if (!allUsers || CArchMiscWindows::isWindows95Family()) {
-		// check if we can open the registry key
-		HKEY key = (allUsers && CArchMiscWindows::isWindows95Family()) ?
-							open95ServicesKey() : openUserStartupKey();
-		if (key == NULL) {
-			return false;
-		}
-
-		// check for entry
-		const bool installed = !CArchMiscWindows::readValueString(key,
-															name).empty();
-
-		// clean up
-		CArchMiscWindows::closeKey(key);
-
-		return installed;
+	// open service manager
+	SC_HANDLE mgr = OpenSCManager(NULL, NULL, GENERIC_READ);
+	if (mgr == NULL) {
+		return false;
 	}
 
-	// windows NT family services
-	else {
-		// check parameters for this service
-		HKEY key = openNTServicesKey();
-		key      = CArchMiscWindows::openKey(key, name);
-		key      = CArchMiscWindows::openKey(key, _T("Parameters"));
-		if (key != NULL) {
-			const bool installed = !CArchMiscWindows::readValueString(key,
-										_T("CommandLine")).empty();
-			CArchMiscWindows::closeKey(key);
-			if (!installed) {
-				return false;
-			}
-		}
+	// open the service
+	SC_HANDLE service = OpenService(mgr, name, GENERIC_READ);
 
-		// open service manager
-		SC_HANDLE mgr = OpenSCManager(NULL, NULL, GENERIC_READ);
-		if (mgr == NULL) {
-			return false;
-		}
-
-		// open the service
-		SC_HANDLE service = OpenService(mgr, name, GENERIC_READ);
-
-		// clean up
-		if (service != NULL) {
-			CloseServiceHandle(service);
-		}
-		CloseServiceHandle(mgr);
-
-		return (service != NULL);
+	// clean up
+	if (service != NULL) {
+		CloseServiceHandle(service);
 	}
+	CloseServiceHandle(mgr);
+
+	return (service != NULL);
 }
 
 HKEY
@@ -615,13 +594,14 @@ CArchDaemonWindows::serviceMain(DWORD argc, LPTSTR* argvIn)
 	m_serviceState = SERVICE_START_PENDING;
 	setStatus(m_serviceState, 0, 10000);
 
+	std::string commandLine;
+
 	// if no arguments supplied then try getting them from the registry.
 	// the first argument doesn't count because it's the service name.
 	Arguments args;
 	ArgList myArgv;
 	if (argc <= 1) {
 		// read command line
-		std::string commandLine;
 		HKEY key = openNTServicesKey();
 		key      = CArchMiscWindows::openKey(key, argvIn[0]);
 		key      = CArchMiscWindows::openKey(key, _T("Parameters"));
@@ -685,6 +665,8 @@ CArchDaemonWindows::serviceMain(DWORD argc, LPTSTR* argvIn)
 		}
 	}
 
+	m_commandLine = commandLine;
+
 	try {
 		// invoke daemon function
 		m_daemonResult = m_daemonFunc(static_cast<int>(argc), argv);
@@ -701,6 +683,10 @@ CArchDaemonWindows::serviceMain(DWORD argc, LPTSTR* argvIn)
 	// clean up
 	ARCH->closeCondVar(m_serviceCondVar);
 	ARCH->closeMutex(m_serviceMutex);
+
+	// we're going to exit now, so set status to stopped
+	m_serviceState = SERVICE_STOPPED;
+	setStatus(m_serviceState, 0, 10000);
 }
 
 void WINAPI
@@ -770,4 +756,87 @@ void WINAPI
 CArchDaemonWindows::serviceHandlerEntry(DWORD ctrl)
 {
 	s_daemon->serviceHandler(ctrl);
+}
+
+void
+CArchDaemonWindows::start(const char* name)
+{
+	// open service manager
+	SC_HANDLE mgr = OpenSCManager(NULL, NULL, GENERIC_READ);
+	if (mgr == NULL) {
+		throw XArchDaemonFailed(new XArchEvalWindows());
+	}
+
+	// open the service
+	SC_HANDLE service = OpenService(
+		mgr, name, SERVICE_START);
+
+	if (service == NULL) {
+		CloseServiceHandle(mgr);
+		throw XArchDaemonFailed(new XArchEvalWindows());
+	}
+
+	// start the service
+	if (!StartService(service, 0, NULL)) {
+		throw XArchDaemonFailed(new XArchEvalWindows());
+	}
+}
+
+void
+CArchDaemonWindows::stop(const char* name)
+{
+	// open service manager
+	SC_HANDLE mgr = OpenSCManager(NULL, NULL, GENERIC_READ);
+	if (mgr == NULL) {
+		throw XArchDaemonFailed(new XArchEvalWindows());
+	}
+
+	// open the service
+	SC_HANDLE service = OpenService(
+		mgr, name,
+		SERVICE_STOP | SERVICE_QUERY_STATUS);
+
+	if (service == NULL) {
+		CloseServiceHandle(mgr);
+		throw XArchDaemonFailed(new XArchEvalWindows());
+	}
+
+	// ask the service to stop, asynchronously
+	SERVICE_STATUS ss;
+	if (!ControlService(service, SERVICE_CONTROL_STOP, &ss)) {
+		DWORD dwErrCode = GetLastError(); 
+		if (dwErrCode != ERROR_SERVICE_NOT_ACTIVE) {
+			throw XArchDaemonFailed(new XArchEvalWindows());
+		}
+	}
+}
+
+void
+CArchDaemonWindows::installDaemon()
+{
+	// install default daemon if not already installed.
+	if (!isDaemonInstalled(DEFAULT_DAEMON_NAME, true)) {
+		char path[MAX_PATH];
+		GetModuleFileName(CArchMiscWindows::instanceWin32(), path, MAX_PATH);
+		installDaemon(DEFAULT_DAEMON_NAME, DEFAULT_DAEMON_INFO, path, "", "", true);
+	}
+
+	start(DEFAULT_DAEMON_NAME);
+}
+
+void
+CArchDaemonWindows::uninstallDaemon()
+{
+	// remove legacy services if installed.
+	if (isDaemonInstalled(LEGACY_SERVER_DAEMON_NAME, true)) {
+		uninstallDaemon(LEGACY_SERVER_DAEMON_NAME, true);
+	}
+	if (isDaemonInstalled(LEGACY_CLIENT_DAEMON_NAME, true)) {
+		uninstallDaemon(LEGACY_CLIENT_DAEMON_NAME, true);
+	}
+
+	// remove new service if installed.
+	if (isDaemonInstalled(DEFAULT_DAEMON_NAME, true)) {
+		uninstallDaemon(DEFAULT_DAEMON_NAME, true);
+	}
 }

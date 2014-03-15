@@ -1,6 +1,7 @@
 /*
  * synergy -- mouse and keyboard sharing utility
- * Copyright (C) 2002 Chris Schoeneman, Nick Bolton, Sorin Sbarnea
+ * Copyright (C) 2012 Bolton Software Ltd.
+ * Copyright (C) 2002 Chris Schoeneman
  * 
  * This package is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -34,6 +35,7 @@
 #include "CKeyState.h"
 #include <cstring>
 #include <cstdlib>
+#include "CScreen.h"
 
 //
 // CServer
@@ -46,8 +48,10 @@ CEvent::Type			CServer::s_switchToScreen     = CEvent::kUnknown;
 CEvent::Type			CServer::s_switchInDirection  = CEvent::kUnknown;
 CEvent::Type			CServer::s_keyboardBroadcast  = CEvent::kUnknown;
 CEvent::Type			CServer::s_lockCursorToScreen = CEvent::kUnknown;
+CEvent::Type			CServer::s_screenSwitched     = CEvent::kUnknown;
 
-CServer::CServer(const CConfig& config, CPrimaryClient* primaryClient) :
+CServer::CServer(const CConfig& config, CPrimaryClient* primaryClient, CScreen* screen) :
+	m_mock(false),
 	m_primaryClient(primaryClient),
 	m_active(primaryClient),
 	m_seqNum(0),
@@ -71,11 +75,13 @@ CServer::CServer(const CConfig& config, CPrimaryClient* primaryClient) :
 	m_switchNeedsAlt(false),
 	m_relativeMoves(false),
 	m_keyboardBroadcasting(false),
-	m_lockedToScreen(false)
+	m_lockedToScreen(false),
+	m_screen(screen)
 {
 	// must have a primary client and it must have a canonical name
 	assert(m_primaryClient != NULL);
 	assert(config.isScreen(primaryClient->getName()));
+	assert(m_screen != NULL);
 
 	CString primaryName = getName(primaryClient);
 
@@ -127,6 +133,22 @@ CServer::CServer(const CConfig& config, CPrimaryClient* primaryClient) :
 							m_primaryClient->getEventTarget(),
 							new TMethodEventJob<CServer>(this,
 								&CServer::handleWheelEvent));
+	EVENTQUEUE->adoptHandler(IPlatformScreen::getGameDeviceButtonsEvent(),
+							m_primaryClient->getEventTarget(),
+							new TMethodEventJob<CServer>(this,
+								&CServer::handleGameDeviceButtons));
+	EVENTQUEUE->adoptHandler(IPlatformScreen::getGameDeviceSticksEvent(),
+							m_primaryClient->getEventTarget(),
+							new TMethodEventJob<CServer>(this,
+								&CServer::handleGameDeviceSticks));
+	EVENTQUEUE->adoptHandler(IPlatformScreen::getGameDeviceTriggersEvent(),
+							m_primaryClient->getEventTarget(),
+							new TMethodEventJob<CServer>(this,
+								&CServer::handleGameDeviceTriggers));
+	EVENTQUEUE->adoptHandler(IPlatformScreen::getGameDeviceTimingReqEvent(),
+							m_primaryClient->getEventTarget(),
+							new TMethodEventJob<CServer>(this,
+								&CServer::handleGameDeviceTimingReq));
 	EVENTQUEUE->adoptHandler(IPlatformScreen::getScreensaverActivatedEvent(),
 							m_primaryClient->getEventTarget(),
 							new TMethodEventJob<CServer>(this,
@@ -181,6 +203,10 @@ CServer::CServer(const CConfig& config, CPrimaryClient* primaryClient) :
 
 CServer::~CServer()
 {
+	if (m_mock) {
+		return;
+	}
+
 	// remove event handlers and timers
 	EVENTQUEUE->removeHandler(IPlatformScreen::getKeyDownEvent(*EVENTQUEUE),
 							m_inputFilter);
@@ -284,7 +310,7 @@ CServer::adoptClient(CBaseClientProxy* client)
 
 	// name must be in our configuration
 	if (!m_config.isScreen(client->getName())) {
-		LOG((CLOG_WARN "a client with name \"%s\" is not in the map", client->getName().c_str()));
+		LOG((CLOG_WARN "unrecognised client name \"%s\", check server config", client->getName().c_str()));
 		closeClient(client, kMsgEUnknown);
 		return;
 	}
@@ -308,7 +334,7 @@ CServer::adoptClient(CBaseClientProxy* client)
 
 	// send notification
 	CServer::CScreenConnectedInfo* info =
-		CServer::CScreenConnectedInfo::alloc(getName(client));
+		new CServer::CScreenConnectedInfo(getName(client));
 	EVENTQUEUE->addEvent(CEvent(CServer::getConnectedEvent(),
 								m_primaryClient->getEventTarget(), info));
 }
@@ -324,6 +350,18 @@ CServer::disconnect()
 	else {
 		EVENTQUEUE->addEvent(CEvent(getDisconnectedEvent(), this));
 	}
+}
+
+void
+CServer::gameDeviceTimingResp(UInt16 freq)
+{
+	m_screen->gameDeviceTimingResp(freq);
+}
+
+void
+CServer::gameDeviceFeedback(GameDeviceID id, UInt16 m1, UInt16 m2)
+{
+	m_screen->gameDeviceFeedback(id, m1, m2);
 }
 
 UInt32
@@ -389,6 +427,13 @@ CServer::getLockCursorToScreenEvent()
 {
 	return EVENTQUEUE->registerTypeOnce(s_lockCursorToScreen,
 							"CServer::lockCursorToScreen");
+}
+
+CEvent::Type
+CServer::getScreenSwitchedEvent()
+{
+	return EVENTQUEUE->registerTypeOnce(s_screenSwitched,
+							"CServer::screenSwitched");
 }
 
 CString
@@ -523,6 +568,10 @@ CServer::switchScreen(CBaseClientProxy* dst,
 		for (ClipboardID id = 0; id < kClipboardEnd; ++id) {
 			m_active->setClipboard(id, &m_clipboards[id].m_clipboard);
 		}
+
+		CServer::CSwitchToScreenInfo* info =
+			CServer::CSwitchToScreenInfo::alloc(m_active->getName());
+		EVENTQUEUE->addEvent(CEvent(CServer::getScreenSwitchedEvent(), this, info));
 	}
 	else {
 		m_active->mouseMove(x, y);
@@ -1191,7 +1240,7 @@ CServer::handleShapeChanged(const CEvent&, void* vclient)
 		return;
 	}
 
-	LOG((CLOG_INFO "screen \"%s\" shape changed", getName(client).c_str()));
+	LOG((CLOG_DEBUG "screen \"%s\" shape changed", getName(client).c_str()));
 
 	// update jump coordinate
 	SInt32 x, y;
@@ -1336,6 +1385,36 @@ CServer::handleWheelEvent(const CEvent& event, void*)
 	IPlatformScreen::CWheelInfo* info =
 		reinterpret_cast<IPlatformScreen::CWheelInfo*>(event.getData());
 	onMouseWheel(info->m_xDelta, info->m_yDelta);
+}
+
+void
+CServer::handleGameDeviceButtons(const CEvent& event, void*)
+{
+	IPlatformScreen::CGameDeviceButtonInfo* info =
+		reinterpret_cast<IPlatformScreen::CGameDeviceButtonInfo*>(event.getData());
+	onGameDeviceButtons(info->m_id, info->m_buttons);
+}
+
+void
+CServer::handleGameDeviceSticks(const CEvent& event, void*)
+{
+	IPlatformScreen::CGameDeviceStickInfo* info =
+		reinterpret_cast<IPlatformScreen::CGameDeviceStickInfo*>(event.getData());
+	onGameDeviceSticks(info->m_id, info->m_x1, info->m_y1, info->m_x2, info->m_y2);
+}
+
+void
+CServer::handleGameDeviceTriggers(const CEvent& event, void*)
+{
+	IPlatformScreen::CGameDeviceTriggerInfo* info =
+		reinterpret_cast<IPlatformScreen::CGameDeviceTriggerInfo*>(event.getData());
+	onGameDeviceTriggers(info->m_id, info->m_t1, info->m_t2);
+}
+
+void
+CServer::handleGameDeviceTimingReq(const CEvent& event, void*)
+{
+	onGameDeviceTimingReq();
 }
 
 void
@@ -1678,7 +1757,7 @@ CServer::onMouseUp(ButtonID id)
 bool
 CServer::onMouseMovePrimary(SInt32 x, SInt32 y)
 {
-	LOG((CLOG_DEBUG2 "onMouseMovePrimary %d,%d", x, y));
+	LOG((CLOG_DEBUG4 "onMouseMovePrimary %d,%d", x, y));
 
 	// mouse move on primary (server's) screen
 	if (m_active != m_primaryClient) {
@@ -1927,6 +2006,34 @@ CServer::onMouseWheel(SInt32 xDelta, SInt32 yDelta)
 	m_active->mouseWheel(xDelta, yDelta);
 }
 
+void
+CServer::onGameDeviceButtons(GameDeviceID id, GameDeviceButton buttons)
+{
+	LOG((CLOG_DEBUG1 "onGameDeviceButtons id=%d buttons=%d", id, buttons));
+	m_active->gameDeviceButtons(id, buttons);
+}
+
+void
+CServer::onGameDeviceSticks(GameDeviceID id, SInt16 x1, SInt16 y1, SInt16 x2, SInt16 y2)
+{
+	LOG((CLOG_DEBUG1 "onGameDeviceSticks id=%d s1=%+d,%+d s2=%+d,%+d", id, x1, y1, x2, y2));
+	m_active->gameDeviceSticks(id, x1, y1, x2, y2);
+}
+
+void
+CServer::onGameDeviceTriggers(GameDeviceID id, UInt8 t1, UInt8 t2)
+{
+	LOG((CLOG_DEBUG1 "onGameDeviceTriggers id=%d t1=%d t2=%d", id, t1, t2));
+	m_active->gameDeviceTriggers(id, t1, t2);
+}
+
+void
+CServer::onGameDeviceTimingReq()
+{
+	LOG((CLOG_DEBUG1 "onGameDeviceTimingReq"));
+	m_active->gameDeviceTimingReq();
+}
+
 bool
 CServer::addClient(CBaseClientProxy* client)
 {
@@ -2172,22 +2279,6 @@ CServer::CSwitchInDirectionInfo::alloc(EDirection direction)
 	info->m_direction = direction;
 	return info;
 }
-
-
-//
-// CServer::CScreenConnectedInfo
-//
-
-CServer::CScreenConnectedInfo*
-CServer::CScreenConnectedInfo::alloc(const CString& screen)
-{
-	CScreenConnectedInfo* info =
-		(CScreenConnectedInfo*)malloc(sizeof(CScreenConnectedInfo) +
-								screen.size());
-	strcpy(info->m_screen, screen.c_str());
-	return info;
-}
-
 
 //
 // CServer::CKeyboardBroadcastInfo

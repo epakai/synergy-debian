@@ -1,6 +1,7 @@
 /*
  * synergy -- mouse and keyboard sharing utility
- * Copyright (C) 2004 Chris Schoeneman, Nick Bolton, Sorin Sbarnea
+ * Copyright (C) 2012 Bolton Software Ltd.
+ * Copyright (C) 2004 Chris Schoeneman
  * 
  * This package is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -23,20 +24,21 @@
 // CStreamFilter
 //
 
-CStreamFilter::CStreamFilter(IStream* stream, bool adoptStream) :
+CStreamFilter::CStreamFilter(IEventQueue* eventQueue, synergy::IStream* stream, bool adoptStream) :
+	IStream(eventQueue),
 	m_stream(stream),
 	m_adopted(adoptStream)
 {
 	// replace handlers for m_stream
-	EVENTQUEUE->removeHandlers(m_stream->getEventTarget());
-	EVENTQUEUE->adoptHandler(CEvent::kUnknown, m_stream->getEventTarget(),
+	getEventQueue().removeHandlers(m_stream->getEventTarget());
+	getEventQueue().adoptHandler(CEvent::kUnknown, m_stream->getEventTarget(),
 							new TMethodEventJob<CStreamFilter>(this,
 								&CStreamFilter::handleUpstreamEvent));
 }
 
 CStreamFilter::~CStreamFilter()
 {
-	EVENTQUEUE->removeHandler(CEvent::kUnknown, m_stream->getEventTarget());
+	getEventQueue().removeHandler(CEvent::kUnknown, m_stream->getEventTarget());
 	if (m_adopted) {
 		delete m_stream;
 	}
@@ -96,7 +98,7 @@ CStreamFilter::getSize() const
 	return getStream()->getSize();
 }
 
-IStream*
+synergy::IStream*
 CStreamFilter::getStream() const
 {
 	return m_stream;
@@ -105,7 +107,7 @@ CStreamFilter::getStream() const
 void
 CStreamFilter::filterEvent(const CEvent& event)
 {
-	EVENTQUEUE->dispatchEvent(CEvent(event.getType(),
+	getEventQueue().dispatchEvent(CEvent(event.getType(),
 						getEventTarget(), event.getData()));
 }
 

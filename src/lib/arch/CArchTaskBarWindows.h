@@ -1,6 +1,7 @@
 /*
  * synergy -- mouse and keyboard sharing utility
- * Copyright (C) 2003 Chris Schoeneman, Nick Bolton, Sorin Sbarnea
+ * Copyright (C) 2012 Bolton Software Ltd.
+ * Copyright (C) 2003 Chris Schoeneman
  * 
  * This package is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -31,8 +32,10 @@
 //! Win32 implementation of IArchTaskBar
 class CArchTaskBarWindows : public IArchTaskBar {
 public:
-	CArchTaskBarWindows(void*);
+	CArchTaskBarWindows();
 	virtual ~CArchTaskBarWindows();
+
+	virtual void init();
 
 	//! Add a dialog window 
 	/*!
@@ -84,9 +87,10 @@ private:
 	void				threadMainLoop();
 	static void*		threadEntry(void*);
 
+	HINSTANCE			instanceWin32();
+
 private:
 	static CArchTaskBarWindows*	s_instance;
-	static HINSTANCE	s_appInstance;
 
 	// multithread data
 	CArchMutex			m_mutex;

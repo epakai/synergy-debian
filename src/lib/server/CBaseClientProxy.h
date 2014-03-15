@@ -1,6 +1,7 @@
 /*
  * synergy -- mouse and keyboard sharing utility
- * Copyright (C) 2002 Chris Schoeneman, Nick Bolton, Sorin Sbarnea
+ * Copyright (C) 2012 Bolton Software Ltd.
+ * Copyright (C) 2002 Chris Schoeneman
  * 
  * This package is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -75,6 +76,10 @@ public:
 	virtual void		mouseMove(SInt32 xAbs, SInt32 yAbs) = 0;
 	virtual void		mouseRelativeMove(SInt32 xRel, SInt32 yRel) = 0;
 	virtual void		mouseWheel(SInt32 xDelta, SInt32 yDelta) = 0;
+	virtual void		gameDeviceButtons(GameDeviceID id, GameDeviceButton buttons) = 0;
+	virtual void		gameDeviceSticks(GameDeviceID id, SInt16 x1, SInt16 y1, SInt16 x2, SInt16 y2) = 0;
+	virtual void		gameDeviceTriggers(GameDeviceID id, UInt8 t1, UInt8 t2) = 0;
+	virtual void		gameDeviceTimingReq() = 0;
 	virtual void		screensaver(bool activate) = 0;
 	virtual void		resetOptions() = 0;
 	virtual void		setOptions(const COptionsList& options) = 0;

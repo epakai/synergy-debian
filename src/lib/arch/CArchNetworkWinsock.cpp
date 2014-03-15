@@ -1,6 +1,7 @@
 /*
  * synergy -- mouse and keyboard sharing utility
- * Copyright (C) 2002 Chris Schoeneman, Nick Bolton, Sorin Sbarnea
+ * Copyright (C) 2012 Bolton Software Ltd.
+ * Copyright (C) 2002 Chris Schoeneman
  * 
  * This package is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -97,25 +98,6 @@ CArchNetAddressImpl::alloc(size_t size)
 
 CArchNetworkWinsock::CArchNetworkWinsock()
 {
-	static const char* s_library[] = { "ws2_32.dll" };
-
-	assert(WSACleanup_winsock == NULL);
-	assert(s_networkModule    == NULL);
-
-	// try each winsock library
-	for (size_t i = 0; i < sizeof(s_library) / sizeof(s_library[0]); ++i) {
-		try {
-			init((HMODULE)::LoadLibrary(s_library[i]));
-			m_mutex = ARCH->newMutex();
-			return;
-		}
-		catch (XArchNetwork&) {
-			// ignore
-		}
-	}
-
-	// can't initialize any library
-	throw XArchNetworkSupport("Cannot load winsock library");
 }
 
 CArchNetworkWinsock::~CArchNetworkWinsock()
@@ -128,10 +110,39 @@ CArchNetworkWinsock::~CArchNetworkWinsock()
 		s_networkModule    = NULL;
 	}
 	ARCH->closeMutex(m_mutex);
+
+	CEventList::iterator it;
+	for (it = m_unblockEvents.begin(); it != m_unblockEvents.end(); it++) {
+		delete *it;
+	}
 }
 
 void
-CArchNetworkWinsock::init(HMODULE module)
+CArchNetworkWinsock::init()
+{
+	static const char* s_library[] = { "ws2_32.dll" };
+
+	assert(WSACleanup_winsock == NULL);
+	assert(s_networkModule    == NULL);
+
+	// try each winsock library
+	for (size_t i = 0; i < sizeof(s_library) / sizeof(s_library[0]); ++i) {
+		try {
+			initModule((HMODULE)::LoadLibrary(s_library[i]));
+			m_mutex = ARCH->newMutex();
+			return;
+		}
+		catch (XArchNetwork&) {
+			// ignore
+		}
+	}
+
+	// can't initialize any library
+	throw XArchNetworkSupport("Cannot load winsock library");
+}
+
+void
+CArchNetworkWinsock::initModule(HMODULE module)
 {
 	if (module == NULL) {
 		throw XArchNetworkSupport("");
@@ -424,6 +435,7 @@ CArchNetworkWinsock::pollSocket(CPollEntry pe[], int num, double timeout)
 	ARCH->closeThread(thread);
 	if (unblockEvent == NULL) {
 		unblockEvent  = new WSAEVENT;
+		m_unblockEvents.push_back(unblockEvent);
 		*unblockEvent = WSACreateEvent_winsock();
 		mt->setNetworkDataForCurrentThread(unblockEvent);
 	}

@@ -1,6 +1,7 @@
 /*
  * synergy -- mouse and keyboard sharing utility
- * Copyright (C) 2002 Chris Schoeneman, Nick Bolton, Sorin Sbarnea
+ * Copyright (C) 2012 Bolton Software Ltd.
+ * Copyright (C) 2002 Chris Schoeneman
  * 
  * This package is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -22,8 +23,11 @@
 #include "ILogOutputter.h"
 #include "CString.h"
 #include "stddeque.h"
+#include "CThread.h"
 
+#include <list>
 #include <fstream>
+
 //! Stop traversing log chain outputter
 /*!
 This outputter performs no output and returns false from \c write(),
@@ -40,7 +44,6 @@ public:
 	virtual void		close();
 	virtual void		show(bool showIfEmpty);
 	virtual bool		write(ELevel level, const char* message);
-	virtual const char*	getNewline() const;
 };
 
 //! Write log to console
@@ -58,24 +61,7 @@ public:
 	virtual void		close();
 	virtual void		show(bool showIfEmpty);
 	virtual bool		write(ELevel level, const char* message);
-	virtual const char*	getNewline() const;
-};
-
-//! Write log to standard streams
-/*!
-This outputter writes output to std::cout and std::cerr.
-*/
-class CStdLogOutputter : public ILogOutputter {
-public:
-	CStdLogOutputter();
-	virtual ~CStdLogOutputter();
-
-	// ILogOutputter overrides
-	virtual void		open(const char* title);
-	virtual void		close();
-	virtual void		show(bool showIfEmpty);
-	virtual bool		write(ELevel level, const char* message);
-	virtual const char*	getNewline() const;
+	virtual void		flush();
 };
 
 //! Write log to file
@@ -94,9 +80,8 @@ public:
 	virtual void		close();
 	virtual void		show(bool showIfEmpty);
 	virtual bool		write(ELevel level, const char* message);
-	virtual const char*	getNewline() const;
 private:
-	std::ofstream		m_handle;
+	std::string m_fileName;
 };
 
 //! Write log to system log
@@ -113,7 +98,6 @@ public:
 	virtual void		close();
 	virtual void		show(bool showIfEmpty);
 	virtual bool		write(ELevel level, const char* message);
-	virtual const char*	getNewline() const;
 };
 
 //! Write log to system log only
@@ -164,11 +148,25 @@ public:
 	virtual void		close();
 	virtual void		show(bool showIfEmpty);
 	virtual bool		write(ELevel level, const char* message);
-	virtual const char*	getNewline() const;
-
 private:
 	UInt32				m_maxBufferSize;
 	CBuffer				m_buffer;
+};
+
+//! Write log to message box
+/*!
+The level for each message is ignored.
+*/
+class CMesssageBoxLogOutputter : public ILogOutputter {
+public:
+	CMesssageBoxLogOutputter();
+	virtual ~CMesssageBoxLogOutputter();
+
+	// ILogOutputter overrides
+	virtual void		open(const char* title);
+	virtual void		close();
+	virtual void		show(bool showIfEmpty);
+	virtual bool		write(ELevel level, const char* message);
 };
 
 #endif

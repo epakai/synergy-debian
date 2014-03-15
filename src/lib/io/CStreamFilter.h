@@ -1,6 +1,7 @@
 /*
  * synergy -- mouse and keyboard sharing utility
- * Copyright (C) 2004 Chris Schoeneman, Nick Bolton, Sorin Sbarnea
+ * Copyright (C) 2012 Bolton Software Ltd.
+ * Copyright (C) 2004 Chris Schoeneman
  * 
  * This package is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -19,21 +20,22 @@
 #define CSTREAMFILTER_H
 
 #include "IStream.h"
+#include "IEventQueue.h"
 
 //! A stream filter
 /*!
 This class wraps a stream.  Subclasses provide indirect access
 to the wrapped stream, typically performing some filtering.
 */
-class CStreamFilter : public IStream {
+class CStreamFilter : public synergy::IStream {
 public:
 	/*!
 	Create a wrapper around \c stream.  Iff \c adoptStream is true then
 	this object takes ownership of the stream and will delete it in the
 	d'tor.
 	*/
-	CStreamFilter(IStream* stream, bool adoptStream = true);
-	~CStreamFilter();
+	CStreamFilter(IEventQueue* eventQueue, synergy::IStream* stream, bool adoptStream = true);
+	virtual ~CStreamFilter();
 
 	// IStream overrides
 	// These all just forward to the underlying stream except getEventTarget.
@@ -53,7 +55,7 @@ protected:
 	/*!
 	Returns the stream passed to the c'tor.
 	*/
-	IStream*			getStream() const;
+	synergy::IStream*	getStream() const;
 
 	//! Handle events from source stream
 	/*!
@@ -66,7 +68,7 @@ private:
 	void				handleUpstreamEvent(const CEvent&, void*);
 
 private:
-	IStream*			m_stream;
+	synergy::IStream*	m_stream;
 	bool				m_adopted;
 };
 

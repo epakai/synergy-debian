@@ -1,6 +1,7 @@
 /*
  * synergy -- mouse and keyboard sharing utility
- * Copyright (C) 2002 Chris Schoeneman, Nick Bolton, Sorin Sbarnea
+ * Copyright (C) 2012 Bolton Software Ltd.
+ * Copyright (C) 2002 Chris Schoeneman
  * 
  * This package is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -237,6 +238,30 @@ CPrimaryClient::mouseRelativeMove(SInt32, SInt32)
 
 void
 CPrimaryClient::mouseWheel(SInt32, SInt32)
+{
+	// ignore
+}
+
+void
+CPrimaryClient::gameDeviceButtons(GameDeviceID, GameDeviceButton)
+{
+	// ignore
+}
+
+void
+CPrimaryClient::gameDeviceSticks(GameDeviceID, SInt16, SInt16, SInt16, SInt16)
+{
+	// ignore
+}
+
+void
+CPrimaryClient::gameDeviceTriggers(GameDeviceID, UInt8, UInt8)
+{
+	// ignore
+}
+
+void
+CPrimaryClient::gameDeviceTimingReq()
 {
 	// ignore
 }

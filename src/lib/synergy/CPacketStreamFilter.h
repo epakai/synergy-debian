@@ -1,6 +1,7 @@
 /*
  * synergy -- mouse and keyboard sharing utility
- * Copyright (C) 2004 Chris Schoeneman, Nick Bolton, Sorin Sbarnea
+ * Copyright (C) 2012 Bolton Software Ltd.
+ * Copyright (C) 2004 Chris Schoeneman
  * 
  * This package is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -28,7 +29,7 @@ Filters a stream to read and write packets.
 */
 class CPacketStreamFilter : public CStreamFilter {
 public:
-	CPacketStreamFilter(IStream* stream, bool adoptStream = true);
+	CPacketStreamFilter(synergy::IStream* stream, bool adoptStream = true);
 	~CPacketStreamFilter();
 
 	// IStream overrides

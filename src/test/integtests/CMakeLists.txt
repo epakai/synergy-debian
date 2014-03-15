@@ -1,5 +1,6 @@
 # synergy -- mouse and keyboard sharing utility
-# Copyright (C) 2009 Chris Schoeneman, Nick Bolton, Sorin Sbarnea
+# Copyright (C) 2012 Bolton Software Ltd.
+# Copyright (C) 2009 Nick Bolton
 # 
 # This package is free software; you can redistribute it and/or
 # modify it under the terms of the GNU General Public License
@@ -15,32 +16,28 @@
 
 set(src
 	Main.cpp
+	CIpcTests.cpp
 )
 
 if (WIN32)
-	
-	# windows
 	list(APPEND src
 		platform/CMSWindowsClipboardTests.cpp
 		platform/CMSWindowsKeyStateTests.cpp
 	)
-
 elseif (APPLE)
-
-	# mac
 	list(APPEND src
 		platform/COSXClipboardTests.cpp
 		platform/COSXKeyStateTests.cpp
+		platform/COSXScreenTests.cpp
 	)
 
 elseif (UNIX)
-
-	# unix/linux
 	list(APPEND src
 		platform/CXWindowsClipboardTests.cpp
 		platform/CXWindowsKeyStateTests.cpp
+		platform/CXWindowsScreenTests.cpp
+		platform/CXWindowsScreenSaverTests.cpp
 	)
-
 endif()
 
 set(inc
@@ -49,6 +46,7 @@ set(inc
 	../../lib/client
 	../../lib/common
 	../../lib/io
+	../../lib/ipc
 	../../lib/mt
 	../../lib/net
 	../../lib/platform
@@ -65,7 +63,13 @@ if (UNIX)
 	)
 endif()
 
+if (WIN32)
+	if (GAME_DEVICE_SUPPORT)
+		link_directories("$ENV{DXSDK_DIR}/Lib/x86")
+	endif()
+endif()
+
 include_directories(${inc})
 add_executable(integtests ${src})
 target_link_libraries(integtests
-	arch base client common io mt net platform server synergy gtest gmock ${libs})
+	arch base client common io ipc mt net platform server synergy gtest gmock ${libs})

@@ -1,6 +1,7 @@
 /*
  * synergy -- mouse and keyboard sharing utility
- * Copyright (C) 2004 Chris Schoeneman, Nick Bolton, Sorin Sbarnea
+ * Copyright (C) 2012 Bolton Software Ltd.
+ * Copyright (C) 2004 Chris Schoeneman
  * 
  * This package is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -15,10 +16,18 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#define WIN32_LEAN_AND_MEAN
-
 #include "CArchSystemWindows.h"
-#include <windows.h>
+#include "CArchMiscWindows.h"
+#include "XArchWindows.h"
+
+#include "tchar.h"
+#include <string>
+
+static const char* s_settingsKeyNames[] = {
+	_T("SOFTWARE"),
+	_T("Synergy"),
+	NULL
+};
 
 //
 // CArchSystemWindows
@@ -126,6 +135,25 @@ CArchSystemWindows::getPlatformName() const
 	return "Unknown";
 #endif
 #endif
+}
+
+std::string
+CArchSystemWindows::setting(const std::string& valueName) const
+{
+	HKEY key = CArchMiscWindows::openKey(HKEY_LOCAL_MACHINE, s_settingsKeyNames);
+	if (key == NULL)
+		return "";
+
+	return CArchMiscWindows::readValueString(key, valueName.c_str());
+}
+
+void
+CArchSystemWindows::setting(const std::string& valueName, const std::string& valueString) const
+{
+	HKEY key = CArchMiscWindows::addKey(HKEY_LOCAL_MACHINE, s_settingsKeyNames);
+	if (key == NULL)
+		throw XArch(std::string("could not access registry key: ") + valueName);
+	CArchMiscWindows::setValue(key, valueName.c_str(), valueString.c_str());
 }
 
 bool

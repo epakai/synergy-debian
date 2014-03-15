@@ -1,5 +1,6 @@
 # synergy -- mouse and keyboard sharing utility
-# Copyright (C) 2009 Chris Schoeneman, Nick Bolton, Sorin Sbarnea
+# Copyright (C) 2012 Bolton Software Ltd.
+# Copyright (C) 2009 Nick Bolton
 # 
 # This package is free software; you can redistribute it and/or
 # modify it under the terms of the GNU General Public License
@@ -15,8 +16,8 @@
 
 # Version number for Synergy
 set(VERSION_MAJOR 1)
-set(VERSION_MINOR 3)
-set(VERSION_REV 8)
+set(VERSION_MINOR 4)
+set(VERSION_REV 12)
 set(VERSION "${VERSION_MAJOR}.${VERSION_MINOR}.${VERSION_REV}")
 
 # The check for 2.6 may be too strict (consider lowering).
@@ -141,18 +142,21 @@ if (UNIX)
 	endif()
 	
 	if (APPLE)
-
-		# build mac os x universal (if <= 10.6)
 		exec_program(uname ARGS -v OUTPUT_VARIABLE DARWIN_VERSION)
 		string(REGEX MATCH "[0-9]+" DARWIN_VERSION ${DARWIN_VERSION})
 		message(STATUS "DARWIN_VERSION=${DARWIN_VERSION}")
-		if (DARWIN_VERSION LESS 11)
+		if (DARWIN_VERSION LESS 9)
+			# 10.4: universal (32-bit intel and power pc) 
 			set(CMAKE_OSX_ARCHITECTURES "ppc;i386"
-				CACHE STRING "PPC and 32-bit for for OSX <= 10.6" FORCE)
+				CACHE STRING "" FORCE)
 		else()
+			# 10.5+: 32-bit only -- missing funcs in 64-bit os libs
+			# such as GetGlobalMouse.
 			set(CMAKE_OSX_ARCHITECTURES "i386"
-				CACHE STRING "32-bit only for OSX >= 10.7" FORCE)
+				CACHE STRING "" FORCE)
 		endif()
+		
+		set(CMAKE_CXX_FLAGS "--sysroot ${CMAKE_OSX_SYSROOT} ${CMAKE_CXX_FLAGS}")
 
 		find_library(lib_ScreenSaver ScreenSaver)
 		find_library(lib_IOKit IOKit)
@@ -170,13 +174,19 @@ if (UNIX)
 
 	else()
 
-		set(XKBlib "X11/XKBlib.h")
+		# add include dir for bsd (posix uses /usr/include/)
+		set(CMAKE_INCLUDE_PATH "${CMAKE_INCLUDE_PATH}:/usr/local/include")
+
+		set(XKBlib "X11/Xlib.h;X11/XKBlib.h")
+		check_symbol_exists("XRRNotifyEvent" "${XKBlib};X11/extensions/Xrandr.h" HAVE_X11_EXTENSIONS_XRANDR_H)
+
 		check_include_files("${XKBlib};X11/extensions/dpms.h" HAVE_X11_EXTENSIONS_DPMS_H)
 		check_include_files("X11/extensions/Xinerama.h" HAVE_X11_EXTENSIONS_XINERAMA_H)
 		check_include_files("${XKBlib};X11/extensions/XKBstr.h" HAVE_X11_EXTENSIONS_XKBSTR_H)
 		check_include_files("X11/extensions/XKB.h" HAVE_XKB_EXTENSION)
 		check_include_files("X11/extensions/XTest.h" HAVE_X11_EXTENSIONS_XTEST_H)
-		check_include_files(${XKBlib} HAVE_X11_XKBLIB_H)
+		check_include_files("${XKBlib}" HAVE_X11_XKBLIB_H)
+		check_include_files("X11/extensions/XInput2.h" HAVE_XI2)
 
 		if (HAVE_X11_EXTENSIONS_DPMS_H)
 			# Assume that function prototypes declared, when include exists.
@@ -188,9 +198,11 @@ if (UNIX)
 		endif()
 
 		check_library_exists("SM;ICE" IceConnectionNumber "" HAVE_ICE)
-		check_library_exists("X11;Xext" DPMSQueryExtension "" HAVE_Xext)
-		check_library_exists("X11;Xext;Xtst" XTestQueryExtension "" HAVE_Xtst)
+		check_library_exists("Xext;X11" DPMSQueryExtension "" HAVE_Xext)
+		check_library_exists("Xtst;Xext;X11" XTestQueryExtension "" HAVE_Xtst)
 		check_library_exists("Xinerama" XineramaQueryExtension "" HAVE_Xinerama)
+		check_library_exists("Xi" XISelectEvents "" HAVE_Xi)
+		check_library_exists("Xrandr" XRRQueryExtension "" HAVE_Xrandr)
 
 		if (HAVE_ICE)
 
@@ -204,7 +216,7 @@ if (UNIX)
 
 			# Xtxt depends on X11.
 			set(HAVE_X11)
-			list(APPEND libs X11 Xtst)
+			list(APPEND libs Xtst X11)
 
 		else()
 
@@ -220,11 +232,20 @@ if (UNIX)
 			list(APPEND libs Xinerama)
 		else (HAVE_Xinerama)
 			if (HAVE_X11_EXTENSIONS_XINERAMA_H)
-				message(FATAL_ERROR "Missing library: Xinerama")
+				set(HAVE_X11_EXTENSIONS_XINERAMA_H 0)
+				message(WARNING "Old Xinerama implementation detected, disabled")
 			endif()
 		endif()
 
+		if (HAVE_Xrandr)
+			list(APPEND libs Xrandr)
+		endif()
+
 	endif()
+
+        IF(HAVE_Xi)
+                LIST(APPEND libs Xi)
+        ENDIF()
 
 	# For config.h, set some static values; it may be a good idea to make
 	# these values dynamic for non-standard UNIX compilers.
@@ -248,7 +269,7 @@ if (UNIX)
 	add_definitions(-DSYSAPI_UNIX=1 -DHAVE_CONFIG_H)
 
 	if (APPLE)
-		add_definitions(-DWINAPI_CARBON=1 -D_THREAD_SAFE -DMACOSX_DEPLOYMENT_TARGET=10.4)
+		add_definitions(-DWINAPI_CARBON=1 -D_THREAD_SAFE)
 	else (APPLE)
 		add_definitions(-DWINAPI_XWINDOWS=1)
 	endif()
@@ -263,10 +284,26 @@ else (UNIX)
 		/D_CRT_SECURE_NO_WARNINGS
 		/DVERSION=\"${VERSION}\"
 	)
+	
+	if (MSVC_VERSION EQUAL 1600)
+		set(SLN_FILENAME "${CMAKE_CURRENT_BINARY_DIR}/synergy.sln")
+		if (EXISTS "${SLN_FILENAME}" )
+			file(APPEND "${SLN_FILENAME}" "\n# This should be regenerated!\n")
+		endif()
+	endif()
 
 endif()
 
+if (GAME_DEVICE_SUPPORT)
+	add_definitions(-DGAME_DEVICE_SUPPORT)
+endif()
+
+if (VNC_SUPPORT)
+	add_definitions(-DVNC_SUPPORT)
+endif()
+
 add_subdirectory(src)
+add_subdirectory(tools)
 
 if (WIN32)
 	# add /analyze in order to unconver potential bugs in the source code
@@ -307,6 +344,19 @@ if (CONF_CPACK)
 	if (UNIX)
 		if (APPLE)
 			message(FATAL_ERROR "CPack support for Apple has been removed.")
+		else ()
+			install(FILES bin/synergy
+				DESTINATION bin
+				PERMISSIONS
+				OWNER_READ OWNER_WRITE OWNER_EXECUTE
+				GROUP_READ GROUP_EXECUTE
+				WORLD_READ WORLD_EXECUTE)
+
+			# install gnome menu item
+			install(FILES res/synergy.desktop
+				DESTINATION share/applications)
+			install(FILES res/synergy.ico
+				DESTINATION share/icons)
 		endif()
 	endif()
 
@@ -339,3 +389,10 @@ if (CONF_DOXYGEN)
 	configure_file(${cmake_dir}/doxygen.cfg.in ${doc_dir}/doxygen.cfg)
 
 endif()
+
+if (${CMAKE_SYSTEM_NAME} MATCHES "IRIX")
+	set_target_properties(synergys PROPERTIES LINK_FLAGS "-all -woff 33 -woff 84 -woff 15")
+	set_target_properties(synergyc PROPERTIES LINK_FLAGS "-all -woff 33 -woff 84 -woff 15")
+	set_target_properties(synergyd PROPERTIES LINK_FLAGS "-all -woff 33 -woff 84 -woff 15")
+endif()
+
