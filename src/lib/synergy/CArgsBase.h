@@ -19,7 +19,6 @@
 #pragma once
 
 #include "CString.h"
-#include "CGameDevice.h"
 #include "CCryptoOptions.h"
 
 class CArgsBase {
@@ -36,13 +35,12 @@ public:
 	const char*	m_display;
 	CString m_name;
 	bool m_disableTray;
-	bool m_enableVnc;
 	bool m_enableIpc;
 	CCryptoOptions m_crypto;
+	bool m_enableDragDrop;
 #if SYSAPI_WIN32
 	bool m_debugServiceWait;
 	bool m_pauseOnExit;
-	CGameDeviceInfo m_gameDevice;
 	bool m_stopOnDeskSwitch;
 #endif
 #if WINAPI_XWINDOWS

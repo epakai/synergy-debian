@@ -47,16 +47,14 @@ set(inc
 	../../lib/net
 	../../lib/platform
 	../../lib/synergy
+	../../lib/synwinhk
+	../../lib/synwinxt
 )
 
 if (UNIX)
 	list(APPEND inc
 		../../..
 	)
-endif()
-
-if (VNC_SUPPORT)
-	list(APPEND libs vnc_server vnc_client)
 endif()
 
 include_directories(${inc})

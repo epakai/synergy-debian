@@ -1,4 +1,4 @@
-QT += network
+QT += widgets network
 TEMPLATE = app
 TARGET = synergy
 DEPENDPATH += . \
@@ -38,7 +38,10 @@ SOURCES += src/main.cpp \
     src/SetupWizard.cpp \
     src/IpcClient.cpp \
     src/IpcReader.cpp \
-    src/Ipc.cpp
+    src/Ipc.cpp \
+    src/SynergyLocale.cpp \
+    src/QUtility.cpp \
+    src/PremiumAuth.cpp
 HEADERS += src/MainWindow.h \
     src/AboutDialog.h \
     src/ServerConfig.h \
@@ -64,13 +67,13 @@ HEADERS += src/MainWindow.h \
     src/IpcClient.h \
     src/IpcReader.h \
     src/Ipc.h \
-    src/CryptoMode.h
+    src/SynergyLocale.h \
+    src/QUtility.h \
+    src/PremiumAuth.h
 RESOURCES += res/Synergy.qrc
 RC_FILE = res/win/Synergy.rc
-TRANSLATIONS = res/lang/nl_NL.ts
 macx { 
-    QMAKE_INFO_PLIST = res/mac/Synergy.plist
-    QMAKE_MACOSX_DEPLOYMENT_TARGET = 10.4
+	QMAKE_INFO_PLIST = res/mac/Info.plist
     TARGET = Synergy
     QSYNERGY_ICON.files = res/mac/Synergy.icns
     QSYNERGY_ICON.path = Contents/Resources

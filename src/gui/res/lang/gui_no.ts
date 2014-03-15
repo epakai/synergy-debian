@@ -10,28 +10,46 @@
         <location filename="res/AboutDialogBase.ui" line="53"/>
         <source>&lt;p&gt;
 Keyboard and mouse sharing application. Cross platform and open source.&lt;br /&gt;&lt;br /&gt;
-Copyright © 2001-2012 Chris Schoeneman, Nick Bolton, Volker Lanz, Sorin Sbarnea.&lt;br /&gt;&lt;br /&gt;
+Copyright © 2012 Bolton Software Ltd.&lt;br /&gt;
+Copyright © 2002-2012 Chris Schoeneman, Nick Bolton, Volker Lanz.&lt;br /&gt;&lt;br /&gt;
 Synergy is released under the GNU General Public License (GPLv2).&lt;br /&gt;&lt;br /&gt;
 Synergy is based on CosmoSynergy by Richard Lee and Adam Feder.&lt;br /&gt;
 The Synergy GUI is based on QSynergy by Volker Lanz.&lt;br /&gt;&lt;br /&gt;
 Visit our website for help and info (synergy-foss.org).
 &lt;/p&gt;</source>
-        <translation type="unfinished"></translation>
+        <oldsource>&lt;p&gt;
+Keyboard and mouse sharing application. Cross platform and open source.&lt;br /&gt;&lt;br /&gt;
+Copyright © 2012 Bolton Software Ltd.&lt;br /&gt;
+Copyright © 2002-2012 Chris Schoeneman, Nick Bolton, Volker Lanz.&lt;br /&gt;&lt;br /&gt;
+Synergy is released under the GNU General Public License (GPLv2).&lt;br /&gt;&lt;br /&gt;
+Synergy is based on CosmoSynergy by Richard Lee and Adam Feder.&lt;br /&gt;
+The Synergy GUI is based on QSynergy by Volker Lanz.&lt;br /&gt;&lt;br /&gt;
+Visit our website for help and info (synergy-foss.org).
+&lt;/p&gt;</oldsource>
+        <translation type="finished">&lt;p&gt;
+Tastatur- og musdelingsprogram. Kryssplattform og åpen kildekode.&lt;br /&gt;&lt;br /&gt;
+Copyright © 2012 Bolton Software Ltd.&lt;br /&gt;
+Copyright © 2002-2012 Chris Schoeneman, Nick Bolton, Volker Lanz.&lt;br /&gt;&lt;br /&gt;
+Synergy er frigitt under GNU General Public License (GPLv2).&lt;br /&gt;&lt;br /&gt;
+Synergy er basert på CosmoSynergy av Richard Lee og Adam Feder.&lt;br /&gt;
+Synergys grafiske grensesnitt er basert på QSynergy av Volker Lanz.&lt;br /&gt;&lt;br /&gt;
+Besøk vår nettside for hjelp og informasjon (synergy-foss.org).
+&lt;/p&gt;</translation>
     </message>
     <message>
-        <location filename="res/AboutDialogBase.ui" line="139"/>
+        <location filename="res/AboutDialogBase.ui" line="140"/>
         <source>Unknown</source>
         <translation type="finished">Ukjent</translation>
     </message>
     <message>
-        <location filename="res/AboutDialogBase.ui" line="123"/>
+        <location filename="res/AboutDialogBase.ui" line="124"/>
         <source>Version:</source>
         <translation type="finished">Versjon:</translation>
     </message>
     <message>
-        <location filename="res/AboutDialogBase.ui" line="162"/>
+        <location filename="res/AboutDialogBase.ui" line="163"/>
         <source>&amp;Ok</source>
-        <translation type="finished">&amp;undefinedOk</translation>
+        <translation type="finished">&amp;Ok</translation>
     </message>
 </context>
 <context>
@@ -148,169 +166,169 @@ Visit our website for help and info (synergy-foss.org).
 <context>
     <name>MainWindow</name>
     <message>
-        <location filename="src/MainWindow.cpp" line="625"/>
+        <location filename="src/MainWindow.cpp" line="642"/>
         <source>&amp;Start</source>
-        <translation type="finished">&amp;undefinedStart</translation>
-    </message>
-    <message>
-        <location filename="src/MainWindow.cpp" line="195"/>
-        <source>&amp;File</source>
-        <translation type="finished">&amp;undefinedFil</translation>
+        <translation type="finished">&amp;Start</translation>
     </message>
     <message>
         <location filename="src/MainWindow.cpp" line="196"/>
-        <source>&amp;Edit</source>
-        <translation type="finished">&amp;undefinedRediger</translation>
+        <source>&amp;File</source>
+        <translation type="finished">&amp;Fil</translation>
     </message>
     <message>
         <location filename="src/MainWindow.cpp" line="197"/>
-        <source>&amp;Window</source>
-        <translation type="finished">&amp;undefinedVindu</translation>
+        <source>&amp;Edit</source>
+        <translation type="finished">&amp;Rediger</translation>
     </message>
     <message>
         <location filename="src/MainWindow.cpp" line="198"/>
-        <source>&amp;Help</source>
-        <translation type="finished">&amp;undefinedHjelp</translation>
+        <source>&amp;Window</source>
+        <translation type="finished">&amp;Vindu</translation>
     </message>
     <message>
-        <location filename="src/MainWindow.cpp" line="315"/>
+        <location filename="src/MainWindow.cpp" line="199"/>
+        <source>&amp;Help</source>
+        <translation type="finished">&amp;Hjelp</translation>
+    </message>
+    <message>
+        <location filename="src/MainWindow.cpp" line="326"/>
         <source>&lt;p&gt;Version %1 is now available, &lt;a href=&quot;%2&quot;&gt;visit website&lt;/a&gt;.&lt;/p&gt;</source>
         <translation type="finished">&lt;p&gt;Versjon %1 er nå tilgjengelig, &lt;a href=&quot;%2&quot;&gt;besøk hjemmeside&lt;/a&gt;.&lt;/p&gt;</translation>
     </message>
     <message>
-        <location filename="src/MainWindow.cpp" line="441"/>
+        <location filename="src/MainWindow.cpp" line="458"/>
         <source>Program can not be started</source>
         <translation type="finished">Programmet kan ikke starte</translation>
     </message>
     <message>
-        <location filename="src/MainWindow.cpp" line="441"/>
+        <location filename="src/MainWindow.cpp" line="458"/>
         <source>The executable&lt;br&gt;&lt;br&gt;%1&lt;br&gt;&lt;br&gt;could not be successfully started, although it does exist. Please check if you have sufficient permissions to run this program.</source>
         <translation type="finished">Programfilen &lt;br&gt;&lt;br&gt;%1&lt;br&gt;&lt;br&gt; kunne ikke startes riktig, selv om den finnes. Sjekk at du har tilstrekkelige rettigheter til å kjøre dette programmet.</translation>
     </message>
     <message>
-        <location filename="src/MainWindow.cpp" line="460"/>
+        <location filename="src/MainWindow.cpp" line="477"/>
         <source>Synergy client not found</source>
         <translation type="finished">Finner ikke Synergy klient</translation>
     </message>
     <message>
-        <location filename="src/MainWindow.cpp" line="461"/>
+        <location filename="src/MainWindow.cpp" line="478"/>
         <source>The executable for the synergy client does not exist.</source>
         <translation type="finished">Program filen  for Synergy klienten finnes ikke</translation>
     </message>
     <message>
-        <location filename="src/MainWindow.cpp" line="468"/>
+        <location filename="src/MainWindow.cpp" line="485"/>
         <source>Hostname is empty</source>
         <translation type="finished">Host navn er tomt</translation>
     </message>
     <message>
-        <location filename="src/MainWindow.cpp" line="469"/>
+        <location filename="src/MainWindow.cpp" line="486"/>
         <source>Please fill in a hostname for the synergy client to connect to.</source>
         <translation type="finished">Vennligst fyll inn et host navn for synergi klienten.</translation>
     </message>
     <message>
-        <location filename="src/MainWindow.cpp" line="494"/>
+        <location filename="src/MainWindow.cpp" line="511"/>
         <source>Cannot write configuration file</source>
         <translation type="finished">Kan ikke skrive konfigurasjons fil</translation>
     </message>
     <message>
-        <location filename="src/MainWindow.cpp" line="494"/>
+        <location filename="src/MainWindow.cpp" line="511"/>
         <source>The temporary configuration file required to start synergy can not be written.</source>
         <translation type="finished">Den midlertidige oppsettsfilen, som er nødvendig for å starte synergy, kan ikke opprettes.</translation>
     </message>
     <message>
-        <location filename="src/MainWindow.cpp" line="507"/>
+        <location filename="src/MainWindow.cpp" line="524"/>
         <source>Configuration filename invalid</source>
         <translation type="finished">Konfigurerings filnavn feil</translation>
     </message>
     <message>
-        <location filename="src/MainWindow.cpp" line="508"/>
+        <location filename="src/MainWindow.cpp" line="525"/>
         <source>You have not filled in a valid configuration file for the synergy server. Do you want to browse for the configuration file now?</source>
         <translation type="finished">Du har ikke lagt inn en gyldig oppsettsfil for synergy-tjeneren. Vil du velge oppsettsfilen nå?</translation>
     </message>
     <message>
-        <location filename="src/MainWindow.cpp" line="535"/>
+        <location filename="src/MainWindow.cpp" line="552"/>
         <source>Synergy server not found</source>
         <translation type="finished">Finner ikke Synergy server</translation>
     </message>
     <message>
-        <location filename="src/MainWindow.cpp" line="536"/>
+        <location filename="src/MainWindow.cpp" line="553"/>
         <source>The executable for the synergy server does not exist.</source>
         <translation type="finished">Programfilen for synergy-tjeneren finnes ikke.</translation>
     </message>
     <message>
-        <location filename="src/MainWindow.cpp" line="600"/>
+        <location filename="src/MainWindow.cpp" line="617"/>
         <source>Synergy terminated with an error</source>
         <translation type="finished">Synergy stoppet med en feil</translation>
     </message>
     <message>
-        <location filename="src/MainWindow.cpp" line="600"/>
+        <location filename="src/MainWindow.cpp" line="617"/>
         <source>Synergy terminated unexpectedly with an exit code of %1.&lt;br&gt;&lt;br&gt;Please see the log output for details.</source>
         <translation type="finished">Synergy stoppet uventet med kode %1.&lt;br&gt;&lt;br&gt;Se i loggen for detaljer.</translation>
     </message>
     <message>
-        <location filename="src/MainWindow.cpp" line="619"/>
+        <location filename="src/MainWindow.cpp" line="636"/>
         <source>&amp;Stop</source>
-        <translation type="finished">&amp;undefinedStopp</translation>
+        <translation type="finished">&amp;Stopp</translation>
     </message>
     <message>
-        <location filename="src/MainWindow.cpp" line="642"/>
+        <location filename="src/MainWindow.cpp" line="659"/>
         <source>service mode</source>
-        <translation type="unfinished"></translation>
+        <translation type="finished">Tjenermodus</translation>
     </message>
     <message>
-        <location filename="src/MainWindow.cpp" line="642"/>
+        <location filename="src/MainWindow.cpp" line="659"/>
         <source>desktop mode</source>
-        <translation type="unfinished"></translation>
+        <translation type="finished">Skrivebordsmodus</translation>
     </message>
     <message>
-        <location filename="src/MainWindow.cpp" line="643"/>
+        <location filename="src/MainWindow.cpp" line="660"/>
         <source>Synergy is running (%1).</source>
-        <translation type="unfinished"></translation>
+        <translation type="finished">Synergy kjører (%1)</translation>
     </message>
     <message>
-        <location filename="src/MainWindow.cpp" line="786"/>
+        <location filename="src/MainWindow.cpp" line="821"/>
         <source>Elevate Synergy</source>
-        <translation type="unfinished"></translation>
+        <translation type="finished">Hev Synergy</translation>
     </message>
     <message>
-        <location filename="src/MainWindow.cpp" line="787"/>
+        <location filename="src/MainWindow.cpp" line="822"/>
         <source>Are you sure you want to elevate Synergy?
 
 This allows Synergy to interact with elevated processes and the UAC dialog, but can cause problems with non-elevated processes. Elevate Synergy only if you really need to.</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="src/MainWindow.cpp" line="647"/>
+        <location filename="src/MainWindow.cpp" line="664"/>
         <source>Synergy is starting.</source>
         <translation type="finished">Synergy starter</translation>
     </message>
     <message>
-        <location filename="src/MainWindow.cpp" line="650"/>
+        <location filename="src/MainWindow.cpp" line="667"/>
         <source>Synergy is not running.</source>
         <translation type="finished">Synergy kjører ikke</translation>
     </message>
     <message>
-        <location filename="src/MainWindow.cpp" line="707"/>
+        <location filename="src/MainWindow.cpp" line="724"/>
         <source>Unknown</source>
         <translation type="finished">Ukjent</translation>
     </message>
     <message>
-        <location filename="src/MainWindow.cpp" line="728"/>
+        <location filename="src/MainWindow.cpp" line="762"/>
         <source>Browse for a synergys config file</source>
         <translation type="finished">Velg en oppsettsfil for synergys.</translation>
     </message>
     <message>
-        <location filename="src/MainWindow.cpp" line="741"/>
+        <location filename="src/MainWindow.cpp" line="775"/>
         <source>Save configuration as...</source>
         <translation type="finished">Lagre oppsettet som ...</translation>
     </message>
     <message>
-        <location filename="src/MainWindow.cpp" line="745"/>
+        <location filename="src/MainWindow.cpp" line="779"/>
         <source>Save failed</source>
         <translation type="finished">Kunne ikke lagre</translation>
     </message>
     <message>
-        <location filename="src/MainWindow.cpp" line="745"/>
+        <location filename="src/MainWindow.cpp" line="779"/>
         <source>Could not save configuration to file.</source>
         <translation type="finished">Kunne ikke lagre oppsettsfilen.</translation>
     </message>
@@ -325,24 +343,18 @@ This allows Synergy to interact with elevated processes and the UAC dialog, but 
     <message>
         <location filename="res/MainWindowBase.ui" line="54"/>
         <source>Screen name:</source>
-        <translation type="unfinished"></translation>
+        <translation type="finished">Skjermnavn:</translation>
     </message>
     <message>
         <location filename="res/MainWindowBase.ui" line="61"/>
-        <location filename="res/MainWindowBase.ui" line="211"/>
-        <source>Unknown</source>
-        <translation type="finished">Ukjent</translation>
-    </message>
-    <message>
-        <location filename="res/MainWindowBase.ui" line="68"/>
         <source>&amp;Server IP:</source>
-        <translation type="unfinished"></translation>
+        <translation type="finished">&amp;Tjener-IP:</translation>
     </message>
     <message>
         <location filename="res/MainWindowBase.ui" line="160"/>
-        <location filename="res/MainWindowBase.ui" line="312"/>
+        <location filename="res/MainWindowBase.ui" line="315"/>
         <source>&amp;Start</source>
-        <translation type="finished">&amp;undefinedStart</translation>
+        <translation type="finished">&amp;Start</translation>
     </message>
     <message>
         <location filename="res/MainWindowBase.ui" line="187"/>
@@ -392,7 +404,7 @@ This allows Synergy to interact with elevated processes and the UAC dialog, but 
     <message>
         <location filename="res/MainWindowBase.ui" line="167"/>
         <source>&amp;Apply</source>
-        <translation type="unfinished"></translation>
+        <translation type="finished">&amp;Bruk</translation>
     </message>
     <message>
         <location filename="res/MainWindowBase.ui" line="174"/>
@@ -402,7 +414,7 @@ This allows Synergy to interact with elevated processes and the UAC dialog, but 
     <message>
         <location filename="res/MainWindowBase.ui" line="204"/>
         <source>IP addresses:</source>
-        <translation type="unfinished"></translation>
+        <translation type="finished">IP-adresser:</translation>
     </message>
     <message>
         <location filename="res/MainWindowBase.ui" line="296"/>
@@ -410,110 +422,85 @@ This allows Synergy to interact with elevated processes and the UAC dialog, but 
         <translation type="finished">&amp;Om Synergy</translation>
     </message>
     <message>
-        <location filename="res/MainWindowBase.ui" line="301"/>
+        <location filename="res/MainWindowBase.ui" line="304"/>
         <source>&amp;Quit</source>
         <translation type="finished">&amp;Avslutt</translation>
     </message>
     <message>
-        <location filename="res/MainWindowBase.ui" line="304"/>
+        <location filename="res/MainWindowBase.ui" line="307"/>
         <source>Quit</source>
         <translation type="finished">Avslutt</translation>
     </message>
     <message>
-        <location filename="res/MainWindowBase.ui" line="307"/>
-        <source>Ctrl+Q</source>
-        <translation type="finished">Ctrl+Q</translation>
-    </message>
-    <message>
-        <location filename="res/MainWindowBase.ui" line="315"/>
+        <location filename="res/MainWindowBase.ui" line="318"/>
         <source>Run</source>
         <translation type="finished">Kjør</translation>
     </message>
     <message>
-        <location filename="res/MainWindowBase.ui" line="318"/>
-        <source>Ctrl+S</source>
-        <translation type="finished">Ctrl+S</translation>
-    </message>
-    <message>
-        <location filename="res/MainWindowBase.ui" line="326"/>
+        <location filename="res/MainWindowBase.ui" line="329"/>
         <source>S&amp;top</source>
         <translation type="finished">S&amp;topp</translation>
     </message>
     <message>
-        <location filename="res/MainWindowBase.ui" line="329"/>
+        <location filename="res/MainWindowBase.ui" line="332"/>
         <source>Stop</source>
         <translation type="finished">Stopp</translation>
     </message>
     <message>
-        <location filename="res/MainWindowBase.ui" line="332"/>
-        <source>Ctrl+T</source>
-        <translation type="finished">Ctrl+T</translation>
-    </message>
-    <message>
-        <location filename="res/MainWindowBase.ui" line="337"/>
+        <location filename="res/MainWindowBase.ui" line="340"/>
         <source>S&amp;how Status</source>
         <translation type="finished">&amp;Vis Status</translation>
     </message>
     <message>
-        <location filename="res/MainWindowBase.ui" line="340"/>
-        <source>Ctrl+H</source>
-        <translation type="finished">Ctrl+H</translation>
-    </message>
-    <message>
-        <location filename="res/MainWindowBase.ui" line="345"/>
-        <source>&amp;Hide</source>
-        <translation type="unfinished"></translation>
-    </message>
-    <message>
         <location filename="res/MainWindowBase.ui" line="348"/>
+        <source>&amp;Hide</source>
+        <translation type="finished">&amp;Skjul</translation>
+    </message>
+    <message>
+        <location filename="res/MainWindowBase.ui" line="351"/>
         <source>Hide</source>
-        <translation type="unfinished"></translation>
+        <translation type="finished">Skjul</translation>
     </message>
     <message>
-        <location filename="res/MainWindowBase.ui" line="353"/>
+        <location filename="res/MainWindowBase.ui" line="359"/>
         <source>&amp;Show</source>
-        <translation type="unfinished"></translation>
+        <translation type="finished">&amp;Vis</translation>
     </message>
     <message>
-        <location filename="res/MainWindowBase.ui" line="356"/>
+        <location filename="res/MainWindowBase.ui" line="362"/>
         <source>Show</source>
-        <translation type="unfinished"></translation>
+        <translation type="finished">Vis</translation>
     </message>
     <message>
-        <location filename="res/MainWindowBase.ui" line="361"/>
+        <location filename="res/MainWindowBase.ui" line="370"/>
         <source>Save configuration &amp;as...</source>
         <translation type="finished">L&amp;agre oppsettet som ...</translation>
     </message>
     <message>
-        <location filename="res/MainWindowBase.ui" line="364"/>
+        <location filename="res/MainWindowBase.ui" line="373"/>
         <source>Save the interactively generated server configuration to a file.</source>
         <translation type="finished">Lagre det interaktivt opprettede tjener-oppsettet til en fil.</translation>
     </message>
     <message>
-        <location filename="res/MainWindowBase.ui" line="367"/>
-        <source>Ctrl+Alt+S</source>
-        <translation type="finished">Ctrl+Alt+S</translation>
-    </message>
-    <message>
-        <location filename="res/MainWindowBase.ui" line="372"/>
+        <location filename="res/MainWindowBase.ui" line="381"/>
         <source>Settings</source>
         <translation type="finished">Innstillinger</translation>
     </message>
     <message>
-        <location filename="res/MainWindowBase.ui" line="375"/>
+        <location filename="res/MainWindowBase.ui" line="384"/>
         <source>Edit settings</source>
         <translation type="finished">Endre innstillinger</translation>
     </message>
     <message>
-        <location filename="res/MainWindowBase.ui" line="380"/>
+        <location filename="res/MainWindowBase.ui" line="392"/>
         <source>Run Wizard</source>
-        <translation type="unfinished"></translation>
+        <translation type="finished">Kjør Veiledning</translation>
     </message>
 </context>
 <context>
     <name>NewScreenWidget</name>
     <message>
-        <location filename="src/NewScreenWidget.cpp" line="31"/>
+        <location filename="src/NewScreenWidget.cpp" line="32"/>
         <source>Unnamed</source>
         <translation type="finished">Uten navn</translation>
     </message>
@@ -521,17 +508,17 @@ This allows Synergy to interact with elevated processes and the UAC dialog, but 
 <context>
     <name>QObject</name>
     <message>
-        <location filename="src/MainWindow.cpp" line="44"/>
+        <location filename="src/MainWindow.cpp" line="45"/>
         <source>Synergy Configurations (*.sgc);;All files (*.*)</source>
         <translation type="finished">Synergy-oppsett (*.sgc);;Alle filer (*.*)</translation>
     </message>
     <message>
-        <location filename="src/MainWindow.cpp" line="47"/>
+        <location filename="src/MainWindow.cpp" line="48"/>
         <source>Synergy Configurations (*.conf);;All files (*.*)</source>
         <translation type="finished">Synergy-oppsett (*.conf);;Alle filer (*.*)</translation>
     </message>
     <message>
-        <location filename="src/main.cpp" line="95"/>
+        <location filename="src/main.cpp" line="90"/>
         <source>System tray is unavailable, quitting.</source>
         <translation type="finished">Systemstatusfeltet er utilgjengelig - avslutter.</translation>
     </message>
@@ -539,12 +526,12 @@ This allows Synergy to interact with elevated processes and the UAC dialog, but 
 <context>
     <name>ScreenSettingsDialog</name>
     <message>
-        <location filename="src/ScreenSettingsDialog.cpp" line="64"/>
+        <location filename="src/ScreenSettingsDialog.cpp" line="65"/>
         <source>Screen name is empty</source>
         <translation type="finished">Skjermnavnet er tomt</translation>
     </message>
     <message>
-        <location filename="src/ScreenSettingsDialog.cpp" line="64"/>
+        <location filename="src/ScreenSettingsDialog.cpp" line="65"/>
         <source>The name for a screen can not be empty. Please fill in a name or cancel the dialog.</source>
         <translation type="finished">Skjermnavnet kan ikke være tomt. Oppgi navn eller avbryt dialogen.</translation>
     </message>
@@ -719,7 +706,7 @@ This allows Synergy to interact with elevated processes and the UAC dialog, but 
 <context>
     <name>ScreenSetupModel</name>
     <message>
-        <location filename="src/ScreenSetupModel.cpp" line="50"/>
+        <location filename="src/ScreenSetupModel.cpp" line="51"/>
         <source>&lt;center&gt;Screen: &lt;b&gt;%1&lt;/b&gt;&lt;/center&gt;&lt;br&gt;Double click to edit settings&lt;br&gt;Drag screen to the trashcan to remove it</source>
         <translation type="finished">&lt;center&gt;Skjerm: &lt;b&gt;%1&lt;/b&gt;&lt;/center&gt;&lt;br&gt;Dobbeltklikk for å endre innstillinger&lt;br&gt;Dra skjermen til søppelbøtta for å fjerne den</translation>
     </message>
@@ -778,7 +765,7 @@ Dobbeltklikk en skjerm for å endre dens innstillinger.</translation>
     <message>
         <location filename="res/ServerConfigDialogBase.ui" line="184"/>
         <source>&amp;Edit</source>
-        <translation type="finished">&amp;undefinedRediger</translation>
+        <translation type="finished">&amp;Rediger</translation>
     </message>
     <message>
         <location filename="res/ServerConfigDialogBase.ui" line="194"/>
@@ -813,12 +800,12 @@ Dobbeltklikk en skjerm for å endre dens innstillinger.</translation>
     <message>
         <location filename="res/ServerConfigDialogBase.ui" line="279"/>
         <source>&amp;Switch</source>
-        <translation type="unfinished"></translation>
+        <translation type="finished">Bytt</translation>
     </message>
     <message>
         <location filename="res/ServerConfigDialogBase.ui" line="290"/>
         <source>Switch &amp;after waiting</source>
-        <translation type="unfinished"></translation>
+        <translation type="finished">Bytt etter å ha ventet</translation>
     </message>
     <message>
         <location filename="res/ServerConfigDialogBase.ui" line="329"/>
@@ -830,32 +817,32 @@ Dobbeltklikk en skjerm for å endre dens innstillinger.</translation>
     <message>
         <location filename="res/ServerConfigDialogBase.ui" line="343"/>
         <source>Switch on double &amp;tap within</source>
-        <translation type="unfinished"></translation>
+        <translation type="finished">Bytt ved dobbel berøring innen</translation>
     </message>
     <message>
         <location filename="res/ServerConfigDialogBase.ui" line="407"/>
         <source>&amp;Options</source>
-        <translation type="unfinished"></translation>
+        <translation type="finished">Alternativer</translation>
     </message>
     <message>
         <location filename="res/ServerConfigDialogBase.ui" line="418"/>
         <source>&amp;Check clients every</source>
-        <translation type="unfinished"></translation>
+        <translation type="finished">Kontroller klienter hvert</translation>
     </message>
     <message>
         <location filename="res/ServerConfigDialogBase.ui" line="469"/>
         <source>Use &amp;relative mouse moves</source>
-        <translation type="unfinished"></translation>
+        <translation type="finished">Bruk relative musebevegelser</translation>
     </message>
     <message>
         <location filename="res/ServerConfigDialogBase.ui" line="479"/>
         <source>S&amp;ynchronize screen savers</source>
-        <translation type="unfinished"></translation>
+        <translation type="finished">Synkroniser skjermsparere</translation>
     </message>
     <message>
         <location filename="res/ServerConfigDialogBase.ui" line="489"/>
         <source>Don't take &amp;foreground window on Windows servers</source>
-        <translation type="unfinished"></translation>
+        <translation type="finished">Ikke overta som forgrunnsvindu på Windowsservere</translation>
     </message>
     <message>
         <location filename="res/ServerConfigDialogBase.ui" line="512"/>
@@ -865,35 +852,40 @@ Dobbeltklikk en skjerm for å endre dens innstillinger.</translation>
     <message>
         <location filename="res/ServerConfigDialogBase.ui" line="521"/>
         <source>To&amp;p-left</source>
-        <translation type="unfinished"></translation>
+        <translation type="finished">Øverst-venstre</translation>
     </message>
     <message>
         <location filename="res/ServerConfigDialogBase.ui" line="528"/>
         <source>Top-rig&amp;ht</source>
-        <translation type="unfinished"></translation>
+        <translation type="finished">Øverst-høyre</translation>
     </message>
     <message>
         <location filename="res/ServerConfigDialogBase.ui" line="535"/>
         <source>&amp;Bottom-left</source>
-        <translation type="unfinished"></translation>
+        <translation type="finished">Nederst-venstre</translation>
     </message>
     <message>
         <location filename="res/ServerConfigDialogBase.ui" line="542"/>
         <source>Bottom-ri&amp;ght</source>
-        <translation type="unfinished"></translation>
+        <translation type="finished">Nederst-høyre</translation>
     </message>
     <message>
         <location filename="res/ServerConfigDialogBase.ui" line="564"/>
         <source>Cor&amp;ner Size:</source>
-        <translation type="unfinished"></translation>
+        <translation type="finished">Hjørnestørrelse:</translation>
     </message>
 </context>
 <context>
     <name>SettingsDialog</name>
     <message>
-        <location filename="src/SettingsDialog.cpp" line="71"/>
-        <source>Save log file to...</source>
+        <location filename="src/SettingsDialog.cpp" line="62"/>
+        <source>Encryption password must not be empty.</source>
         <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location filename="src/SettingsDialog.cpp" line="121"/>
+        <source>Save log file to...</source>
+        <translation type="finished">Lagre loggfil til...</translation>
     </message>
 </context>
 <context>
@@ -904,126 +896,161 @@ Dobbeltklikk en skjerm for å endre dens innstillinger.</translation>
         <translation type="finished">Innstillinger</translation>
     </message>
     <message>
-        <location filename="res/SettingsDialogBase.ui" line="20"/>
+        <location filename="res/SettingsDialogBase.ui" line="165"/>
         <source>&amp;Advanced</source>
-        <translation type="unfinished"></translation>
+        <translation type="finished">Avansert</translation>
+    </message>
+    <message>
+        <location filename="res/SettingsDialogBase.ui" line="177"/>
+        <source>Sc&amp;reen name:</source>
+        <translation type="finished">Skjermnavn</translation>
+    </message>
+    <message>
+        <location filename="res/SettingsDialogBase.ui" line="194"/>
+        <source>P&amp;ort:</source>
+        <translation type="finished">Port:</translation>
+    </message>
+    <message>
+        <location filename="res/SettingsDialogBase.ui" line="223"/>
+        <source>&amp;Interface:</source>
+        <translation type="finished">Grensesnitt:</translation>
     </message>
     <message>
         <location filename="res/SettingsDialogBase.ui" line="26"/>
-        <source>Sc&amp;reen name:</source>
-        <translation type="unfinished"></translation>
-    </message>
-    <message>
-        <location filename="res/SettingsDialogBase.ui" line="43"/>
-        <source>P&amp;ort:</source>
-        <translation type="unfinished"></translation>
-    </message>
-    <message>
-        <location filename="res/SettingsDialogBase.ui" line="50"/>
-        <source>&amp;Interface:</source>
-        <translation type="unfinished"></translation>
-    </message>
-    <message>
-        <location filename="res/SettingsDialogBase.ui" line="211"/>
         <source>&amp;Start Synergy after logging in</source>
-        <translation type="unfinished"></translation>
+        <translation type="finished">Start Synergy etter innlogging</translation>
     </message>
     <message>
-        <location filename="res/SettingsDialogBase.ui" line="218"/>
+        <location filename="res/SettingsDialogBase.ui" line="33"/>
         <source>&amp;Automatically start server/client</source>
-        <translation type="unfinished"></translation>
+        <translation type="finished">Start server/klient automatisk</translation>
     </message>
     <message>
-        <location filename="res/SettingsDialogBase.ui" line="225"/>
+        <location filename="res/SettingsDialogBase.ui" line="40"/>
         <source>&amp;Hide when server/client starts</source>
-        <translation type="unfinished"></translation>
+        <translation type="finished">Skjul når server/klient starter</translation>
     </message>
     <message>
-        <location filename="res/SettingsDialogBase.ui" line="123"/>
+        <location filename="res/SettingsDialogBase.ui" line="273"/>
         <source>Logging</source>
-        <translation type="unfinished"></translation>
+        <translation type="finished">Logging</translation>
     </message>
     <message>
-        <location filename="res/SettingsDialogBase.ui" line="86"/>
+        <location filename="res/SettingsDialogBase.ui" line="240"/>
         <source>&amp;Process mode:</source>
-        <translation type="unfinished"></translation>
+        <translation type="finished">&amp;Prosessmodus:</translation>
     </message>
     <message>
-        <location filename="res/SettingsDialogBase.ui" line="97"/>
+        <location filename="res/SettingsDialogBase.ui" line="251"/>
         <source>Service</source>
-        <translation type="unfinished"></translation>
+        <translation type="finished">Tjenermodus</translation>
     </message>
     <message>
-        <location filename="res/SettingsDialogBase.ui" line="102"/>
+        <location filename="res/SettingsDialogBase.ui" line="256"/>
         <source>Desktop (legacy)</source>
-        <translation type="unfinished"></translation>
+        <translation type="finished">Stasjonær (tradisjonelle)</translation>
     </message>
     <message>
-        <location filename="res/SettingsDialogBase.ui" line="129"/>
+        <location filename="res/SettingsDialogBase.ui" line="291"/>
         <source>&amp;Logging level:</source>
-        <translation type="unfinished"></translation>
+        <translation type="finished">Loggingnivå:</translation>
     </message>
     <message>
-        <location filename="res/SettingsDialogBase.ui" line="139"/>
+        <location filename="res/SettingsDialogBase.ui" line="340"/>
         <source>Log to file:</source>
-        <translation type="unfinished"></translation>
+        <translation type="finished">Logg til fil</translation>
     </message>
     <message>
-        <location filename="res/SettingsDialogBase.ui" line="156"/>
+        <location filename="res/SettingsDialogBase.ui" line="357"/>
         <source>Browse...</source>
         <translation type="finished">Velg...</translation>
     </message>
     <message>
-        <location filename="res/SettingsDialogBase.ui" line="164"/>
+        <location filename="res/SettingsDialogBase.ui" line="302"/>
         <source>Error</source>
         <translation type="finished">Feil</translation>
     </message>
     <message>
-        <location filename="res/SettingsDialogBase.ui" line="169"/>
+        <location filename="res/SettingsDialogBase.ui" line="20"/>
+        <source>&amp;Graphical interface</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location filename="res/SettingsDialogBase.ui" line="55"/>
+        <source>&amp;Language:</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location filename="res/SettingsDialogBase.ui" line="82"/>
+        <source>&amp;Encryption</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location filename="res/SettingsDialogBase.ui" line="97"/>
+        <source>&amp;Mode:</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location filename="res/SettingsDialogBase.ui" line="142"/>
+        <source>Pass&amp;word:</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location filename="res/SettingsDialogBase.ui" line="307"/>
         <source>Warning</source>
         <translation type="finished">Advarsel</translation>
     </message>
     <message>
-        <location filename="res/SettingsDialogBase.ui" line="174"/>
+        <location filename="res/SettingsDialogBase.ui" line="312"/>
         <source>Note</source>
-        <translation type="unfinished"></translation>
+        <translation type="finished">Merknad</translation>
     </message>
     <message>
-        <location filename="res/SettingsDialogBase.ui" line="179"/>
+        <location filename="res/SettingsDialogBase.ui" line="317"/>
         <source>Info</source>
         <translation type="finished">Info</translation>
     </message>
     <message>
-        <location filename="res/SettingsDialogBase.ui" line="184"/>
+        <location filename="res/SettingsDialogBase.ui" line="322"/>
         <source>Debug</source>
-        <translation type="unfinished"></translation>
+        <translation type="finished">Feilsøk</translation>
     </message>
     <message>
-        <location filename="res/SettingsDialogBase.ui" line="189"/>
+        <location filename="res/SettingsDialogBase.ui" line="327"/>
         <source>Debug1</source>
-        <translation type="unfinished"></translation>
+        <translation type="finished">Feilsøk1</translation>
     </message>
     <message>
-        <location filename="res/SettingsDialogBase.ui" line="194"/>
+        <location filename="res/SettingsDialogBase.ui" line="332"/>
         <source>Debug2</source>
-        <translation type="unfinished"></translation>
-    </message>
-    <message>
-        <location filename="res/SettingsDialogBase.ui" line="205"/>
-        <source>&amp;Startup</source>
-        <translation type="unfinished"></translation>
+        <translation type="finished">Feilsøk2</translation>
     </message>
 </context>
 <context>
     <name>SetupWizard</name>
     <message>
-        <location filename="src/SetupWizard.cpp" line="43"/>
+        <location filename="src/SetupWizard.cpp" line="64"/>
         <source>Setup Synergy</source>
         <translation type="finished">Setup Synergy</translation>
     </message>
     <message>
-        <location filename="src/SetupWizard.cpp" line="54"/>
+        <location filename="src/SetupWizard.cpp" line="74"/>
         <source>Please select an option.</source>
+        <translation type="finished">Vennligst velg et alternativ.</translation>
+    </message>
+    <message>
+        <location filename="src/SetupWizard.cpp" line="84"/>
+        <source>Encryption mode required.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location filename="src/SetupWizard.cpp" line="93"/>
+        <source>Encryption password required.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location filename="src/SetupWizard.cpp" line="100"/>
+        <source>Encryption password and confirmation do not match.</source>
         <translation type="unfinished"></translation>
     </message>
 </context>
@@ -1035,36 +1062,86 @@ Dobbeltklikk en skjerm for å endre dens innstillinger.</translation>
         <translation type="finished">Setup Synergy</translation>
     </message>
     <message>
-        <location filename="res/SetupWizardBase.ui" line="30"/>
+        <location filename="res/SetupWizardBase.ui" line="24"/>
+        <source>Welcome</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location filename="res/SetupWizardBase.ui" line="33"/>
+        <source>Thanks for installing Synergy!</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location filename="res/SetupWizardBase.ui" line="108"/>
+        <source>Synergy lets you easily share your mouse and keyboard between multiple computers on your desk, and it's Free and Open Source. Just move your mouse off the edge of one computer's screen on to another. You can even share all of your clipboards. All you need is a network connection. Synergy is cross-platform (works on Windows, Mac OS X and Linux).</source>
+        <translation type="finished">Synergy kan du enkelt dele dine mus og tastatur mellom flere datamaskiner på skrivebordet, og det er gratis og Open Source. Bare flytte musen utenfor kanten av en datamaskin skjerm til en annen. Du kan også dele alle dine oppslagstavler. Alt du trenger er en nettverksforbindelse. Synergy er cross-platform (fungerer på Windows, Mac OS X og Linux).</translation>
+    </message>
+    <message>
+        <location filename="res/SetupWizardBase.ui" line="125"/>
         <source>Server or Client?</source>
         <translation type="finished">Server or Client?</translation>
     </message>
     <message>
-        <location filename="res/SetupWizardBase.ui" line="45"/>
+        <location filename="res/SetupWizardBase.ui" line="140"/>
         <source>&amp;Server (new setup)</source>
         <translation type="finished">&amp;Server (new setup)</translation>
     </message>
     <message>
-        <location filename="res/SetupWizardBase.ui" line="58"/>
+        <location filename="res/SetupWizardBase.ui" line="153"/>
         <source>This is the first computer you are configuring. Your keyboard and mouse are connected to this computer. This will allow you to move your mouse over to another computer's screen. There can only be one server in your setup.</source>
-        <translation type="unfinished"></translation>
+        <translation type="finished">Dette er den første datamaskinen du konfigurerer. Tastaturet og musen er tilkoblet denne datamaskinen. Dette vil gi deg muligheten til å bevege musen over til skjermen til en annen datamaskin. Det kan kun være én tjener i oppsettet ditt.</translation>
     </message>
     <message>
-        <location filename="res/SetupWizardBase.ui" line="90"/>
+        <location filename="res/SetupWizardBase.ui" line="185"/>
         <source>&amp;Client (add to setup)</source>
-        <translation type="unfinished"></translation>
+        <translation type="finished">&amp;Klient (legg til i oppsett)</translation>
     </message>
     <message>
-        <location filename="res/SetupWizardBase.ui" line="103"/>
+        <location filename="res/SetupWizardBase.ui" line="198"/>
         <source>You have already set up a server. This is a computer you wish to control using the server's keyboard and mouse. There can be many clients in your setup.</source>
         <oldsource>You have already set up a server. This a computer you wish to control using the server's keyboard and mouse. There can be many clients in your setup.</oldsource>
         <translation type="finished">Du har allerede satt opp en tjener. Dette er en datamaskin som du ønsker å styre med tjenerens tastatur og mus. Det kan være mange klienter i ditt oppsett.</translation>
+    </message>
+    <message>
+        <location filename="res/SetupWizardBase.ui" line="231"/>
+        <source>Encryption</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location filename="res/SetupWizardBase.ui" line="237"/>
+        <source>Network traffic can be easily monitored. Using encryption can reduce the risk that sensitive information will be revealed to others (for example, passwords).</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location filename="res/SetupWizardBase.ui" line="263"/>
+        <source>Choose a random encryption mode. The mode must be the same on both the client and server.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location filename="res/SetupWizardBase.ui" line="308"/>
+        <source>&amp;Mode:</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location filename="res/SetupWizardBase.ui" line="391"/>
+        <source>A longer password will provide stronger encryption. It is a good idea to use 20 characters or more.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location filename="res/SetupWizardBase.ui" line="415"/>
+        <source>&amp;Password:</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location filename="res/SetupWizardBase.ui" line="474"/>
+        <source>&amp;Confirm:</source>
+        <translation type="unfinished"></translation>
     </message>
 </context>
 <context>
     <name>VersionChecker</name>
     <message>
-        <location filename="src/VersionChecker.cpp" line="101"/>
+        <location filename="src/VersionChecker.cpp" line="102"/>
         <source>Unknown</source>
         <translation type="finished">Ukjent</translation>
     </message>

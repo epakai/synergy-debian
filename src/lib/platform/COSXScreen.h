@@ -27,6 +27,7 @@
 #include <Carbon/Carbon.h>
 #include "COSXClipboard.h"
 #include "CPlatformScreen.h"
+#include "CEventTypes.h"
 
 #include <mach/mach_port.h>
 #include <mach/mach_interface.h>
@@ -48,12 +49,15 @@ class CMutex;
 class CThread;
 class COSXKeyState;
 class COSXScreenSaver;
+class IEventQueue;
 
 //! Implementation of IPlatformScreen for OS X
 class COSXScreen : public CPlatformScreen {
 public:
-	COSXScreen(bool isPrimary, bool autoShowHideCursor=true);
+	COSXScreen(IEventQueue* events, bool isPrimary, bool autoShowHideCursor=true);
 	virtual ~COSXScreen();
+
+	IEventQueue*        getEvents() const { return m_events; }
 
 	// IScreen overrides
 	virtual void*		getEventTarget() const;
@@ -70,19 +74,14 @@ public:
 	virtual void		fakeInputBegin();
 	virtual void		fakeInputEnd();
 	virtual SInt32		getJumpZoneSize() const;
-	virtual bool		isAnyMouseButtonDown() const;
+	virtual bool		isAnyMouseButtonDown(UInt32& buttonID) const;
 	virtual void		getCursorCenter(SInt32& x, SInt32& y) const;
-	virtual void		gameDeviceTimingResp(UInt16 freq) { }
 
 	// ISecondaryScreen overrides
 	virtual void		fakeMouseButton(ButtonID id, bool press);
-	virtual void		fakeMouseMove(SInt32 x, SInt32 y) const;
+	virtual void		fakeMouseMove(SInt32 x, SInt32 y);
 	virtual void		fakeMouseRelativeMove(SInt32 dx, SInt32 dy) const;
 	virtual void		fakeMouseWheel(SInt32 xDelta, SInt32 yDelta) const;
-	virtual void		fakeGameDeviceButtons(GameDeviceID id, GameDeviceButton buttons) const { }
-	virtual void		fakeGameDeviceSticks(GameDeviceID id, SInt16 x1, SInt16 y1, SInt16 x2, SInt16 y2) const { }
-	virtual void		fakeGameDeviceTriggers(GameDeviceID id, UInt8 t1, UInt8 t2) const { }
-	virtual void		queueGameDeviceTimingReq() const { }
 
 	// IPlatformScreen overrides
 	virtual void		enable();
@@ -98,8 +97,11 @@ public:
 	virtual void		setOptions(const COptionsList& options);
 	virtual void		setSequenceNumber(UInt32);
 	virtual bool		isPrimary() const;
-	virtual void		gameDeviceFeedback(GameDeviceID id, UInt16 m1, UInt16 m2) { }
-
+	virtual void		fakeDraggingFiles(CString str);
+	virtual CString&	getDraggingFilename();
+	
+	const CString&		getDropTarget() const { return m_dropTarget; }
+	
 protected:
 	// IPlatformScreen overrides
 	virtual void		handleSystemEvent(const CEvent&, void*);
@@ -181,7 +183,6 @@ private:
 	void				handlePowerChangeRequest(natural_t messageType,
 							 void* messageArgument);
 
-	static CEvent::Type	getConfirmSleepEvent();
 	void				handleConfirmSleep(const CEvent& event, void*);
 	
 	// global hotkey operating mode
@@ -194,10 +195,16 @@ private:
 										   CGEventType type,
 										   CGEventRef event,
 										   void* refcon);
-        static CGEventRef	handleCGInputEventSecondary(CGEventTapProxy proxy,
-                                                                   		   CGEventType type,
-                                                                   		   CGEventRef event,
-                                                                   		   void* refcon);
+	static CGEventRef	handleCGInputEventSecondary(CGEventTapProxy proxy,
+													CGEventType type,
+													CGEventRef event,
+													void* refcon);
+	
+	// convert CFString to char*
+	static char*		CFStringRefToUTF8String(CFStringRef aString);
+	
+	void				getDropTargetThread(void*);
+	
 private:
 	struct CHotKeyItem {
 	public:
@@ -322,9 +329,6 @@ private:
 	// global hotkey operating mode
 	static bool				s_testedForGHOM;
 	static bool				s_hasGHOM;
-
-	// events
-	static CEvent::Type		s_confirmSleepEvent;
 	
 	// Quartz input event support
 	CFMachPortRef			m_eventTapPort;
@@ -338,6 +342,11 @@ private:
 
 	// cursor will hide and show on enable and disable if true.
 	bool					m_autoShowHideCursor;
+
+	IEventQueue*			m_events;
+	
+	CThread*				m_getDropTargetThread;
+	CString					m_dropTarget;
 };
 
 #endif

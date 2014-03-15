@@ -20,6 +20,7 @@
 #define CPLATFORMSCREEN_H
 
 #include "IPlatformScreen.h"
+#include <stdexcept>
 
 //! Base screen implementation
 /*!
@@ -29,8 +30,7 @@ subclasses to implement the rest.
 */
 class CPlatformScreen : public IPlatformScreen {
 public:
-	CPlatformScreen();
-	CPlatformScreen(IEventQueue& eventQueue);
+	CPlatformScreen(IEventQueue* events);
 	virtual ~CPlatformScreen();
 
 	// IScreen overrides
@@ -49,19 +49,14 @@ public:
 	virtual void		fakeInputBegin() = 0;
 	virtual void		fakeInputEnd() = 0;
 	virtual SInt32		getJumpZoneSize() const = 0;
-	virtual bool		isAnyMouseButtonDown() const = 0;
+	virtual bool		isAnyMouseButtonDown(UInt32& buttonID) const = 0;
 	virtual void		getCursorCenter(SInt32& x, SInt32& y) const = 0;
-	virtual void		gameDeviceTimingResp(UInt16 freq) = 0;
 
 	// ISecondaryScreen overrides
 	virtual void		fakeMouseButton(ButtonID id, bool press) = 0;
-	virtual void		fakeMouseMove(SInt32 x, SInt32 y) const = 0;
+	virtual void		fakeMouseMove(SInt32 x, SInt32 y) = 0;
 	virtual void		fakeMouseRelativeMove(SInt32 dx, SInt32 dy) const = 0;
 	virtual void		fakeMouseWheel(SInt32 xDelta, SInt32 yDelta) const = 0;
-	virtual void		fakeGameDeviceButtons(GameDeviceID id, GameDeviceButton buttons) const = 0;
-	virtual void		fakeGameDeviceSticks(GameDeviceID id, SInt16 x1, SInt16 y1, SInt16 x2, SInt16 y2) const = 0;
-	virtual void		fakeGameDeviceTriggers(GameDeviceID id, UInt8 t1, UInt8 t2) const = 0;
-	virtual void		queueGameDeviceTimingReq() const = 0;
 
 	// IKeyState overrides
 	virtual void		updateKeyMap();
@@ -82,6 +77,11 @@ public:
 	virtual SInt32		pollActiveGroup() const;
 	virtual void		pollPressedKeys(KeyButtonSet& pressedKeys) const;
 
+	virtual void		setDraggingStarted(bool started) { m_draggingStarted = started; }
+	virtual bool		getDraggingStarted();
+	virtual bool		getFakeDraggingStarted() { return m_fakeDraggingStarted; }
+	virtual CString&	getDraggingFilename() { return m_draggingFilename; }
+
 	// IPlatformScreen overrides
 	virtual void		enable() = 0;
 	virtual void		disable() = 0;
@@ -96,6 +96,10 @@ public:
 	virtual void		setOptions(const COptionsList& options) = 0;
 	virtual void		setSequenceNumber(UInt32) = 0;
 	virtual bool		isPrimary() const = 0;
+	
+	virtual void		fakeDraggingFiles(CString str) { throw std::runtime_error("fakeDraggingFiles not implemented"); }
+	virtual const CString&
+						getDropTarget() const { throw std::runtime_error("getDropTarget not implemented"); }
 
 protected:
 	//! Update mouse buttons
@@ -114,6 +118,11 @@ protected:
 
 	// IPlatformScreen overrides
 	virtual void		handleSystemEvent(const CEvent& event, void*) = 0;
+
+protected:
+	CString				m_draggingFilename;
+	bool				m_draggingStarted;
+	bool				m_fakeDraggingStarted;
 };
 
 #endif

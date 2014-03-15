@@ -23,10 +23,13 @@
 #include "Ipc.h"
 #include <list>
 #include "CArch.h"
+#include "CEventTypes.h"
 
 class CEvent;
 class CIpcClientProxy;
 class CIpcMessage;
+class IEventQueue;
+class CSocketMultiplexer;
 
 //! IPC server for communication between daemon and GUI.
 /*!
@@ -37,8 +40,8 @@ and allows the daemon and client/server to send log data to the GUI.
 */
 class CIpcServer {
 public:
-	CIpcServer();
-	CIpcServer(int port);
+	CIpcServer(IEventQueue* events, CSocketMultiplexer* socketMultiplexer);
+	CIpcServer(IEventQueue* events, CSocketMultiplexer* socketMultiplexer, int port);
 	virtual ~CIpcServer();
 
 	//! @name manipulators
@@ -57,12 +60,6 @@ public:
 	//! Returns true when there are clients of the specified type connected.
 	bool				hasClients(EIpcClientType clientType) const;
 
-	//! Raised when we have created the client proxy.
-	static CEvent::Type	getClientConnectedEvent();
-	
-	//! Raised when a message is received through a client proxy.
-	static CEvent::Type	getMessageReceivedEvent();
-
 	//@}
 
 private:
@@ -79,7 +76,5 @@ private:
 	CNetworkAddress		m_address;
 	CClientList			m_clients;
 	CArchMutex			m_clientsMutex;
-	
-	static CEvent::Type	s_clientConnectedEvent;
-	static CEvent::Type	s_messageReceivedEvent;
+	IEventQueue*		m_events;
 };

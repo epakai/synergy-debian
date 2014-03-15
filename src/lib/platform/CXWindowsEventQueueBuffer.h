@@ -28,13 +28,16 @@
 #	include <X11/Xlib.h>
 #endif
 
+class IEventQueue;
+
 //! Event queue buffer for X11
 class CXWindowsEventQueueBuffer : public IEventQueueBuffer {
 public:
-	CXWindowsEventQueueBuffer(Display*, Window);
+	CXWindowsEventQueueBuffer(Display*, Window, IEventQueue* events);
 	virtual ~CXWindowsEventQueueBuffer();
 
 	// IEventQueueBuffer overrides
+	virtual	void		init() { }
 	virtual void		waitForEvent(double timeout);
 	virtual Type		getEvent(CEvent& event, UInt32& dataID);
 	virtual bool		addEvent(UInt32 dataID);
@@ -56,7 +59,8 @@ private:
 	XEvent				m_event;
 	CEventList			m_postedEvents;
 	bool				m_waiting;
-	int				m_pipefd[2];
+	int					m_pipefd[2];
+	IEventQueue*		m_events;
 };
 
 #endif

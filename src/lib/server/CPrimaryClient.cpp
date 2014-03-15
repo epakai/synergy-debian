@@ -28,7 +28,8 @@
 CPrimaryClient::CPrimaryClient(const CString& name, CScreen* screen) :
 	CBaseClientProxy(name),
 	m_screen(screen),
-	m_fakeInputCount(0)
+	m_fakeInputCount(0),
+	m_mock(false)
 {
 	// all clipboards are clean
 	for (UInt32 i = 0; i < kClipboardEnd; ++i) {
@@ -243,31 +244,19 @@ CPrimaryClient::mouseWheel(SInt32, SInt32)
 }
 
 void
-CPrimaryClient::gameDeviceButtons(GameDeviceID, GameDeviceButton)
-{
-	// ignore
-}
-
-void
-CPrimaryClient::gameDeviceSticks(GameDeviceID, SInt16, SInt16, SInt16, SInt16)
-{
-	// ignore
-}
-
-void
-CPrimaryClient::gameDeviceTriggers(GameDeviceID, UInt8, UInt8)
-{
-	// ignore
-}
-
-void
-CPrimaryClient::gameDeviceTimingReq()
-{
-	// ignore
-}
-
-void
 CPrimaryClient::screensaver(bool)
+{
+	// ignore
+}
+
+void
+CPrimaryClient::draggingInfoSending(UInt32 fileCount, const char* data, size_t dataSize)
+{
+	// ignore
+}
+
+void
+CPrimaryClient::fileChunkSending(UInt8 mark, char* data, size_t dataSize)
 {
 	// ignore
 }

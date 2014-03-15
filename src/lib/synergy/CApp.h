@@ -34,12 +34,14 @@ class CBufferedLogOutputter;
 class ILogOutputter;
 class CFileLogOutputter;
 class CScreen;
+class IEventQueue;
+class CSocketMultiplexer;
 
-typedef IArchTaskBarReceiver* (*CreateTaskBarReceiverFunc)(const CBufferedLogOutputter*);
+typedef IArchTaskBarReceiver* (*CreateTaskBarReceiverFunc)(const CBufferedLogOutputter*, IEventQueue* events);
 
 class CApp : public IApp {
 public:
-	CApp(CreateTaskBarReceiverFunc createTaskBarReceiver, CArgsBase* args);
+	CApp(IEventQueue* events, CreateTaskBarReceiverFunc createTaskBarReceiver, CArgsBase* args);
 	virtual ~CApp();
 
 	// Returns args that are common between server and client.
@@ -93,6 +95,11 @@ public:
 
 	virtual void setByeFunc(void(*bye)(int)) { m_bye = bye; }
 	virtual void bye(int error) { m_bye(error); }
+	
+	virtual IEventQueue* getEvents() const { return m_events; }
+
+	void				setSocketMultiplexer(CSocketMultiplexer* sm) { m_socketMultiplexer = sm; }
+	CSocketMultiplexer*	getSocketMultiplexer() const { return m_socketMultiplexer; }
 
 private:
 	void				handleIpcMessage(const CEvent&, void*);
@@ -102,9 +109,11 @@ protected:
 	virtual bool parseArg(const int& argc, const char* const* argv, int& i);
 	void				initIpcClient();
 	void				cleanupIpcClient();
+	void				runEventsLoop(void*);
 
 	IArchTaskBarReceiver* m_taskBarReceiver;
 	bool m_suspended;
+	IEventQueue*		m_events;
 
 private:
 	CArgsBase* m_args;
@@ -113,6 +122,7 @@ private:
 	CreateTaskBarReceiverFunc m_createTaskBarReceiver;
 	ARCH_APP_UTIL m_appUtil;
 	CIpcClient*			m_ipcClient;
+	CSocketMultiplexer*	m_socketMultiplexer;
 };
 
 #define BYE "\nTry `%s --help' for more information."
@@ -155,17 +165,6 @@ private:
 
 #elif SYSAPI_WIN32
 
-#if GAME_DEVICE_SUPPORT
-#  define HELP_GAME_DEVICE \
-	"      --game-mode <mode>   enable game device support. valid modes:\n" \
-	"							  xinput, joyinfoex\n" \
-	"      --game-poll <mode>	game polling mode. valid modes:\n" \
-	"							  dynamic, static\n" \
-	"      --game-poll-freq <i>	frequency for static polling.\n"
-#else
-#  define HELP_GAME_DEVICE ""
-#endif
-
 // windows args
 #  define HELP_SYS_ARGS \
 	" [--service <action>] [--relaunch] [--exit-pause]"
@@ -175,7 +174,5 @@ private:
 	"      --relaunch           persistently relaunches process in current user \n" \
 	"                             session (useful for vista and upward).\n" \
 	"      --exit-pause         wait for key press on exit, can be useful for\n" \
-	"                             reading error messages that occur on exit.\n" \
-	HELP_GAME_DEVICE
-
+	"                             reading error messages that occur on exit.\n"
 #endif

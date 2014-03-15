@@ -17,14 +17,13 @@
  */
 
 #include "CPlatformScreen.h"
+#include "CApp.h"
+#include "CArgsBase.h"
 
-CPlatformScreen::CPlatformScreen()
-{
-	// do nothing
-}
-
-CPlatformScreen::CPlatformScreen(IEventQueue& eventQueue) :
-	IPlatformScreen(eventQueue)
+CPlatformScreen::CPlatformScreen(IEventQueue* events) :
+	IPlatformScreen(events),
+	m_draggingStarted(false),
+	m_fakeDraggingStarted(false)
 {
 }
 
@@ -112,4 +111,13 @@ void
 CPlatformScreen::pollPressedKeys(KeyButtonSet& pressedKeys) const
 {
 	getKeyState()->pollPressedKeys(pressedKeys);
+}
+
+bool
+CPlatformScreen::getDraggingStarted()
+{
+	if (CApp::instance().argsBase().m_enableDragDrop) {
+		return m_draggingStarted;
+	}
+	return false;
 }

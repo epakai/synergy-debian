@@ -36,8 +36,14 @@
 #include "TMethodJob.h"
 #include "CArch.h"
 #include "CArchMiscWindows.h"
+#include "CApp.h"
+#include "CArgsBase.h"
+#include "CClientApp.h"
+#include "CClient.h"
 #include <string.h>
 #include <pbt.h>
+#include <Shlobj.h>
+#include <comutil.h>
 
 //
 // add backwards compatible multihead support (and suppress bogus warning).
@@ -84,8 +90,9 @@ CMSWindowsScreen*		CMSWindowsScreen::s_screen   = NULL;
 CMSWindowsScreen::CMSWindowsScreen(
 	bool isPrimary,
 	bool noHooks,
-	const CGameDeviceInfo& gameDeviceInfo,
-	bool stopOnDeskSwitch) :
+	bool stopOnDeskSwitch,
+	IEventQueue* events) :
+	CPlatformScreen(events),
 	m_isPrimary(isPrimary),
 	m_noHooks(noHooks),
 	m_is95Family(CArchMiscWindows::isWindows95Family()),
@@ -109,11 +116,11 @@ CMSWindowsScreen::CMSWindowsScreen(
 	m_ownClipboard(false),
 	m_desks(NULL),
 	m_hookLibrary(NULL),
+	m_shellLibrary(NULL),
 	m_keyState(NULL),
 	m_hasMouse(GetSystemMetrics(SM_MOUSEPRESENT) != 0),
 	m_showingMouse(false),
-	m_gameDeviceInfo(gameDeviceInfo),
-	m_gameDevice(NULL)
+	m_events(events)
 {
 	assert(s_windowInstance != NULL);
 	assert(s_screen   == NULL);
@@ -121,23 +128,35 @@ CMSWindowsScreen::CMSWindowsScreen(
 	s_screen = this;
 	try {
 		if (m_isPrimary && !m_noHooks) {
-			m_hookLibrary = openHookLibrary("synrgyhk");
+			m_hookLibrary = openHookLibrary("synwinhk");
 		}
+		m_shellLibrary = openShellLibrary("synwinxt");
+
 		m_screensaver = new CMSWindowsScreenSaver();
 		m_desks       = new CMSWindowsDesks(
 							m_isPrimary, m_noHooks,
 							m_hookLibrary, m_screensaver,
-							*EVENTQUEUE,
+							m_events,
 							new TMethodJob<CMSWindowsScreen>(this,
 								&CMSWindowsScreen::updateKeysCB),
 							stopOnDeskSwitch);
-		m_keyState    = new CMSWindowsKeyState(m_desks, getEventTarget());
+		m_keyState    = new CMSWindowsKeyState(m_desks, getEventTarget(), m_events);
 		updateScreenShape();
 		m_class       = createWindowClass();
 		m_window      = createWindow(m_class, "Synergy");
 		forceShowCursor();
 		LOG((CLOG_DEBUG "screen shape: %d,%d %dx%d %s", m_x, m_y, m_w, m_h, m_multimon ? "(multi-monitor)" : ""));
 		LOG((CLOG_DEBUG "window is 0x%08x", m_window));
+		
+		// SHGetFolderPath is deprecated in vista, but use it for xp support.
+		char desktopPath[MAX_PATH];
+		if (SUCCEEDED(SHGetFolderPath(NULL, CSIDL_DESKTOP, NULL, 0, desktopPath))) {
+			m_desktopPath = CString(desktopPath);
+			LOG((CLOG_DEBUG "using desktop for drop target: %s", m_desktopPath.c_str()));
+		}
+		else {
+			LOG((CLOG_ERR "failed to get desktop path, no drop target available, error=%d", GetLastError()));
+		}
 	}
 	catch (...) {
 		delete m_keyState;
@@ -149,36 +168,20 @@ CMSWindowsScreen::CMSWindowsScreen(
 		if (m_hookLibrary != NULL)
 			closeHookLibrary(m_hookLibrary);
 
+		if (m_shellLibrary != NULL)
+			closeShellLibrary(m_shellLibrary);
+
 		s_screen = NULL;
 		throw;
 	}
 
 	// install event handlers
-	EVENTQUEUE->adoptHandler(CEvent::kSystem, IEventQueue::getSystemTarget(),
+	m_events->adoptHandler(CEvent::kSystem, m_events->getSystemTarget(),
 							new TMethodEventJob<CMSWindowsScreen>(this,
 								&CMSWindowsScreen::handleSystemEvent));
 
 	// install the platform event queue
-	EVENTQUEUE->adoptBuffer(new CMSWindowsEventQueueBuffer);
-
-	if ((gameDeviceInfo.m_mode == CGameDeviceInfo::kGameModeXInput) &&
-		(gameDeviceInfo.m_poll != CGameDeviceInfo::kGamePollDynamic))
-		LOG((CLOG_WARN "only dynamic polling is supported with xnput."));
-
-	if ((gameDeviceInfo.m_mode == CGameDeviceInfo::kGameModeJoyInfoEx) &&
-		(gameDeviceInfo.m_poll != CGameDeviceInfo::kGamePollStatic))
-		LOG((CLOG_WARN "only static polling is supported with joyinfoex."));
-
-	if (m_gameDeviceInfo.m_mode == CGameDeviceInfo::kGameModeXInput) {
-#if GAME_DEVICE_SUPPORT
-		m_gameDevice = new CMSWindowsXInput(this, gameDeviceInfo);
-#else if _AMD64_
-		LOG((CLOG_WARN "xinput game device mode not supported for 64-bit."));
-#endif
-	}
-	else {
-		m_gameDevice = new CEventGameDevice(getEventTarget());
-	}
+	m_events->adoptBuffer(new CMSWindowsEventQueueBuffer(m_events));
 }
 
 CMSWindowsScreen::~CMSWindowsScreen()
@@ -186,19 +189,19 @@ CMSWindowsScreen::~CMSWindowsScreen()
 	assert(s_screen != NULL);
 
 	disable();
-	EVENTQUEUE->adoptBuffer(NULL);
-	EVENTQUEUE->removeHandler(CEvent::kSystem, IEventQueue::getSystemTarget());
+	m_events->adoptBuffer(NULL);
+	m_events->removeHandler(CEvent::kSystem, m_events->getSystemTarget());
 	delete m_keyState;
 	delete m_desks;
 	delete m_screensaver;
 	destroyWindow(m_window);
 	destroyClass(m_class);
 
-	if (m_gameDevice != NULL)
-		delete m_gameDevice;
-
 	if (m_hookLibrary != NULL)
 		closeHookLibrary(m_hookLibrary);
+
+	if (m_shellLibrary != NULL)
+		closeShellLibrary(m_shellLibrary);
 
 	s_screen = NULL;
 }
@@ -224,8 +227,8 @@ CMSWindowsScreen::enable()
 	assert(m_isOnScreen == m_isPrimary);
 
 	// we need to poll some things to fix them
-	m_fixTimer = EVENTQUEUE->newTimer(1.0, NULL);
-	EVENTQUEUE->adoptHandler(CEvent::kTimer, m_fixTimer,
+	m_fixTimer = m_events->newTimer(1.0, NULL);
+	m_events->adoptHandler(CEvent::kTimer, m_fixTimer,
 							new TMethodEventJob<CMSWindowsScreen>(this,
 								&CMSWindowsScreen::handleFixes));
 
@@ -282,8 +285,8 @@ CMSWindowsScreen::disable()
 
 	// uninstall fix timer
 	if (m_fixTimer != NULL) {
-		EVENTQUEUE->removeHandler(CEvent::kTimer, m_fixTimer);
-		EVENTQUEUE->deleteTimer(m_fixTimer);
+		m_events->removeHandler(CEvent::kTimer, m_fixTimer);
+		m_events->deleteTimer(m_fixTimer);
 		m_fixTimer = NULL;
 	}
 
@@ -364,6 +367,31 @@ CMSWindowsScreen::leave()
 	m_isOnScreen = false;
 	forceShowCursor();
 
+	if (getDraggingStarted()) {
+		CString& draggingFilename = getDraggingFilename();
+		size_t size = draggingFilename.size();
+
+		if (!m_isPrimary) {
+			// TODO: fake these keys properly
+			fakeKeyDown(kKeyEscape, 8192, 1);
+			fakeKeyUp(1);
+
+			fakeMouseButton(kButtonLeft, false);
+
+			if (draggingFilename.empty() == false) {
+				CClientApp& app = CClientApp::instance();
+				CClient* client = app.getClientPtr();
+				UInt32 fileCount = 1;
+				LOG((CLOG_DEBUG "send dragging info to server: %s", draggingFilename.c_str()));
+				client->draggingInfoSending(fileCount, draggingFilename, size);
+				LOG((CLOG_DEBUG "send dragging file to server"));
+				client->sendFileToServer(draggingFilename.c_str());
+			}
+		}
+
+		m_draggingStarted = false;
+	}
+	
 	return true;
 }
 
@@ -403,8 +431,8 @@ CMSWindowsScreen::checkClipboards()
 	if (m_ownClipboard && !CMSWindowsClipboard::isOwnedBySynergy()) {
 		LOG((CLOG_DEBUG "clipboard changed: lost ownership and no notification received"));
 		m_ownClipboard = false;
-		sendClipboardEvent(getClipboardGrabbedEvent(), kClipboardClipboard);
-		sendClipboardEvent(getClipboardGrabbedEvent(), kClipboardSelection);
+		sendClipboardEvent(m_events->forIScreen().clipboardGrabbed(), kClipboardClipboard);
+		sendClipboardEvent(m_events->forIScreen().clipboardGrabbed(), kClipboardSelection);
 	}
 }
 
@@ -677,7 +705,7 @@ CMSWindowsScreen::getJumpZoneSize() const
 }
 
 bool
-CMSWindowsScreen::isAnyMouseButtonDown() const
+CMSWindowsScreen::isAnyMouseButtonDown(UInt32& buttonID) const
 {
 	static const char* buttonToName[] = {
 		"<invalid>",
@@ -690,6 +718,7 @@ CMSWindowsScreen::isAnyMouseButtonDown() const
 
 	for (UInt32 i = 1; i < sizeof(m_buttons) / sizeof(m_buttons[0]); ++i) {
 		if (m_buttons[i]) {
+			buttonID = i;
 			LOG((CLOG_DEBUG "locked by \"%s\"", buttonToName[i]));
 			return true;
 		}
@@ -706,27 +735,29 @@ CMSWindowsScreen::getCursorCenter(SInt32& x, SInt32& y) const
 }
 
 void
-CMSWindowsScreen::gameDeviceTimingResp(UInt16 freq)
-{
-	m_gameDevice->gameDeviceTimingResp(freq);
-}
-
-void
-CMSWindowsScreen::gameDeviceFeedback(GameDeviceID id, UInt16 m1, UInt16 m2)
-{
-	m_gameDevice->gameDeviceFeedback(id, m1, m2);
-}
-
-void
 CMSWindowsScreen::fakeMouseButton(ButtonID id, bool press)
 {
 	m_desks->fakeMouseButton(id, press);
+
+	if (id == kButtonLeft) {
+		if (press) {
+			m_buttons[kButtonLeft] = true;
+		}
+		else {
+			m_buttons[kButtonLeft] = false;
+			m_fakeDraggingStarted = false;
+			m_draggingStarted = false;
+		}
+	}
 }
 
 void
-CMSWindowsScreen::fakeMouseMove(SInt32 x, SInt32 y) const
+CMSWindowsScreen::fakeMouseMove(SInt32 x, SInt32 y)
 {
 	m_desks->fakeMouseMove(x, y);
+	if (m_buttons[kButtonLeft]) {
+		m_draggingStarted = true;
+	}
 }
 
 void
@@ -739,34 +770,6 @@ void
 CMSWindowsScreen::fakeMouseWheel(SInt32 xDelta, SInt32 yDelta) const
 {
 	m_desks->fakeMouseWheel(xDelta, yDelta);
-}
-
-void
-CMSWindowsScreen::fakeGameDeviceButtons(GameDeviceID id, GameDeviceButton buttons) const
-{
-	LOG((CLOG_DEBUG "fake game device buttons id=%d buttons=%d", id, buttons));
-	m_gameDevice->fakeGameDeviceButtons(id, buttons);
-}
-
-void
-CMSWindowsScreen::fakeGameDeviceSticks(GameDeviceID id, SInt16 x1, SInt16 y1, SInt16 x2, SInt16 y2) const
-{
-	LOG((CLOG_DEBUG "fake game device sticks id=%d s1=%+d,%+d s2=%+d,%+d", id, x1, y1, x2, y2));
-	m_gameDevice->fakeGameDeviceSticks(id, x1, y1, x2, y2);
-}
-
-void
-CMSWindowsScreen::fakeGameDeviceTriggers(GameDeviceID id, UInt8 t1, UInt8 t2) const
-{
-	LOG((CLOG_DEBUG "fake game device triggers id=%d t1=%d t2=%d", id, t1, t2));
-	m_gameDevice->fakeGameDeviceTriggers(id, t1, t2);
-}
-
-void
-CMSWindowsScreen::queueGameDeviceTimingReq() const
-{
-	LOG((CLOG_DEBUG "queue game device timing request"));
-	m_gameDevice->queueGameDeviceTimingReq();
 }
 
 void
@@ -813,12 +816,26 @@ CMSWindowsScreen::openHookLibrary(const char* name)
 	return m_hookLibraryLoader.openHookLibrary(name);
 }
 
+HINSTANCE
+CMSWindowsScreen::openShellLibrary(const char* name)
+{
+	return m_hookLibraryLoader.openShellLibrary(name);
+}
+
 void
 CMSWindowsScreen::closeHookLibrary(HINSTANCE hookLibrary) const
 {
 	if (hookLibrary != NULL) {
 		m_hookLibraryLoader.m_cleanup();
 		FreeLibrary(hookLibrary);
+	}
+}
+
+void
+CMSWindowsScreen::closeShellLibrary(HINSTANCE shellLibrary) const
+{
+	if (shellLibrary != NULL) {
+		FreeLibrary(shellLibrary);
 	}
 }
 
@@ -905,7 +922,7 @@ CMSWindowsScreen::destroyWindow(HWND hwnd) const
 void
 CMSWindowsScreen::sendEvent(CEvent::Type type, void* data)
 {
-	EVENTQUEUE->addEvent(CEvent(type, getEventTarget(), data));
+	m_events->addEvent(CEvent(type, getEventTarget(), data));
 }
 
 void
@@ -1051,7 +1068,7 @@ CMSWindowsScreen::onEvent(HWND, UINT msg,
 	case WM_ENDSESSION:
 		if (m_is95Family) {
 			if (wParam == TRUE && lParam == 0) {
-				EVENTQUEUE->addEvent(CEvent(CEvent::kQuit));
+				m_events->addEvent(CEvent(CEvent::kQuit));
 			}
 			return true;
 		}
@@ -1084,13 +1101,13 @@ CMSWindowsScreen::onEvent(HWND, UINT msg,
 		case PBT_APMRESUMEAUTOMATIC:
 		case PBT_APMRESUMECRITICAL:
 		case PBT_APMRESUMESUSPEND:
-			EVENTQUEUE->addEvent(CEvent(IScreen::getResumeEvent(),
+			m_events->addEvent(CEvent(m_events->forIScreen().resume(),
 							getEventTarget(), NULL,
 							CEvent::kDeliverImmediately));
 			break;
 
 		case PBT_APMSUSPEND:
-			EVENTQUEUE->addEvent(CEvent(IScreen::getSuspendEvent(),
+			m_events->addEvent(CEvent(m_events->forIScreen().suspend(),
 							getEventTarget(), NULL,
 							CEvent::kDeliverImmediately));
 			break;
@@ -1296,14 +1313,14 @@ CMSWindowsScreen::onHotKey(WPARAM wParam, LPARAM lParam)
 			// ignore key repeats but it counts as a hot key
 			return true;
 		}
-		type = getHotKeyDownEvent();
+		type = m_events->forIPrimaryScreen().hotKeyDown();
 	}
 	else {
-		type = getHotKeyUpEvent();
+		type = m_events->forIPrimaryScreen().hotKeyUp();
 	}
 
 	// generate event
-	EVENTQUEUE->addEvent(CEvent(type, getEventTarget(),
+	m_events->addEvent(CEvent(type, getEventTarget(),
 							CHotKeyInfo::alloc(i->second)));
 
 	return true;
@@ -1320,9 +1337,16 @@ CMSWindowsScreen::onMouseButton(WPARAM wParam, LPARAM lParam)
 	if (button >= kButtonLeft && button <= kButtonExtra0 + 1) {
 		if (pressed) {
 			m_buttons[button] = true;
+			if (button == kButtonLeft) {
+				m_draggingFilename.clear();
+				LOG((CLOG_DEBUG2 "dragging filename is cleared"));
+			}
 		}
 		else {
 			m_buttons[button] = false;
+			if (m_draggingStarted && button == kButtonLeft) {
+				m_draggingStarted = false;
+			}
 		}
 	}
 
@@ -1332,14 +1356,14 @@ CMSWindowsScreen::onMouseButton(WPARAM wParam, LPARAM lParam)
 		if (pressed) {
 			LOG((CLOG_DEBUG1 "event: button press button=%d", button));
 			if (button != kButtonNone) {
-				sendEvent(getButtonDownEvent(),
+				sendEvent(m_events->forIPrimaryScreen().buttonDown(),
 								CButtonInfo::alloc(button, mask));
 			}
 		}
 		else {
 			LOG((CLOG_DEBUG1 "event: button release button=%d", button));
 			if (button != kButtonNone) {
-				sendEvent(getButtonUpEvent(),
+				sendEvent(m_events->forIPrimaryScreen().buttonUp(),
 								CButtonInfo::alloc(button, mask));
 			}
 		}
@@ -1381,8 +1405,12 @@ CMSWindowsScreen::onMouseMove(SInt32 mx, SInt32 my)
 		
 		// motion on primary screen
 		sendEvent(
-			getMotionOnPrimaryEvent(),
+			m_events->forIPrimaryScreen().motionOnPrimary(),
 			CMotionInfo::alloc(m_xCursor, m_yCursor));
+
+		if (m_buttons[kButtonLeft] == true && m_draggingStarted == false) {
+			m_draggingStarted = true;
+		}
 	}
 	else 
 	{
@@ -1408,7 +1436,7 @@ CMSWindowsScreen::onMouseMove(SInt32 mx, SInt32 my)
 		}
 		else {
 			// send motion
-			sendEvent(getMotionOnSecondaryEvent(), CMotionInfo::alloc(x, y));
+			sendEvent(m_events->forIPrimaryScreen().motionOnSecondary(), CMotionInfo::alloc(x, y));
 		}
 	}
 
@@ -1421,7 +1449,7 @@ CMSWindowsScreen::onMouseWheel(SInt32 xDelta, SInt32 yDelta)
 	// ignore message if posted prior to last mark change
 	if (!ignore()) {
 		LOG((CLOG_DEBUG1 "event: button wheel delta=%+d,%+d", xDelta, yDelta));
-		sendEvent(getWheelEvent(), CWheelInfo::alloc(xDelta, yDelta));
+		sendEvent(m_events->forIPrimaryScreen().wheel(), CWheelInfo::alloc(xDelta, yDelta));
 	}
 	return true;
 }
@@ -1447,7 +1475,7 @@ CMSWindowsScreen::onScreensaver(bool activated)
 		if (!m_screensaverActive &&
 			m_screensaver->checkStarted(SYNERGY_MSG_SCREEN_SAVER, FALSE, 0)) {
 			m_screensaverActive = true;
-			sendEvent(getScreensaverActivatedEvent());
+			sendEvent(m_events->forIPrimaryScreen().screensaverActivated());
 
 			// enable display power down
 			CArchMiscWindows::removeBusyState(CArchMiscWindows::kDISPLAY);
@@ -1456,7 +1484,7 @@ CMSWindowsScreen::onScreensaver(bool activated)
 	else {
 		if (m_screensaverActive) {
 			m_screensaverActive = false;
-			sendEvent(getScreensaverDeactivatedEvent());
+			sendEvent(m_events->forIPrimaryScreen().screensaverDeactivated());
 
 			// disable display power down
 			CArchMiscWindows::addBusyState(CArchMiscWindows::kDISPLAY);
@@ -1492,7 +1520,7 @@ CMSWindowsScreen::onDisplayChange()
 		}
 
 		// send new screen info
-		sendEvent(getShapeChangedEvent());
+		sendEvent(m_events->forIScreen().shapeChanged());
 
 		LOG((CLOG_DEBUG "screen shape: %d,%d %dx%d %s", m_x, m_y, m_w, m_h, m_multimon ? "(multi-monitor)" : ""));
 	}
@@ -1509,8 +1537,8 @@ CMSWindowsScreen::onClipboardChange()
 		if (m_ownClipboard) {
 			LOG((CLOG_DEBUG "clipboard changed: lost ownership"));
 			m_ownClipboard = false;
-			sendClipboardEvent(getClipboardGrabbedEvent(), kClipboardClipboard);
-			sendClipboardEvent(getClipboardGrabbedEvent(), kClipboardSelection);
+			sendClipboardEvent(m_events->forIScreen().clipboardGrabbed(), kClipboardClipboard);
+			sendClipboardEvent(m_events->forIScreen().clipboardGrabbed(), kClipboardSelection);
 		}
 	}
 	else if (!m_ownClipboard) {
@@ -1864,4 +1892,31 @@ CMSWindowsScreen::CHotKeyItem::operator<(const CHotKeyItem& x) const
 {
 	return (m_keycode < x.m_keycode ||
 			(m_keycode == x.m_keycode && m_mask < x.m_mask));
+}
+
+void
+CMSWindowsScreen::fakeDraggingFiles(CString str)
+{
+	// possible design flaw: this function stops a "not implemented"
+	// exception from being thrown.
+}
+
+CString&
+CMSWindowsScreen::getDraggingFilename()
+{
+	if (m_draggingStarted) {
+		// temporarily log out dragging filename
+		char dir[MAX_PATH];
+		m_hookLibraryLoader.m_getDraggingFilename(dir);
+		m_draggingFilename.clear();
+		m_draggingFilename.append(dir);
+	}
+
+	return m_draggingFilename;
+}
+
+const CString&
+CMSWindowsScreen::getDropTarget() const
+{
+	return m_desktopPath;
 }

@@ -24,7 +24,9 @@
 // CTCPSocketFactory
 //
 
-CTCPSocketFactory::CTCPSocketFactory()
+CTCPSocketFactory::CTCPSocketFactory(IEventQueue* events, CSocketMultiplexer* socketMultiplexer) :
+	m_events(events),
+	m_socketMultiplexer(socketMultiplexer)
 {
 	// do nothing
 }
@@ -37,11 +39,11 @@ CTCPSocketFactory::~CTCPSocketFactory()
 IDataSocket*
 CTCPSocketFactory::create() const
 {
-	return new CTCPSocket;
+	return new CTCPSocket(m_events, m_socketMultiplexer);
 }
 
 IListenSocket*
 CTCPSocketFactory::createListen() const
 {
-	return new CTCPListenSocket;
+	return new CTCPListenSocket(m_events, m_socketMultiplexer);
 }

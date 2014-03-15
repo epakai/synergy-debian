@@ -14,11 +14,30 @@
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
-set(src
-	Main.cpp
-	CIpcTests.cpp
+set(h
+	CTestEventQueue.h
 )
 
+set(src
+	${h}
+	Main.cpp
+	CIpcTests.cpp
+	NetworkTests.cpp
+	CTestEventQueue.cpp
+)
+
+# arch
+if (WIN32)
+	list(APPEND src
+		arch/CArchInternetWindowsTests.cpp
+	)
+elseif (UNIX)
+	list(APPEND src
+		arch/CArchInternetUnixTests.cpp
+	)
+endif()
+
+# platform
 if (WIN32)
 	list(APPEND src
 		platform/CMSWindowsClipboardTests.cpp
@@ -30,7 +49,6 @@ elseif (APPLE)
 		platform/COSXKeyStateTests.cpp
 		platform/COSXScreenTests.cpp
 	)
-
 elseif (UNIX)
 	list(APPEND src
 		platform/CXWindowsClipboardTests.cpp
@@ -50,11 +68,13 @@ set(inc
 	../../lib/mt
 	../../lib/net
 	../../lib/platform
+	../../lib/server
 	../../lib/synergy
+	../../lib/synwinhk
+	../../lib/synwinxt
 	../../../tools/gtest-1.6.0/include
 	../../../tools/gmock-1.6.0/include
 	../unittests
-	../unittests/synergy
 )
 
 if (UNIX)
@@ -63,13 +83,7 @@ if (UNIX)
 	)
 endif()
 
-if (WIN32)
-	if (GAME_DEVICE_SUPPORT)
-		link_directories("$ENV{DXSDK_DIR}/Lib/x86")
-	endif()
-endif()
-
 include_directories(${inc})
 add_executable(integtests ${src})
 target_link_libraries(integtests
-	arch base client common io ipc mt net platform server synergy gtest gmock ${libs})
+	arch base client common io ipc mt net platform server synergy gtest gmock cryptopp ${libs})

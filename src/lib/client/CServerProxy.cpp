@@ -28,14 +28,15 @@
 #include "TMethodEventJob.h"
 #include "XBase.h"
 #include <memory>
-#include <cstring>
 #include "CCryptoStream.h"
 
 //
 // CServerProxy
 //
 
-CServerProxy::CServerProxy(CClient* client, synergy::IStream* stream, IEventQueue* eventQueue) :
+const UInt16 CServerProxy::m_intervalThreshold = 1;
+
+CServerProxy::CServerProxy(CClient* client, synergy::IStream* stream, IEventQueue* events) :
 	m_client(client),
 	m_stream(stream),
 	m_seqNum(0),
@@ -49,7 +50,10 @@ CServerProxy::CServerProxy(CClient* client, synergy::IStream* stream, IEventQueu
 	m_keepAliveAlarm(0.0),
 	m_keepAliveAlarmTimer(NULL),
 	m_parser(&CServerProxy::parseHandshakeMessage),
-	m_eventQueue(eventQueue)
+	m_events(events),
+	m_stopwatch(true),
+	m_elapsedTime(0),
+	m_receivedDataSize(0)
 {
 	assert(m_client != NULL);
 	assert(m_stream != NULL);
@@ -59,7 +63,7 @@ CServerProxy::CServerProxy(CClient* client, synergy::IStream* stream, IEventQueu
 		m_modifierTranslationTable[id] = id;
 
 	// handle data on stream
-	m_eventQueue->adoptHandler(m_stream->getInputReadyEvent(),
+	m_events->adoptHandler(m_events->forIStream().inputReady(),
 							m_stream->getEventTarget(),
 							new TMethodEventJob<CServerProxy>(this,
 								&CServerProxy::handleData));
@@ -71,7 +75,7 @@ CServerProxy::CServerProxy(CClient* client, synergy::IStream* stream, IEventQueu
 CServerProxy::~CServerProxy()
 {
 	setKeepAliveRate(-1.0);
-	m_eventQueue->removeHandler(m_stream->getInputReadyEvent(),
+	m_events->removeHandler(m_events->forIStream().inputReady(),
 							m_stream->getEventTarget());
 }
 
@@ -79,14 +83,14 @@ void
 CServerProxy::resetKeepAliveAlarm()
 {
 	if (m_keepAliveAlarmTimer != NULL) {
-		m_eventQueue->removeHandler(CEvent::kTimer, m_keepAliveAlarmTimer);
-		m_eventQueue->deleteTimer(m_keepAliveAlarmTimer);
+		m_events->removeHandler(CEvent::kTimer, m_keepAliveAlarmTimer);
+		m_events->deleteTimer(m_keepAliveAlarmTimer);
 		m_keepAliveAlarmTimer = NULL;
 	}
 	if (m_keepAliveAlarm > 0.0) {
 		m_keepAliveAlarmTimer =
-			m_eventQueue->newOneShotTimer(m_keepAliveAlarm, NULL);
-		m_eventQueue->adoptHandler(CEvent::kTimer, m_keepAliveAlarmTimer,
+			m_events->newOneShotTimer(m_keepAliveAlarm, NULL);
+		m_events->adoptHandler(CEvent::kTimer, m_keepAliveAlarmTimer,
 							new TMethodEventJob<CServerProxy>(this,
 								&CServerProxy::handleKeepAliveAlarm));
 	}
@@ -289,24 +293,15 @@ CServerProxy::parseMessage(const UInt8* code)
 		setOptions();
 	}
 
-	else if (memcmp(code, kMsgDGameButtons, 4) == 0) {
-		gameDeviceButtons();
-	}
-
-	else if (memcmp(code, kMsgDGameSticks, 4) == 0) {
-		gameDeviceSticks();
-	}
-
-	else if (memcmp(code, kMsgDGameTriggers, 4) == 0) {
-		gameDeviceTriggers();
-	}
-
-	else if (memcmp(code, kMsgCGameTimingReq, 4) == 0) {
-		gameDeviceTimingReq();
-	}
-
 	else if (memcmp(code, kMsgDCryptoIv, 4) == 0) {
 		cryptoIv();
+	}
+
+	else if (memcmp(code, kMsgDFileTransfer, 4) == 0) {
+		fileChunkReceived();
+	}
+	else if (memcmp(code, kMsgDDragInfo, 4) == 0) {
+		dragInfoReceived();
 	}
 
 	else if (memcmp(code, kMsgCClose, 4) == 0) {
@@ -368,20 +363,6 @@ CServerProxy::onClipboardChanged(ClipboardID id, const IClipboard* clipboard)
 	CString data = IClipboard::marshall(clipboard);
 	LOG((CLOG_DEBUG1 "sending clipboard %d seqnum=%d, size=%d", id, m_seqNum, data.size()));
 	CProtocolUtil::writef(m_stream, kMsgDClipboard, id, m_seqNum, &data);
-}
-
-void
-CServerProxy::onGameDeviceTimingResp(UInt16 freq)
-{
-	LOG((CLOG_DEBUG1 "sending game device timing response freq=%d", freq));
-	CProtocolUtil::writef(m_stream, kMsgCGameTimingResp, freq);
-}
-
-void
-CServerProxy::onGameDeviceFeedback(GameDeviceID id, UInt16 m1, UInt16 m2)
-{
-	LOG((CLOG_DEBUG1 "sending game device feedback id=%d, m1=%d, m2=%d", id, m1, m2));
-	CProtocolUtil::writef(m_stream, kMsgDGameFeedback, id, m1, m2);
 }
 
 void
@@ -781,55 +762,6 @@ CServerProxy::mouseWheel()
 }
 
 void
-CServerProxy::gameDeviceButtons()
-{
-	// parse
-	GameDeviceID id;
-	GameDeviceButton buttons;
-	CProtocolUtil::readf(m_stream, kMsgDGameButtons + 4, &id, &buttons);
-	LOG((CLOG_DEBUG2 "recv game device id=%d buttons=%d", id, buttons));
-
-	// forward
-	m_client->gameDeviceButtons(id, buttons);
-}
-
-void
-CServerProxy::gameDeviceSticks()
-{
-	// parse
-	GameDeviceID id;
-	SInt16 x1, y1, x2, y2;
-	CProtocolUtil::readf(m_stream, kMsgDGameSticks + 4, &id, &x1, &y1, &x2, &y2);
-	LOG((CLOG_DEBUG2 "recv game device sticks id=%d s1=%+d,%+d s2=%+d,%+d", id, x1, y1, x2, y2));
-
-	// forward
-	m_client->gameDeviceSticks(id, x1, y1, x2, y2);
-}
-
-void
-CServerProxy::gameDeviceTriggers()
-{
-	// parse
-	GameDeviceID id;
-	UInt8 t1, t2;
-	CProtocolUtil::readf(m_stream, kMsgDGameTriggers + 4, &id, &t1, &t2);
-	LOG((CLOG_DEBUG2 "recv game device triggers id=%d t1=%d t2=%d", id, t1, t2));
-
-	// forward
-	m_client->gameDeviceTriggers(id, t1, t2);
-}
-
-void
-CServerProxy::gameDeviceTimingReq()
-{
-	// parse
-	LOG((CLOG_DEBUG2 "recv game device timing request"));
-
-	// forward
-	m_client->gameDeviceTimingReq();
-}
-
-void
 CServerProxy::cryptoIv()
 {
 	// parse
@@ -929,4 +861,94 @@ CServerProxy::infoAcknowledgment()
 {
 	LOG((CLOG_DEBUG1 "recv info acknowledgment"));
 	m_ignoreMouse = false;
+}
+
+void
+CServerProxy::fileChunkReceived()
+{
+	// parse
+	UInt8 mark = 0;
+	CString content;
+	CProtocolUtil::readf(m_stream, kMsgDFileTransfer + 4, &mark, &content);
+
+	switch (mark) {
+	case kFileStart:
+		m_client->clearReceivedFileData();
+		m_client->setExpectedFileSize(content);
+		if (CLOG->getFilter() >= kDEBUG2) {
+			LOG((CLOG_DEBUG2 "recv file data from server: size=%s", content.c_str()));
+			m_stopwatch.start();
+		}
+		break;
+
+	case kFileChunk:
+		m_client->fileChunkReceived(content);
+		if (CLOG->getFilter() >= kDEBUG2) {
+			LOG((CLOG_DEBUG2 "recv file data from server: size=%i", content.size()));
+			double interval = m_stopwatch.getTime();
+			LOG((CLOG_DEBUG2 "recv file data from server: interval=%f s", interval));
+			m_receivedDataSize += content.size();
+			if (interval >= m_intervalThreshold) {
+				double averageSpeed = m_receivedDataSize / interval / 1000;
+				LOG((CLOG_DEBUG2 "recv file data from server: average speed=%f kb/s", averageSpeed));
+
+				m_receivedDataSize = 0;
+				m_elapsedTime += interval;
+				m_stopwatch.reset();
+			}
+		}
+		break;
+
+	case kFileEnd:
+		m_events->addEvent(CEvent(m_events->forIScreen().fileRecieveCompleted(), m_client));
+		if (CLOG->getFilter() >= kDEBUG2) {
+			LOG((CLOG_DEBUG2 "file data transfer finished"));
+			m_elapsedTime += m_stopwatch.getTime();
+			double averageSpeed = m_client->getExpectedFileSize() / m_elapsedTime / 1000;
+			LOG((CLOG_DEBUG2 "file data transfer finished: total time consumed=%f s", m_elapsedTime));
+			LOG((CLOG_DEBUG2 "file data transfer finished: total data received=%i kb", m_client->getExpectedFileSize() / 1000));
+			LOG((CLOG_DEBUG2 "file data transfer finished: total average speed=%f kb/s", averageSpeed));
+		}
+		break;
+	}
+}
+
+void
+CServerProxy::dragInfoReceived()
+{
+	// parse
+	UInt32 fileNum = 0;
+	CString content;
+	CProtocolUtil::readf(m_stream, kMsgDDragInfo + 4, &fileNum, &content);
+
+	m_client->dragInfoReceived(fileNum, content);
+}
+
+void
+CServerProxy::fileChunkSending(UInt8 mark, char* data, size_t dataSize)
+{
+	CString chunk(data, dataSize);
+
+	switch (mark) {
+	case kFileStart:
+		LOG((CLOG_DEBUG2 "file sending start: size=%s", data));
+		break;
+
+	case kFileChunk:
+		LOG((CLOG_DEBUG2 "file chunk sending: size=%i", chunk.size()));
+		break;
+
+	case kFileEnd:
+		LOG((CLOG_DEBUG2 "file sending finished"));
+		break;
+	}
+
+	CProtocolUtil::writef(m_stream, kMsgDFileTransfer, mark, &chunk);
+}
+
+void
+CServerProxy::draggingInfoSending(UInt32 fileCount, const char* data, size_t dataSize)
+{
+	CString info(data, dataSize);
+	CProtocolUtil::writef(m_stream, kMsgDDragInfo, fileCount, &info);
 }

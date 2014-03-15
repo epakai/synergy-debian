@@ -25,7 +25,8 @@ CMSWindowsHookLibraryLoader::CMSWindowsHookLibraryLoader() :
 	m_cleanup(NULL),
 	m_setSides(NULL),
 	m_setZone(NULL),
-	m_setMode(NULL)
+	m_setMode(NULL),
+	m_getDraggingFilename(NULL)
 {
 }
 
@@ -67,4 +68,35 @@ CMSWindowsHookLibraryLoader::openHookLibrary(const char* name)
 	}
 
 	return hookLibrary;
+}
+
+HINSTANCE
+CMSWindowsHookLibraryLoader::openShellLibrary(const char* name)
+{
+    OSVERSIONINFO osvi;
+    ZeroMemory(&osvi, sizeof(OSVERSIONINFO));
+    osvi.dwOSVersionInfoSize = sizeof(OSVERSIONINFO);
+    GetVersionEx(&osvi);
+
+    if (osvi.dwMajorVersion < 6) {
+		LOG((CLOG_INFO "skipping shell library load, %s.dll not supported before vista", name));
+        return NULL;
+    }
+
+	// load the hook library
+	HINSTANCE shellLibrary = LoadLibrary(name);
+	if (shellLibrary == NULL) {
+		LOG((CLOG_ERR "failed to load shell library, %s.dll is missing or invalid", name));
+		throw XScreenOpenFailure();
+	}
+
+	// look up functions
+	m_getDraggingFilename = (GetDraggingFilename)GetProcAddress(shellLibrary, "getDraggingFilename");
+
+	if (m_getDraggingFilename == NULL) {
+		LOG((CLOG_ERR "invalid shell library, use a newer %s.dll", name));
+		throw XScreenOpenFailure();
+	}
+
+	return shellLibrary;
 }
