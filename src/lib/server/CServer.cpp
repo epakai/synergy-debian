@@ -33,24 +33,22 @@
 #include "TMethodEventJob.h"
 #include "CArch.h"
 #include "CKeyState.h"
+#include "CScreen.h"
+#include "CThread.h"
+#include "TMethodJob.h"
+#include "CFileChunker.h"
 #include <cstring>
 #include <cstdlib>
-#include "CScreen.h"
+#include <sstream>
+#include <fstream>
+#include <stdexcept>
 
 //
 // CServer
 //
 
-CEvent::Type			CServer::s_errorEvent         = CEvent::kUnknown;
-CEvent::Type			CServer::s_connectedEvent     = CEvent::kUnknown;
-CEvent::Type			CServer::s_disconnectedEvent  = CEvent::kUnknown;
-CEvent::Type			CServer::s_switchToScreen     = CEvent::kUnknown;
-CEvent::Type			CServer::s_switchInDirection  = CEvent::kUnknown;
-CEvent::Type			CServer::s_keyboardBroadcast  = CEvent::kUnknown;
-CEvent::Type			CServer::s_lockCursorToScreen = CEvent::kUnknown;
-CEvent::Type			CServer::s_screenSwitched     = CEvent::kUnknown;
-
-CServer::CServer(const CConfig& config, CPrimaryClient* primaryClient, CScreen* screen) :
+CServer::CServer(CConfig& config, CPrimaryClient* primaryClient, CScreen* screen, IEventQueue* events, bool enableDragDrop) :
+	m_events(events),
 	m_mock(false),
 	m_primaryClient(primaryClient),
 	m_active(primaryClient),
@@ -59,8 +57,8 @@ CServer::CServer(const CConfig& config, CPrimaryClient* primaryClient, CScreen* 
 	m_yDelta(0),
 	m_xDelta2(0),
 	m_yDelta2(0),
-	m_config(),
-	m_inputFilter(m_config.getInputFilter()),
+	m_config(&config),
+	m_inputFilter(config.getInputFilter()),
 	m_activeSaver(NULL),
 	m_switchDir(kNoDirection),
 	m_switchScreen(NULL),
@@ -76,7 +74,11 @@ CServer::CServer(const CConfig& config, CPrimaryClient* primaryClient, CScreen* 
 	m_relativeMoves(false),
 	m_keyboardBroadcasting(false),
 	m_lockedToScreen(false),
-	m_screen(screen)
+	m_screen(screen),
+	m_sendFileThread(NULL),
+	m_writeToDropDirThread(NULL),
+	m_ignoreFileTransfer(false),
+	m_enableDragDrop(enableDragDrop)
 {
 	// must have a primary client and it must have a canonical name
 	assert(m_primaryClient != NULL);
@@ -98,89 +100,84 @@ CServer::CServer(const CConfig& config, CPrimaryClient* primaryClient, CScreen* 
 	}
 
 	// install event handlers
-	EVENTQUEUE->adoptHandler(CEvent::kTimer, this,
+	m_events->adoptHandler(CEvent::kTimer, this,
 							new TMethodEventJob<CServer>(this,
 								&CServer::handleSwitchWaitTimeout));
-	EVENTQUEUE->adoptHandler(IPlatformScreen::getKeyDownEvent(*EVENTQUEUE),
+	m_events->adoptHandler(m_events->forIKeyState().keyDown(),
 							m_inputFilter,
 							new TMethodEventJob<CServer>(this,
 								&CServer::handleKeyDownEvent));
-	EVENTQUEUE->adoptHandler(IPlatformScreen::getKeyUpEvent(*EVENTQUEUE),
+	m_events->adoptHandler(m_events->forIKeyState().keyUp(),
 							m_inputFilter,
 							new TMethodEventJob<CServer>(this,
 								&CServer::handleKeyUpEvent));
-	EVENTQUEUE->adoptHandler(IPlatformScreen::getKeyRepeatEvent(* EVENTQUEUE),
+	m_events->adoptHandler(m_events->forIKeyState().keyRepeat(),
 							m_inputFilter,
 							new TMethodEventJob<CServer>(this,
 								&CServer::handleKeyRepeatEvent));
-	EVENTQUEUE->adoptHandler(IPlatformScreen::getButtonDownEvent(),
+	m_events->adoptHandler(m_events->forIPrimaryScreen().buttonDown(),
 							m_inputFilter,
 							new TMethodEventJob<CServer>(this,
 								&CServer::handleButtonDownEvent));
-	EVENTQUEUE->adoptHandler(IPlatformScreen::getButtonUpEvent(),
+	m_events->adoptHandler(m_events->forIPrimaryScreen().buttonUp(),
 							m_inputFilter,
 							new TMethodEventJob<CServer>(this,
 								&CServer::handleButtonUpEvent));
-	EVENTQUEUE->adoptHandler(IPlatformScreen::getMotionOnPrimaryEvent(),
+	m_events->adoptHandler(m_events->forIPrimaryScreen().motionOnPrimary(),
 							m_primaryClient->getEventTarget(),
 							new TMethodEventJob<CServer>(this,
 								&CServer::handleMotionPrimaryEvent));
-	EVENTQUEUE->adoptHandler(IPlatformScreen::getMotionOnSecondaryEvent(),
+	m_events->adoptHandler(m_events->forIPrimaryScreen().motionOnSecondary(),
 							m_primaryClient->getEventTarget(),
 							new TMethodEventJob<CServer>(this,
 								&CServer::handleMotionSecondaryEvent));
-	EVENTQUEUE->adoptHandler(IPlatformScreen::getWheelEvent(),
+	m_events->adoptHandler(m_events->forIPrimaryScreen().wheel(),
 							m_primaryClient->getEventTarget(),
 							new TMethodEventJob<CServer>(this,
 								&CServer::handleWheelEvent));
-	EVENTQUEUE->adoptHandler(IPlatformScreen::getGameDeviceButtonsEvent(),
-							m_primaryClient->getEventTarget(),
-							new TMethodEventJob<CServer>(this,
-								&CServer::handleGameDeviceButtons));
-	EVENTQUEUE->adoptHandler(IPlatformScreen::getGameDeviceSticksEvent(),
-							m_primaryClient->getEventTarget(),
-							new TMethodEventJob<CServer>(this,
-								&CServer::handleGameDeviceSticks));
-	EVENTQUEUE->adoptHandler(IPlatformScreen::getGameDeviceTriggersEvent(),
-							m_primaryClient->getEventTarget(),
-							new TMethodEventJob<CServer>(this,
-								&CServer::handleGameDeviceTriggers));
-	EVENTQUEUE->adoptHandler(IPlatformScreen::getGameDeviceTimingReqEvent(),
-							m_primaryClient->getEventTarget(),
-							new TMethodEventJob<CServer>(this,
-								&CServer::handleGameDeviceTimingReq));
-	EVENTQUEUE->adoptHandler(IPlatformScreen::getScreensaverActivatedEvent(),
+	m_events->adoptHandler(m_events->forIPrimaryScreen().screensaverActivated(),
 							m_primaryClient->getEventTarget(),
 							new TMethodEventJob<CServer>(this,
 								&CServer::handleScreensaverActivatedEvent));
-	EVENTQUEUE->adoptHandler(IPlatformScreen::getScreensaverDeactivatedEvent(),
+	m_events->adoptHandler(m_events->forIPrimaryScreen().screensaverDeactivated(),
 							m_primaryClient->getEventTarget(),
 							new TMethodEventJob<CServer>(this,
 								&CServer::handleScreensaverDeactivatedEvent));
-	EVENTQUEUE->adoptHandler(getSwitchToScreenEvent(),
+	m_events->adoptHandler(m_events->forCServer().switchToScreen(),
 							m_inputFilter,
 							new TMethodEventJob<CServer>(this,
 								&CServer::handleSwitchToScreenEvent));
-	EVENTQUEUE->adoptHandler(getSwitchInDirectionEvent(),
+	m_events->adoptHandler(m_events->forCServer().switchInDirection(),
 							m_inputFilter,
 							new TMethodEventJob<CServer>(this,
 								&CServer::handleSwitchInDirectionEvent));
-	EVENTQUEUE->adoptHandler(getKeyboardBroadcastEvent(),
+	m_events->adoptHandler(m_events->forCServer().keyboardBroadcast(),
 							m_inputFilter,
 							new TMethodEventJob<CServer>(this,
 								&CServer::handleKeyboardBroadcastEvent));
-	EVENTQUEUE->adoptHandler(getLockCursorToScreenEvent(),
+	m_events->adoptHandler(m_events->forCServer().lockCursorToScreen(),
 							m_inputFilter,
 							new TMethodEventJob<CServer>(this,
 								&CServer::handleLockCursorToScreenEvent));
-	EVENTQUEUE->adoptHandler(IPlatformScreen::getFakeInputBeginEvent(),
+	m_events->adoptHandler(m_events->forIPrimaryScreen().fakeInputBegin(),
 							m_inputFilter,
 							new TMethodEventJob<CServer>(this,
 								&CServer::handleFakeInputBeginEvent));
-	EVENTQUEUE->adoptHandler(IPlatformScreen::getFakeInputEndEvent(),
+	m_events->adoptHandler(m_events->forIPrimaryScreen().fakeInputEnd(),
 							m_inputFilter,
 							new TMethodEventJob<CServer>(this,
 								&CServer::handleFakeInputEndEvent));
+
+	if (m_enableDragDrop) {
+		m_events->adoptHandler(m_events->forIScreen().fileChunkSending(),
+								this,
+								new TMethodEventJob<CServer>(this,
+									&CServer::handleFileChunkSendingEvent));
+		m_events->adoptHandler(m_events->forIScreen().fileRecieveCompleted(),
+								this,
+								new TMethodEventJob<CServer>(this,
+									&CServer::handleFileRecieveCompletedEvent));
+	}
 
 	// add connection
 	addClient(m_primaryClient);
@@ -193,8 +190,8 @@ CServer::CServer(const CConfig& config, CPrimaryClient* primaryClient, CScreen* 
 	m_inputFilter->setPrimaryClient(m_primaryClient);
 
 	// Determine if scroll lock is already set. If so, lock the cursor to the primary screen
-	int keyValue = m_primaryClient->getToggleMask ();
-	if (m_primaryClient->getToggleMask () & KeyModifierScrollLock) {
+	int keyValue = m_primaryClient->getToggleMask();
+	if (m_primaryClient->getToggleMask() & KeyModifierScrollLock) {
 		LOG((CLOG_DEBUG "scroll lock on initially. locked to screen"));
 		m_lockedToScreen = true;
 	}
@@ -208,31 +205,31 @@ CServer::~CServer()
 	}
 
 	// remove event handlers and timers
-	EVENTQUEUE->removeHandler(IPlatformScreen::getKeyDownEvent(*EVENTQUEUE),
+	m_events->removeHandler(m_events->forIKeyState().keyDown(),
 							m_inputFilter);
-	EVENTQUEUE->removeHandler(IPlatformScreen::getKeyUpEvent(*EVENTQUEUE),
+	m_events->removeHandler(m_events->forIKeyState().keyUp(),
 							m_inputFilter);
-	EVENTQUEUE->removeHandler(IPlatformScreen::getKeyRepeatEvent(*EVENTQUEUE),
+	m_events->removeHandler(m_events->forIKeyState().keyRepeat(),
 							m_inputFilter);
-	EVENTQUEUE->removeHandler(IPlatformScreen::getButtonDownEvent(),
+	m_events->removeHandler(m_events->forIPrimaryScreen().buttonDown(),
 							m_inputFilter);
-	EVENTQUEUE->removeHandler(IPlatformScreen::getButtonUpEvent(),
+	m_events->removeHandler(m_events->forIPrimaryScreen().buttonUp(),
 							m_inputFilter);
-	EVENTQUEUE->removeHandler(IPlatformScreen::getMotionOnPrimaryEvent(),
+	m_events->removeHandler(m_events->forIPrimaryScreen().motionOnPrimary(),
 							m_primaryClient->getEventTarget());
-	EVENTQUEUE->removeHandler(IPlatformScreen::getMotionOnSecondaryEvent(),
+	m_events->removeHandler(m_events->forIPrimaryScreen().motionOnSecondary(),
 							m_primaryClient->getEventTarget());
-	EVENTQUEUE->removeHandler(IPlatformScreen::getWheelEvent(),
+	m_events->removeHandler(m_events->forIPrimaryScreen().wheel(),
 							m_primaryClient->getEventTarget());
-	EVENTQUEUE->removeHandler(IPlatformScreen::getScreensaverActivatedEvent(),
+	m_events->removeHandler(m_events->forIPrimaryScreen().screensaverActivated(),
 							m_primaryClient->getEventTarget());
-	EVENTQUEUE->removeHandler(IPlatformScreen::getScreensaverDeactivatedEvent(),
+	m_events->removeHandler(m_events->forIPrimaryScreen().screensaverDeactivated(),
 							m_primaryClient->getEventTarget());
-	EVENTQUEUE->removeHandler(IPlatformScreen::getFakeInputBeginEvent(),
+	m_events->removeHandler(m_events->forIPrimaryScreen().fakeInputBegin(),
 							m_inputFilter);
-	EVENTQUEUE->removeHandler(IPlatformScreen::getFakeInputEndEvent(),
+	m_events->removeHandler(m_events->forIPrimaryScreen().fakeInputEnd(),
 							m_inputFilter);
-	EVENTQUEUE->removeHandler(CEvent::kTimer, this);
+	m_events->removeHandler(CEvent::kTimer, this);
 	stopSwitch();
 
 	// force immediate disconnection of secondary clients
@@ -240,9 +237,9 @@ CServer::~CServer()
 	for (COldClients::iterator index = m_oldClients.begin();
 							index != m_oldClients.begin(); ++index) {
 		CBaseClientProxy* client = index->first;
-		EVENTQUEUE->deleteTimer(index->second);
-		EVENTQUEUE->removeHandler(CEvent::kTimer, client);
-		EVENTQUEUE->removeHandler(CClientProxy::getDisconnectedEvent(), client);
+		m_events->deleteTimer(index->second);
+		m_events->removeHandler(CEvent::kTimer, client);
+		m_events->removeHandler(m_events->forCClientProxy().disconnected(), client);
 		delete client;
 	}
 
@@ -267,7 +264,6 @@ CServer::setConfig(const CConfig& config)
 	closeClients(config);
 
 	// cut over
-	m_config = config;
 	processOptions();
 
 	// add ScrollLock as a hotkey to lock to the screen.  this was a
@@ -277,11 +273,11 @@ CServer::setConfig(const CConfig& config)
 	// we will unfortunately generate a warning.  if the user has
 	// configured a CLockCursorToScreenAction then we don't add
 	// ScrollLock as a hotkey.
-	if (!m_config.hasLockToScreenAction()) {
+	if (!m_config->hasLockToScreenAction()) {
 		IPlatformScreen::CKeyInfo* key =
 			IPlatformScreen::CKeyInfo::alloc(kKeyScrollLock, 0, 0, 0);
-		CInputFilter::CRule rule(new CInputFilter::CKeystrokeCondition(key));
-		rule.adoptAction(new CInputFilter::CLockCursorToScreenAction, true);
+		CInputFilter::CRule rule(new CInputFilter::CKeystrokeCondition(m_events, key));
+		rule.adoptAction(new CInputFilter::CLockCursorToScreenAction(m_events), true);
 		m_inputFilter->addFilterRule(rule);
 	}
 
@@ -304,12 +300,12 @@ CServer::adoptClient(CBaseClientProxy* client)
 	assert(client != NULL);
 
 	// watch for client disconnection
-	EVENTQUEUE->adoptHandler(CClientProxy::getDisconnectedEvent(), client,
+	m_events->adoptHandler(m_events->forCClientProxy().disconnected(), client,
 							new TMethodEventJob<CServer>(this,
 								&CServer::handleClientDisconnected, client));
 
 	// name must be in our configuration
-	if (!m_config.isScreen(client->getName())) {
+	if (!m_config->isScreen(client->getName())) {
 		LOG((CLOG_WARN "unrecognised client name \"%s\", check server config", client->getName().c_str()));
 		closeClient(client, kMsgEUnknown);
 		return;
@@ -335,7 +331,7 @@ CServer::adoptClient(CBaseClientProxy* client)
 	// send notification
 	CServer::CScreenConnectedInfo* info =
 		new CServer::CScreenConnectedInfo(getName(client));
-	EVENTQUEUE->addEvent(CEvent(CServer::getConnectedEvent(),
+	m_events->addEvent(CEvent(m_events->forCServer().connected(),
 								m_primaryClient->getEventTarget(), info));
 }
 
@@ -344,24 +340,12 @@ CServer::disconnect()
 {
 	// close all secondary clients
 	if (m_clients.size() > 1 || !m_oldClients.empty()) {
-		CConfig emptyConfig;
+		CConfig emptyConfig(m_events);
 		closeClients(emptyConfig);
 	}
 	else {
-		EVENTQUEUE->addEvent(CEvent(getDisconnectedEvent(), this));
+		m_events->addEvent(CEvent(m_events->forCServer().disconnected(), this));
 	}
-}
-
-void
-CServer::gameDeviceTimingResp(UInt16 freq)
-{
-	m_screen->gameDeviceTimingResp(freq);
-}
-
-void
-CServer::gameDeviceFeedback(GameDeviceID id, UInt16 m1, UInt16 m2)
-{
-	m_screen->gameDeviceFeedback(id, m1, m2);
 }
 
 UInt32
@@ -380,66 +364,10 @@ CServer::getClients(std::vector<CString>& list) const
 	}
 }
 
-CEvent::Type
-CServer::getErrorEvent()
-{
-	return EVENTQUEUE->registerTypeOnce(s_errorEvent,
-							"CServer::error");
-}
-
-CEvent::Type
-CServer::getConnectedEvent()
-{
-	return EVENTQUEUE->registerTypeOnce(s_connectedEvent,
-							"CServer::connected");
-}
-
-CEvent::Type
-CServer::getDisconnectedEvent()
-{
-	return EVENTQUEUE->registerTypeOnce(s_disconnectedEvent,
-							"CServer::disconnected");
-}
-
-CEvent::Type
-CServer::getSwitchToScreenEvent()
-{
-	return EVENTQUEUE->registerTypeOnce(s_switchToScreen,
-							"CServer::switchToScreen");
-}
-
-CEvent::Type
-CServer::getSwitchInDirectionEvent()
-{
-	return EVENTQUEUE->registerTypeOnce(s_switchInDirection,
-							"CServer::switchInDirection");
-}
-
-CEvent::Type
-CServer::getKeyboardBroadcastEvent()
-{
-	return EVENTQUEUE->registerTypeOnce(s_keyboardBroadcast,
-							"CServer:keyboardBroadcast");
-}
-
-CEvent::Type
-CServer::getLockCursorToScreenEvent()
-{
-	return EVENTQUEUE->registerTypeOnce(s_lockCursorToScreen,
-							"CServer::lockCursorToScreen");
-}
-
-CEvent::Type
-CServer::getScreenSwitchedEvent()
-{
-	return EVENTQUEUE->registerTypeOnce(s_screenSwitched,
-							"CServer::screenSwitched");
-}
-
 CString
 CServer::getName(const CBaseClientProxy* client) const
 {
-	CString name = m_config.getCanonicalName(client->getName());
+	CString name = m_config->getCanonicalName(client->getName());
 	if (name.empty()) {
 		name = client->getName();
 	}
@@ -571,7 +499,7 @@ CServer::switchScreen(CBaseClientProxy* dst,
 
 		CServer::CSwitchToScreenInfo* info =
 			CServer::CSwitchToScreenInfo::alloc(m_active->getName());
-		EVENTQUEUE->addEvent(CEvent(CServer::getScreenSwitchedEvent(), this, info));
+		m_events->addEvent(CEvent(m_events->forCServer().screenSwitched(), this, info));
 	}
 	else {
 		m_active->mouseMove(x, y);
@@ -643,7 +571,7 @@ CServer::hasAnyNeighbor(CBaseClientProxy* client, EDirection dir) const
 {
 	assert(client != NULL);
 
-	return m_config.hasNeighbor(getName(client), dir);
+	return m_config->hasNeighbor(getName(client), dir);
 }
 
 CBaseClientProxy*
@@ -665,7 +593,7 @@ CServer::getNeighbor(CBaseClientProxy* src,
 	// search for the closest neighbor that exists in direction dir
 	float tTmp;
 	for (;;) {
-		CString dstName(m_config.getNeighbor(srcName, dir, t, &tTmp));
+		CString dstName(m_config->getNeighbor(srcName, dir, t, &tTmp));
 
 		// if nothing in that direction then return NULL. if the
 		// destination is the source then we can make no more
@@ -821,25 +749,25 @@ CServer::avoidJumpZone(CBaseClientProxy* dst,
 	// don't need to move inwards because that side can't provoke a jump.
 	switch (dir) {
 	case kLeft:
-		if (!m_config.getNeighbor(dstName, kRight, t, NULL).empty() &&
+		if (!m_config->getNeighbor(dstName, kRight, t, NULL).empty() &&
 			x > dx + dw - 1 - z)
 			x = dx + dw - 1 - z;
 		break;
 
 	case kRight:
-		if (!m_config.getNeighbor(dstName, kLeft, t, NULL).empty() &&
+		if (!m_config->getNeighbor(dstName, kLeft, t, NULL).empty() &&
 			x < dx + z)
 			x = dx + z;
 		break;
 
 	case kTop:
-		if (!m_config.getNeighbor(dstName, kBottom, t, NULL).empty() &&
+		if (!m_config->getNeighbor(dstName, kBottom, t, NULL).empty() &&
 			y > dy + dh - 1 - z)
 			y = dy + dh - 1 - z;
 		break;
 
 	case kBottom:
-		if (!m_config.getNeighbor(dstName, kTop, t, NULL).empty() &&
+		if (!m_config->getNeighbor(dstName, kTop, t, NULL).empty() &&
 			y < dy + z)
 			y = dy + z;
 		break;
@@ -903,9 +831,9 @@ CServer::isSwitchOkay(CBaseClientProxy* newScreen,
 	// are we in a locked corner?  first check if screen has the option set
 	// and, if not, check the global options.
 	const CConfig::CScreenOptions* options =
-						m_config.getOptions(getName(m_active));
+						m_config->getOptions(getName(m_active));
 	if (options == NULL || options->count(kOptionScreenSwitchCorners) == 0) {
-		options = m_config.getOptions("");
+		options = m_config->getOptions("");
 	}
 	if (options != NULL && options->count(kOptionScreenSwitchCorners) > 0) {
 		// get corner mask and size
@@ -1052,7 +980,7 @@ CServer::startSwitchWait(SInt32 x, SInt32 y)
 	stopSwitchWait();
 	m_switchWaitX     = x;
 	m_switchWaitY     = y;
-	m_switchWaitTimer = EVENTQUEUE->newOneShotTimer(m_switchWaitDelay, this);
+	m_switchWaitTimer = m_events->newOneShotTimer(m_switchWaitDelay, this);
 	LOG((CLOG_DEBUG1 "waiting to switch"));
 }
 
@@ -1060,7 +988,7 @@ void
 CServer::stopSwitchWait()
 {
 	if (m_switchWaitTimer != NULL) {
-		EVENTQUEUE->deleteTimer(m_switchWaitTimer);
+		m_events->deleteTimer(m_switchWaitTimer);
 		m_switchWaitTimer = NULL;
 	}
 }
@@ -1153,7 +1081,7 @@ CServer::sendOptions(CBaseClientProxy* client) const
 
 	// look up options for client
 	const CConfig::CScreenOptions* options =
-						m_config.getOptions(getName(client));
+						m_config->getOptions(getName(client));
 	if (options != NULL) {
 		// convert options to a more convenient form for sending
 		optionsList.reserve(2 * options->size());
@@ -1165,7 +1093,7 @@ CServer::sendOptions(CBaseClientProxy* client) const
 	}
 
 	// look up global options
-	options = m_config.getOptions("");
+	options = m_config->getOptions("");
 	if (options != NULL) {
 		// convert options to a more convenient form for sending
 		optionsList.reserve(optionsList.size() + 2 * options->size());
@@ -1184,7 +1112,7 @@ CServer::sendOptions(CBaseClientProxy* client) const
 void
 CServer::processOptions()
 {
-	const CConfig::CScreenOptions* options = m_config.getOptions("");
+	const CConfig::CScreenOptions* options = m_config->getOptions("");
 	if (options == NULL) {
 		return;
 	}
@@ -1388,36 +1316,6 @@ CServer::handleWheelEvent(const CEvent& event, void*)
 }
 
 void
-CServer::handleGameDeviceButtons(const CEvent& event, void*)
-{
-	IPlatformScreen::CGameDeviceButtonInfo* info =
-		reinterpret_cast<IPlatformScreen::CGameDeviceButtonInfo*>(event.getData());
-	onGameDeviceButtons(info->m_id, info->m_buttons);
-}
-
-void
-CServer::handleGameDeviceSticks(const CEvent& event, void*)
-{
-	IPlatformScreen::CGameDeviceStickInfo* info =
-		reinterpret_cast<IPlatformScreen::CGameDeviceStickInfo*>(event.getData());
-	onGameDeviceSticks(info->m_id, info->m_x1, info->m_y1, info->m_x2, info->m_y2);
-}
-
-void
-CServer::handleGameDeviceTriggers(const CEvent& event, void*)
-{
-	IPlatformScreen::CGameDeviceTriggerInfo* info =
-		reinterpret_cast<IPlatformScreen::CGameDeviceTriggerInfo*>(event.getData());
-	onGameDeviceTriggers(info->m_id, info->m_t1, info->m_t2);
-}
-
-void
-CServer::handleGameDeviceTimingReq(const CEvent& event, void*)
-{
-	onGameDeviceTimingReq();
-}
-
-void
 CServer::handleScreensaverActivatedEvent(const CEvent&, void*)
 {
 	onScreensaver(true);
@@ -1572,6 +1470,18 @@ void
 CServer::handleFakeInputEndEvent(const CEvent&, void*)
 {
 	m_primaryClient->fakeInputEnd();
+}
+
+void
+CServer::handleFileChunkSendingEvent(const CEvent& event, void*)
+{
+	onFileChunkSending(event.getData());
+}
+
+void
+CServer::handleFileRecieveCompletedEvent(const CEvent& event, void*)
+{
+	onFileRecieveCompleted();
 }
 
 void
@@ -1752,6 +1662,19 @@ CServer::onMouseUp(ButtonID id)
 
 	// relay
 	m_active->mouseUp(id);
+
+	if (m_ignoreFileTransfer) {
+		m_ignoreFileTransfer = false;
+		return;
+	}
+	
+	if (m_enableDragDrop && !m_screen->isOnScreen()) {
+		CString& file = m_screen->getDraggingFilename();
+		if (!file.empty()) {
+			LOG((CLOG_DEBUG "send file to client: %s", file.c_str()));
+			sendFileToClient(file.c_str());
+		}
+	}
 }
 
 bool
@@ -1826,8 +1749,42 @@ CServer::onMouseMovePrimary(SInt32 x, SInt32 y)
 
 	// should we switch or not?
 	if (isSwitchOkay(newScreen, dir, x, y, xc, yc)) {
+		if (m_enableDragDrop && m_screen->getDraggingStarted() && m_active != newScreen) {
+			CString& dragFileList = m_screen->getDraggingFilename();
+			size_t size = dragFileList.size() + 1;
+			char* fileList = NULL;
+			UInt32 fileCount = 1;
+			if (dragFileList.empty() == false) {
+				fileList = new char[size];
+				memcpy(fileList, dragFileList.c_str(), size);
+				fileList[size - 1] = '\0';
+			}
+
+			// fake a escape key down and up then left mouse button up
+			m_screen->keyDown(kKeyEscape, 8192, 1);
+			m_screen->keyUp(kKeyEscape, 8192, 1);
+			m_screen->mouseUp(kButtonLeft);
+			
+#if defined(__APPLE__)
+			
+			// on mac it seems that after faking a LMB up, system would signal back
+			// to synergy a mouse up event, which doesn't happen on windows. as a
+			// result, synergy would send dragging file to client twice. This variable
+			// is used to ignore the first file sending.
+			m_ignoreFileTransfer = true;
+#endif
+			
+			if (dragFileList.empty() == false) {
+				LOG((CLOG_DEBUG2 "sending drag information to client"));
+				LOG((CLOG_DEBUG3 "dragging file list: %s", fileList));
+				LOG((CLOG_DEBUG3 "dragging file list string size: %i", size));
+				newScreen->draggingInfoSending(fileCount, fileList, size);
+			}
+		}
+
 		// switch screen
 		switchScreen(newScreen, x, y, false);
+
 		return true;
 	}
 	else {
@@ -2007,31 +1964,59 @@ CServer::onMouseWheel(SInt32 xDelta, SInt32 yDelta)
 }
 
 void
-CServer::onGameDeviceButtons(GameDeviceID id, GameDeviceButton buttons)
+CServer::onFileChunkSending(const void* data)
 {
-	LOG((CLOG_DEBUG1 "onGameDeviceButtons id=%d buttons=%d", id, buttons));
-	m_active->gameDeviceButtons(id, buttons);
+	CFileChunker::CFileChunk* fileChunk = reinterpret_cast<CFileChunker::CFileChunk*>(const_cast<void*>(data));
+
+	LOG((CLOG_DEBUG1 "onFileChunkSending"));
+	assert(m_active != NULL);
+
+	// relay
+ 	m_active->fileChunkSending(fileChunk->m_chunk[0], &(fileChunk->m_chunk[1]), fileChunk->m_dataSize);
 }
 
 void
-CServer::onGameDeviceSticks(GameDeviceID id, SInt16 x1, SInt16 y1, SInt16 x2, SInt16 y2)
+CServer::onFileRecieveCompleted()
 {
-	LOG((CLOG_DEBUG1 "onGameDeviceSticks id=%d s1=%+d,%+d s2=%+d,%+d", id, x1, y1, x2, y2));
-	m_active->gameDeviceSticks(id, x1, y1, x2, y2);
+	if (isReceivedFileSizeValid()) {
+		m_writeToDropDirThread = new CThread(
+									   new TMethodJob<CServer>(
+															   this, &CServer::writeToDropDirThread));
+	}
 }
 
 void
-CServer::onGameDeviceTriggers(GameDeviceID id, UInt8 t1, UInt8 t2)
+CServer::writeToDropDirThread(void*)
 {
-	LOG((CLOG_DEBUG1 "onGameDeviceTriggers id=%d t1=%d t2=%d", id, t1, t2));
-	m_active->gameDeviceTriggers(id, t1, t2);
-}
+	LOG((CLOG_DEBUG "starting write to drop dir thread"));
 
-void
-CServer::onGameDeviceTimingReq()
-{
-	LOG((CLOG_DEBUG1 "onGameDeviceTimingReq"));
-	m_active->gameDeviceTimingReq();
+	while (m_screen->getFakeDraggingStarted()) {
+		ARCH->sleep(.1f);
+	}
+
+	m_fileTransferDes = m_screen->getDropTarget();
+	LOG((CLOG_DEBUG "dropping file, files=%i target=%s", m_dragFileList.size(), m_fileTransferDes.c_str()));
+
+	if (!m_fileTransferDes.empty() && m_dragFileList.size() > 0) {
+		std::fstream file;
+		CString dropTarget = m_fileTransferDes;
+#ifdef SYSAPI_WIN32
+		dropTarget.append("\\");
+#else
+		dropTarget.append("/");
+#endif
+		dropTarget.append(m_dragFileList.at(0));
+		file.open(dropTarget.c_str(), std::ios::out | std::ios::binary);
+		if (!file.is_open()) {
+			// TODO: file open failed
+		}
+		
+		file.write(m_receivedFileData.c_str(), m_receivedFileData.size());
+		file.close();
+	}
+	else {
+		LOG((CLOG_ERR "drop file failed: drop target is empty"));
+	}
 }
 
 bool
@@ -2043,15 +2028,15 @@ CServer::addClient(CBaseClientProxy* client)
 	}
 
 	// add event handlers
-	EVENTQUEUE->adoptHandler(IScreen::getShapeChangedEvent(),
+	m_events->adoptHandler(m_events->forIScreen().shapeChanged(),
 							client->getEventTarget(),
 							new TMethodEventJob<CServer>(this,
 								&CServer::handleShapeChanged, client));
-	EVENTQUEUE->adoptHandler(IScreen::getClipboardGrabbedEvent(),
+	m_events->adoptHandler(m_events->forIScreen().clipboardGrabbed(),
 							client->getEventTarget(),
 							new TMethodEventJob<CServer>(this,
 								&CServer::handleClipboardGrabbed, client));
-	EVENTQUEUE->adoptHandler(CClientProxy::getClipboardChangedEvent(),
+	m_events->adoptHandler(m_events->forCClientProxy().clipboardChanged(),
 							client->getEventTarget(),
 							new TMethodEventJob<CServer>(this,
 								&CServer::handleClipboardChanged, client));
@@ -2081,11 +2066,11 @@ CServer::removeClient(CBaseClientProxy* client)
 	}
 
 	// remove event handlers
-	EVENTQUEUE->removeHandler(IScreen::getShapeChangedEvent(),
+	m_events->removeHandler(m_events->forIScreen().shapeChanged(),
 							client->getEventTarget());
-	EVENTQUEUE->removeHandler(IScreen::getClipboardGrabbedEvent(),
+	m_events->removeHandler(m_events->forIScreen().clipboardGrabbed(),
 							client->getEventTarget());
-	EVENTQUEUE->removeHandler(CClientProxy::getClipboardChangedEvent(),
+	m_events->removeHandler(m_events->forCClientProxy().clipboardChanged(),
 							client->getEventTarget());
 
 	// remove from list
@@ -2117,8 +2102,8 @@ CServer::closeClient(CBaseClientProxy* client, const char* msg)
 
 	// install timer.  wait timeout seconds for client to close.
 	double timeout = 5.0;
-	CEventQueueTimer* timer = EVENTQUEUE->newOneShotTimer(timeout, NULL);
-	EVENTQUEUE->adoptHandler(CEvent::kTimer, timer,
+	CEventQueueTimer* timer = m_events->newOneShotTimer(timeout, NULL);
+	m_events->adoptHandler(CEvent::kTimer, timer,
 							new TMethodEventJob<CServer>(this,
 								&CServer::handleClientCloseTimeout, client));
 
@@ -2161,9 +2146,9 @@ CServer::removeActiveClient(CBaseClientProxy* client)
 {
 	if (removeClient(client)) {
 		forceLeaveClient(client);
-		EVENTQUEUE->removeHandler(CClientProxy::getDisconnectedEvent(), client);
+		m_events->removeHandler(m_events->forCClientProxy().disconnected(), client);
 		if (m_clients.size() == 1 && m_oldClients.empty()) {
-			EVENTQUEUE->addEvent(CEvent(getDisconnectedEvent(), this));
+			m_events->addEvent(CEvent(m_events->forCServer().disconnected(), this));
 		}
 	}
 }
@@ -2173,12 +2158,12 @@ CServer::removeOldClient(CBaseClientProxy* client)
 {
 	COldClients::iterator i = m_oldClients.find(client);
 	if (i != m_oldClients.end()) {
-		EVENTQUEUE->removeHandler(CClientProxy::getDisconnectedEvent(), client);
-		EVENTQUEUE->removeHandler(CEvent::kTimer, i->second);
-		EVENTQUEUE->deleteTimer(i->second);
+		m_events->removeHandler(m_events->forCClientProxy().disconnected(), client);
+		m_events->removeHandler(CEvent::kTimer, i->second);
+		m_events->deleteTimer(i->second);
 		m_oldClients.erase(i);
 		if (m_clients.size() == 1 && m_oldClients.empty()) {
-			EVENTQUEUE->addEvent(CEvent(getDisconnectedEvent(), this));
+			m_events->addEvent(CEvent(m_events->forCServer().disconnected(), this));
 		}
 	}
 }
@@ -2303,4 +2288,88 @@ CServer::CKeyboardBroadcastInfo::alloc(State state, const CString& screens)
 	info->m_state = state;
 	strcpy(info->m_screens, screens.c_str());
 	return info;
+}
+
+void
+CServer::clearReceivedFileData()
+{
+	m_receivedFileData.clear();
+}
+
+void
+CServer::setExpectedFileSize(CString data)
+{
+	std::istringstream iss(data);
+	iss >> m_expectedFileSize;
+}
+
+void
+CServer::fileChunkReceived(CString data)
+{
+	m_receivedFileData += data;
+}
+
+bool
+CServer::isReceivedFileSizeValid()
+{
+	return m_expectedFileSize == m_receivedFileData.size();
+}
+
+void
+CServer::sendFileToClient(const char* filename)
+{
+	m_sendFileThread = new CThread(
+		new TMethodJob<CServer>(
+			this, &CServer::sendFileThread,
+			reinterpret_cast<void*>(const_cast<char*>(filename))));
+}
+
+void
+CServer::sendFileThread(void* filename)
+{
+	try {
+		char* name  = reinterpret_cast<char*>(filename);
+		CFileChunker::sendFileChunks(name, m_events, this);
+	}
+	catch (std::runtime_error error) {
+		LOG((CLOG_ERR "failed sending file chunks: %s", error.what()));
+	}
+
+	m_sendFileThread = NULL;
+}
+
+void
+CServer::dragInfoReceived(UInt32 fileNum, CString content)
+{
+	// TODO: fix duplicate function from CClient
+
+	if (!m_enableDragDrop) {
+		LOG((CLOG_DEBUG "drag drop not enabled, ignoring drag info."));
+		return;
+	}
+
+	CDragInformation::parseDragInfo(m_dragFileList, fileNum, content);
+	LOG((CLOG_DEBUG "drag info received, total drag file number: %i", m_dragFileList.size()));
+	
+	for (int i = 0; i < m_dragFileList.size(); ++i) {
+		LOG((CLOG_DEBUG "dragging file %i name: %s", i + 1, m_dragFileList.at(i).c_str()));
+	}
+	
+	if (m_dragFileList.size() == 1) {
+		m_dragFileExt = CDragInformation::getDragFileExtension(m_dragFileList.at(0));
+	}
+	else if (m_dragFileList.size() > 1) {
+		m_dragFileExt.clear();
+	}
+	else {
+		return;
+	}
+	
+	m_screen->startDraggingFiles(m_dragFileExt);
+}
+
+void
+CServer::draggingInfoSending(UInt32 fileCount, CString& fileList, size_t size)
+{
+	m_active->draggingInfoSending(fileCount, fileList.c_str(), size);
 }

@@ -39,7 +39,7 @@ public:
 		CNetworkAddress* m_serverAddress;
 	};
 
-	CClientApp(CreateTaskBarReceiverFunc createTaskBarReceiver);
+	CClientApp(IEventQueue* events, CreateTaskBarReceiverFunc createTaskBarReceiver);
 	virtual ~CClientApp();
 
 	// Parse client specific command line arguments.
@@ -83,12 +83,12 @@ public:
 
 	static CClientApp& instance() { return (CClientApp&)CApp::instance(); }
 
+	CClient* getClientPtr() { return s_client; }
+	
 private:
 	virtual bool parseArg(const int& argc, const char* const* argv, int& i);
-	void vncThread(void*);
 
 private:
-	CClient* s_client;
-	CScreen* s_clientScreen;
-	CThread* m_vncThread;
+	CClient*			s_client;
+	CScreen*			s_clientScreen;
 };

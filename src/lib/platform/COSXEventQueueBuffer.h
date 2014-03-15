@@ -22,13 +22,16 @@
 #include <Carbon/Carbon.h>
 #include "IEventQueueBuffer.h"
 
+class IEventQueue;
+
 //! Event queue buffer for OS X
 class COSXEventQueueBuffer : public IEventQueueBuffer {
 public:
-	COSXEventQueueBuffer();
+	COSXEventQueueBuffer(IEventQueue* eventQueue);
 	virtual ~COSXEventQueueBuffer();
 
 	// IEventQueueBuffer overrides
+	virtual void		init();
 	virtual void		waitForEvent(double timeout);
 	virtual Type		getEvent(CEvent& event, UInt32& dataID);
 	virtual bool		addEvent(UInt32 dataID);
@@ -39,6 +42,8 @@ public:
 
 private:
 	EventRef			m_event;
+	IEventQueue*		m_eventQueue;
+	EventQueueRef		m_carbonEventQueue;
 };
 
 #endif

@@ -22,6 +22,7 @@
 #include "CBaseClientProxy.h"
 #include "CEvent.h"
 #include "CString.h"
+#include "CEventTypes.h"
 
 namespace synergy { class IStream; }
 
@@ -54,36 +55,6 @@ public:
 	*/
 	synergy::IStream*			getStream() const;
 
-	//! Get ready event type
-	/*!
-	Returns the ready event type.  This is sent when the client has
-	completed the initial handshake.  Until it is sent, the client is
-	not fully connected.
-	*/
-	static CEvent::Type	getReadyEvent();
-
-	//! Get disconnect event type
-	/*!
-	Returns the disconnect event type.  This is sent when the client
-	disconnects or is disconnected.  The target is getEventTarget().
-	*/
-	static CEvent::Type	getDisconnectedEvent();
-
-	//! Get clipboard changed event type
-	/*!
-	Returns the clipboard changed event type.  This is sent whenever the
-	contents of the clipboard has changed.  The data is a pointer to a
-	IScreen::CClipboardInfo.
-	*/
-	static CEvent::Type	getClipboardChangedEvent();
-
-	//! Get game device timing receive event type
-	/*!
-	Returns the game device timing receive event type.  This is set 
-	whenever the server receives to a timing event response from a client.
-	*/
-	static CEvent::Type	getGameDeviceTimingRespEvent();
-
 	//@}
 
 	// IScreen
@@ -113,19 +84,12 @@ public:
 	virtual void		screensaver(bool activate) = 0;
 	virtual void		resetOptions() = 0;
 	virtual void		setOptions(const COptionsList& options) = 0;
-	virtual void		gameDeviceButtons(GameDeviceID id, GameDeviceButton buttons) = 0;
-	virtual void		gameDeviceSticks(GameDeviceID id, SInt16 x1, SInt16 y1, SInt16 x2, SInt16 y2) = 0;
-	virtual void		gameDeviceTriggers(GameDeviceID id, UInt8 t1, UInt8 t2) = 0;
-	virtual void		gameDeviceTimingReq() = 0;
 	virtual void		cryptoIv(const UInt8* iv) = 0;
+	virtual void		draggingInfoSending(UInt32 fileCount, const char* data, size_t dataSize) = 0;
+	virtual void		fileChunkSending(UInt8 mark, char* data, size_t dataSize) = 0;
 
 private:
 	synergy::IStream*	m_stream;
-
-	static CEvent::Type	s_readyEvent;
-	static CEvent::Type	s_disconnectedEvent;
-	static CEvent::Type	s_clipboardChangedEvent;
-	static CEvent::Type	s_gameDeviceTimingRecvEvent;
 };
 
 #endif

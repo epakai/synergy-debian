@@ -17,7 +17,7 @@
 # Version number for Synergy
 set(VERSION_MAJOR 1)
 set(VERSION_MINOR 4)
-set(VERSION_REV 12)
+set(VERSION_REV 16)
 set(VERSION "${VERSION_MAJOR}.${VERSION_MINOR}.${VERSION_REV}")
 
 # The check for 2.6 may be too strict (consider lowering).
@@ -137,8 +137,16 @@ if (UNIX)
 	check_library_exists("pthread" pthread_create "" HAVE_PTHREAD)
 	if (HAVE_PTHREAD)
 		list(APPEND libs pthread)
-	else (HAVE_PTHREAD)
+	else()
 		message(FATAL_ERROR "Missing library: pthread")
+	endif()
+
+	# curl is used on both Linux and Mac
+	find_package(CURL)
+	if (CURL_FOUND)
+		list(APPEND libs curl)
+	else()
+		message(FATAL_ERROR "Missing library: curl")
 	endif()
 	
 	if (APPLE)
@@ -156,7 +164,7 @@ if (UNIX)
 				CACHE STRING "" FORCE)
 		endif()
 		
-		set(CMAKE_CXX_FLAGS "--sysroot ${CMAKE_OSX_SYSROOT} ${CMAKE_CXX_FLAGS}")
+		set(CMAKE_CXX_FLAGS "--sysroot ${CMAKE_OSX_SYSROOT} ${CMAKE_CXX_FLAGS} -DGTEST_USE_OWN_TR1_TUPLE=1")
 
 		find_library(lib_ScreenSaver ScreenSaver)
 		find_library(lib_IOKit IOKit)
@@ -172,7 +180,7 @@ if (UNIX)
 			${lib_Carbon}
 		)
 
-	else()
+	else() # not-apple
 
 		# add include dir for bsd (posix uses /usr/include/)
 		set(CMAKE_INCLUDE_PATH "${CMAKE_INCLUDE_PATH}:/usr/local/include")
@@ -240,12 +248,14 @@ if (UNIX)
 		if (HAVE_Xrandr)
 			list(APPEND libs Xrandr)
 		endif()
+    
+    # this was outside of the linux scope,
+    # not sure why, moving it back inside.
+    if(HAVE_Xi)
+      list(APPEND libs Xi)
+    endif()
 
 	endif()
-
-        IF(HAVE_Xi)
-                LIST(APPEND libs Xi)
-        ENDIF()
 
 	# For config.h, set some static values; it may be a good idea to make
 	# these values dynamic for non-standard UNIX compilers.
@@ -274,9 +284,9 @@ if (UNIX)
 		add_definitions(-DWINAPI_XWINDOWS=1)
 	endif()
 
-else (UNIX)
+else() # not-unix
 
-	list(APPEND libs Wtsapi32 Userenv)
+	list(APPEND libs Wtsapi32 Userenv Wininet comsuppw)
 
 	add_definitions(
 		/DWIN32
@@ -292,14 +302,6 @@ else (UNIX)
 		endif()
 	endif()
 
-endif()
-
-if (GAME_DEVICE_SUPPORT)
-	add_definitions(-DGAME_DEVICE_SUPPORT)
-endif()
-
-if (VNC_SUPPORT)
-	add_definitions(-DVNC_SUPPORT)
 endif()
 
 add_subdirectory(src)

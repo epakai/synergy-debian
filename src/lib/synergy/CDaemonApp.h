@@ -21,14 +21,14 @@
 #include "CArch.h"
 #include "CIpcServer.h"
 
-#if SYSAPI_WIN32
-#include "CMSWindowsRelauncher.h"
-#endif
-
 #include <string>
 
 class CEvent;
 class CIpcLogOutputter;
+
+#if SYSAPI_WIN32
+class CMSWindowsWatchdog;
+#endif
 
 class CDaemonApp {
 
@@ -48,13 +48,13 @@ public:
 	static CDaemonApp* s_instance;
 
 #if SYSAPI_WIN32
-	CMSWindowsRelauncher*
-						m_relauncher;
+	CMSWindowsWatchdog*	m_watchdog;
 #endif
 
 private:
 	CIpcServer*			m_ipcServer;
 	CIpcLogOutputter*	m_ipcLogOutputter;
+	IEventQueue*		m_events;
 };
 
 #define LOG_FILENAME "synergyd.log"

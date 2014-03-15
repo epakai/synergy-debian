@@ -51,7 +51,8 @@ class CEventQueueTimer { };
 //
 
 CXWindowsEventQueueBuffer::CXWindowsEventQueueBuffer(
-				Display* display, Window window) :
+		Display* display, Window window, IEventQueue* events) :
+	m_events(events),
 	m_display(display),
 	m_window(window),
 	m_waiting(false)
@@ -213,7 +214,7 @@ CXWindowsEventQueueBuffer::getEvent(CEvent& event, UInt32& dataID)
 	}
 	else {
 		event = CEvent(CEvent::kSystem,
-							IEventQueue::getSystemTarget(), &m_event);
+							m_events->getSystemTarget(), &m_event);
 		return kSystem;
 	}
 }

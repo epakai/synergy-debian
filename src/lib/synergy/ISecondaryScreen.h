@@ -21,8 +21,8 @@
 
 #include "IInterface.h"
 #include "MouseTypes.h"
-#include "GameDeviceTypes.h"
 #include "CEvent.h"
+#include "CEventTypes.h"
 
 //! Secondary screen interface
 /*!
@@ -44,7 +44,7 @@ public:
 	/*!
 	Synthesize a mouse move to the absolute coordinates \c x,y.
 	*/
-	virtual void		fakeMouseMove(SInt32 x, SInt32 y) const = 0;
+	virtual void		fakeMouseMove(SInt32 x, SInt32 y) = 0;
 
 	//! Fake mouse move
 	/*!
@@ -57,36 +57,8 @@ public:
 	Synthesize a mouse wheel event of amount \c xDelta and \c yDelta.
 	*/
 	virtual void		fakeMouseWheel(SInt32 xDelta, SInt32 yDelta) const = 0;
-	
-	//! Fake game device buttons
-	/*!
-	Synthesize game device buttons state.
-	*/
-	virtual void		fakeGameDeviceButtons(GameDeviceID id, GameDeviceButton buttons) const = 0;
-	
-	//! Fake game device sticks
-	/*!
-	Synthesize game device sticks state.
-	*/
-	virtual void		fakeGameDeviceSticks(GameDeviceID id, SInt16 x1, SInt16 y1, SInt16 x2, SInt16 y2) const = 0;
-	
-	//! Fake game device triggers
-	/*!
-	Synthesize game device triggers state.
-	*/
-	virtual void		fakeGameDeviceTriggers(GameDeviceID id, UInt8 t1, UInt8 t2) const = 0;
-
-	//! Get game device timing response event type.
-	static CEvent::Type	getGameDeviceTimingRespEvent();
-
-	//! Get game device feedback event type.
-	static CEvent::Type	getGameDeviceFeedbackEvent();
 
 	//@}
-
-private:
-	static CEvent::Type s_gameTimingRespEvent;
-	static CEvent::Type s_gameFeedbackEvent;
 };
 
 #endif

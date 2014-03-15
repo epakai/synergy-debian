@@ -16,8 +16,8 @@
 
 # TODO: split this file up, it's too long!
 
-import sys, os, ConfigParser, shutil, re, ftputil, zipfile
-from generators import Generator, EclipseGenerator, MakefilesGenerator
+import sys, os, ConfigParser, shutil, re, ftputil, zipfile, glob
+from generators import Generator, EclipseGenerator, XcodeGenerator, MakefilesGenerator
 
 if sys.version_info >= (2, 4):
 	import subprocess
@@ -60,16 +60,13 @@ class InternalCommands:
 	# by default, prompt user for input
 	no_prompts = False
 	
-	# by default, don't compile the gui
-	enable_make_gui = False
-  
-	# by default, do not compile with game device support.
-	gameDevice = False
+	# by default, compile the core
+	enableMakeCore = True
 	
-	# by default, do not compile with vnc support.
-	vncSupport = False
+	# by default, compile the gui
+	enableMakeGui = True
 	
-	# by default, let cmake decide
+	# by default, unknown
 	macSdk = None
 	
 	# cryptoPP dir with version number
@@ -91,7 +88,7 @@ class InternalCommands:
 
 	darwin_generators = {
 		1 : MakefilesGenerator(),
-		2 : Generator('Xcode'),
+		2 : XcodeGenerator(),
 		3 : EclipseGenerator(),
 	}
 
@@ -156,16 +153,41 @@ class InternalCommands:
 		zip.extractall(dir)
 
 	def configure(self, target='', extraArgs=''):
-		
-		cmake_args = ''
 
 		# ensure latest setup and do not ask config for generator (only fall 
 		# back to prompt if not specified as arg)
 		self.ensure_setup_latest()
 		
+		if sys.platform == "darwin":
+			if self.macSdk:
+				sdkDir = self.getMacSdkDir()
+				if not os.path.exists(sdkDir):
+					raise Exception("Mac SDK not found at: " + sdkDir)
+				
+				os.environ["MACOSX_DEPLOYMENT_TARGET"] = self.macSdk
+			else:
+				raise Exception("Arg missing: --mac-sdk <version>");
+		
+		# default is release
+		if target == '':
+			print 'Defaulting target to: ' + self.defaultTarget
+			target = self.defaultTarget
+		
+		# allow user to skip qui compile
+		if self.enableMakeCore:
+			self.configureCore(target, extraArgs)
+		
+		# allow user to skip qui compile
+		if self.enableMakeGui:
+			self.configureGui(target, extraArgs)
+		
+		self.setConfRun(target)
+
+	def configureCore(self, target="", extraArgs=""):
+		
 		# ensure that we have access to cmake
 		_cmake_cmd = self.persist_cmake()
-    
+	
 		# now that we know we've got the latest setup, we can ask the config
 		# file for the generator (but again, we only fall back to this if not 
 		# specified as arg).
@@ -174,42 +196,24 @@ class InternalCommands:
 		if generator != self.findGeneratorFromConfig():
 			print('Generator changed, running setup.')
 			self.setup(target)
-
+	
+		cmake_args = ''
 		if generator.cmakeName != '':
 			cmake_args += ' -G "' + generator.cmakeName + '"'
-		
-		# default is release
-		if target == '':
-			print 'Defaulting target to: ' + self.defaultTarget
-			target = self.defaultTarget
 
 		# for makefiles always specify a build type (debug, release, etc)
 		if generator.cmakeName.find('Unix Makefiles') != -1:
 			cmake_args += ' -DCMAKE_BUILD_TYPE=' + target.capitalize()
-		
-		if self.gameDevice:
-			cmake_args += " -DGAME_DEVICE_SUPPORT:BOOL=TRUE"
-		else:
-			cmake_args += " -DGAME_DEVICE_SUPPORT:BOOL=FALSE"
-		
-		if self.vncSupport:
-			cmake_args += " -DVNC_SUPPORT:BOOL=TRUE"
-		else:
-			cmake_args += " -DVNC_SUPPORT:BOOL=FALSE"
-		
-		if self.macSdk:
-			path = "/Developer/SDKs/MacOSX" + self.macSdk + ".sdk/"
-			cmake_args += " -DCMAKE_OSX_SYSROOT=" + path
+			
+		elif sys.platform == "darwin":
+			sdkDir = self.getMacSdkDir()
+			cmake_args += " -DCMAKE_OSX_SYSROOT=" + sdkDir
 			cmake_args += " -DCMAKE_OSX_DEPLOYMENT_TARGET=" + self.macSdk
-			os.environ["MACOSX_DEPLOYMENT_TARGET"] = self.macSdk
 
 			# store the sdk version for the build command
 			config = self.getConfig()
 			config.set('cmake', 'mac_sdk', self.macSdk)
 			self.write_config(config)
-		elif sys.platform == "darwin":
-			# seems that this is now needed on 10.8
-			raise Exception("Arg missing: --mac-sdk <version>");
 		
 		# if not visual studio, use parent dir
 		sourceDir = generator.getSourceDir()
@@ -235,36 +239,66 @@ class InternalCommands:
 
 		if err != 0:
 			raise Exception('CMake encountered error: ' + str(err))
+
+	def configureGui(self, target="", extraArgs=""):
+			
+		# make sure we have qmake
+		self.persist_qmake()
 		
-		# allow user to skip qui compile
-		if self.enable_make_gui:
-			
-			# make sure we have qmake
-			self.persist_qmake()
-			
-			qmake_cmd_string = self.qmake_cmd + " " + self.qtpro_filename + " -r"
+		qmake_cmd_string = self.qmake_cmd + " " + self.qtpro_filename + " -r"
 
-			if sys.platform == "darwin":
-				# create makefiles on mac (not xcode).
-				qmake_cmd_string += " -spec macx-g++"
-				
-				(major, minor) = self.getMacVersion()
-				if major == 10 and minor <= 4:
-					# 10.4: universal (intel and power pc)
-					qmake_cmd_string += ' CONFIG+="ppc i386"'
-
-			print "QMake command: " + qmake_cmd_string
-			
-			# run qmake from the gui dir
-			self.try_chdir(self.gui_dir)
-			err = os.system(qmake_cmd_string)
-			self.restore_chdir()
-			
-			if err != 0:
-				raise Exception('QMake encountered error: ' + str(err))
+		if sys.platform == "darwin":
 		
-		self.setConfRun(target)
+			# create makefiles on mac (not xcode).
+			qmake_cmd_string += " -spec macx-g++"
+			
+			(major, minor) = self.getMacVersion()
+			if major == 10 and minor <= 4:
+				# 10.4: universal (intel and power pc)
+				qmake_cmd_string += ' CONFIG+="ppc i386"'
+			
+			sdkDir = self.getMacSdkDir()
+			shortForm = "macosx" + self.macSdk
+			version = str(major) + "." + str(minor)
+			
+			qmake_cmd_string += " QMAKE_MACOSX_DEPLOYMENT_TARGET=" + version
 
+			(qMajor, qMinor, qRev) = self.getQmakeVersion()
+			if qMajor <= 4:
+				# 4.6: qmake takes full sdk dir.
+				qmake_cmd_string += " QMAKE_MAC_SDK=" + sdkDir
+			else:
+				# 5.2: now we need to use the .path setting.
+				qmake_cmd_string += " QMAKE_MAC_SDK=" + shortForm
+				qmake_cmd_string += " QMAKE_MAC_SDK." + shortForm + ".path=" + sdkDir
+
+		print "QMake command: " + qmake_cmd_string
+		
+		# run qmake from the gui dir
+		self.try_chdir(self.gui_dir)
+		err = os.system(qmake_cmd_string)
+		self.restore_chdir()
+		
+		if err != 0:
+			raise Exception('QMake encountered error: ' + str(err))
+
+	def getQmakeVersion(self):
+		import commands
+		version = commands.getoutput("qmake --version")
+		result = re.search('(\d+)\.(\d+)\.(\d)', version)
+		
+ 		if not result:
+			raise Exception("Could not get qmake version.")
+ 
+ 		major = int(result.group(1))
+ 		minor = int(result.group(2))
+ 		rev = int(result.group(3))
+ 		
+ 		return (major, minor, rev)
+
+	def getMacSdkDir(self):
+		return "/Developer/SDKs/MacOSX" + self.macSdk + ".sdk"
+	
 	# http://tinyurl.com/cs2rxxb
 	def fixCmakeEclipseBug(self):
 		print "Fixing CMake Eclipse bugs..."
@@ -350,12 +384,22 @@ class InternalCommands:
 	
 		self.ensure_setup_latest()
 
+		# allow user to skip core compile
+		if self.enableMakeCore:
+			self.makeCore(targets)
+
+		# allow user to skip qui compile
+		if self.enableMakeGui:
+			self.makeGui(targets)
+	
+	def makeCore(self, targets):
+	
 		generator = self.getGeneratorFromConfig().cmakeName
 		
 		config = self.getConfig()
 		if config.has_option("cmake", "mac_sdk"):
-			macSdk = config.get("cmake", "mac_sdk")
-			os.environ["MACOSX_DEPLOYMENT_TARGET"] = macSdk
+			self.macSdk = config.get("cmake", "mac_sdk")
+			os.environ["MACOSX_DEPLOYMENT_TARGET"] = self.macSdk
 
 		if generator.find('Unix Makefiles') != -1:
 			for target in targets:
@@ -369,16 +413,90 @@ class InternalCommands:
 					self.runBuildCommand(cmd, target)
 				else:
 					raise Exception('Build command not supported with generator: ' + generator)
+	
+	def makeGui(self, targets, args=""):
+		
+		if sys.platform == 'win32':
+			gui_make_cmd = self.w32_make_cmd
+		elif sys.platform in ['linux2', 'sunos5', 'freebsd7', 'darwin']:
+			gui_make_cmd = self.make_cmd + " -w"
+		else:
+			raise Exception('Unsupported platform: ' + sys.platform)
+		
+		gui_make_cmd += args
+		
+		print 'Make GUI command: ' + gui_make_cmd
+		
+		if sys.platform == 'win32':
+			for target in targets:
+				self.try_chdir(self.gui_dir)
+				err = os.system(gui_make_cmd + ' ' + target)
+				self.restore_chdir()
+				
+				if err != 0:
+					raise Exception(gui_make_cmd + ' failed with error: ' + str(err))
+		else:
+			self.try_chdir(self.gui_dir)
+			err = os.system(gui_make_cmd)
+			self.restore_chdir()
 
-		# allow user to skip qui compile
-		if self.enable_make_gui:
-			self.make_gui(targets)
+			if err != 0:
+				raise Exception(gui_make_cmd + ' failed with error: ' + str(err))
+
+			if sys.platform == 'darwin' and not "clean" in args:
+				for target in targets:
+					self.macPostMake(target)
+	
+	def macPostMake(self, target):
+
+		dir = self.getGenerator().binDir
+
+		if self.enableMakeCore:
+			# copy core binaries into the bundle, since the gui
+			# now looks for the binaries in the current app dir.
+			
+			targetDir = self.getGenerator().getBinDir(target)
+			bundleBinDir = dir + "/Synergy.app/Contents/MacOS/"
+			shutil.copy(targetDir + "/synergyc", bundleBinDir)
+			shutil.copy(targetDir + "/synergys", bundleBinDir)
+			shutil.copy(targetDir + "/syntool", bundleBinDir)
+
+		if self.enableMakeGui:
+			# use qt to copy libs to bundle so no dependencies are needed. do not create a
+			# dmg at this point, since we need to sign it first, and then create our own
+			# after signing (so that qt does not affect the signed app bundle).
+			bin = "macdeployqt Synergy.app -verbose=2"
+			self.try_chdir(dir)
+			err = os.system(bin)
+			self.restore_chdir()
+	
+			if err != 0:
+				raise Exception(bin + " failed with error: " + str(err))
+			
+			(qMajor, qMinor, qRev) = self.getQmakeVersion()
+			if qMajor <= 4:
+				frameworkRootDir = "/Library/Frameworks"
+			else:
+				# TODO: auto-detect, qt can now be installed anywhere.
+				frameworkRootDir = "/Developer/Qt5.2.1/5.2.1/clang_64/lib"
+			
+			# copy the missing Info.plist files for the frameworks.
+			target = dir + "/Synergy.app/Contents/Frameworks"
+			for root, dirs, files in os.walk(target):
+				for dir in dirs:
+					if dir.startswith("Qt"):
+						shutil.copy(
+							frameworkRootDir + "/" + dir + "/Contents/Info.plist",
+							target + "/" + dir + "/Resources/")
 	
 	def signmac(self, identity):
 		self.try_chdir("bin")
 		err = os.system(
-			'codesign -fs "' + identity + '" Synergy.app')
+			'codesign --deep -fs "' + identity + '" Synergy.app')
 		self.restore_chdir()
+
+		if err != 0:
+			raise Exception("codesign failed with error: " + str(err))
 	
 	def signwin(self, pfx, pwdFile, dist):
 		generator = self.getGeneratorFromConfig().cmakeName
@@ -397,7 +515,7 @@ class InternalCommands:
 			self.signFile(pfx, pwd, 'bin/Release', 'synergyc.exe')
 			self.signFile(pfx, pwd, 'bin/Release', 'synergys.exe')
 			self.signFile(pfx, pwd, 'bin/Release', 'synergyd.exe')
-			self.signFile(pfx, pwd, 'bin/Release', 'synrgyhk.dll')
+			self.signFile(pfx, pwd, 'bin/Release', 'synwinhk.dll')
 	
 	def signFile(self, pfx, pwd, dir, file):
 		self.try_chdir(dir)
@@ -408,6 +526,9 @@ class InternalCommands:
 			' /t http://timestamp.verisign.com/scripts/timstamp.dll ' +
 			file)
 		self.restore_chdir()
+
+		if err != 0:
+			raise Exception("signtool failed with error: " + str(err))
 	
 	def runBuildCommand(self, cmd, target):
 	
@@ -424,6 +545,15 @@ class InternalCommands:
 		if len(targets) == 0:
 			targets += [self.defaultTarget,]
 		
+		# allow user to skip core clean
+		if self.enableMakeCore:
+			self.cleanCore(targets)
+
+		# allow user to skip qui clean
+		if self.enableMakeGui:
+			self.cleanGui(targets)
+	
+	def cleanCore(self, targets):
 		generator = self.getGeneratorFromConfig().cmakeName
 
 		if generator.startswith('Visual Studio'):
@@ -455,65 +585,9 @@ class InternalCommands:
 
 				if err != 0:
 					raise Exception('Clean failed: ' + str(err))
-
-		# allow user to skip qui compile
-		clean_targets = []
-		if self.enable_make_gui:
-			for target in targets:
-				clean_targets.append(target + '-clean')
-			
-			self.make_gui(clean_targets)
 	
-	def make_gui(self, targets):
-		if sys.platform == 'win32':
-			gui_make_cmd = self.w32_make_cmd
-		elif sys.platform in ['linux2', 'sunos5', 'freebsd7', 'darwin']:
-			gui_make_cmd = self.make_cmd + " -w"
-		else:
-			raise Exception('Unsupported platform: ' + sys.platform)
-		
-		print 'Make GUI command: ' + gui_make_cmd
-		
-		if sys.platform == 'win32':
-			for target in targets:
-				self.try_chdir(self.gui_dir)
-				err = os.system(gui_make_cmd + ' ' + target)
-				self.restore_chdir()
-				
-				if err != 0:
-					raise Exception(gui_make_cmd + ' failed with error: ' + str(err))
-		else:
-			self.try_chdir(self.gui_dir)
-			err = os.system(gui_make_cmd)
-			self.restore_chdir()
-
-			if err != 0:
-				raise Exception(gui_make_cmd + ' failed with error: ' + str(err))
-
-			if sys.platform == 'darwin':
-				self.macPostMakeGui()
-	
-	def macPostMakeGui(self):
-
-		dir = self.getGenerator().binDir
-
-		# copy synergy[cs] binaries into the bundle, since the gui
-		# now looks for the binaries in the current app dir.
-		shutil.copy(dir + "/synergyc",
-			dir + "/Synergy.app/Contents/MacOS/")
-		shutil.copy(dir + "/synergys",
-			dir + "/Synergy.app/Contents/MacOS/")
-
-		# use qt to copy libs to bundle so no dependencies are needed. do not create a
-		# dmg at this point, since we need to sign it first, and then create our own
-		# after signing (so that qt does not affect the signed app bundle).
-		bin = "macdeployqt Synergy.app -verbose=2"
-		self.try_chdir(dir)
-		err = os.system(bin)
-		self.restore_chdir()
-
-		if err != 0:
-			raise Exception(bin + " failed with error: " + str(err))
+	def cleanGui(self, targets):
+		self.makeGui(targets, " clean")
 		
 	def open(self):
 		generator = self.getGeneratorFromConfig().cmakeName
@@ -664,17 +738,26 @@ class InternalCommands:
 			raise Exception('Package failed: ' + str(err))
 		
 	def distMac(self):
+		
+		config = self.getConfig()
+		if config.has_option("cmake", "mac_sdk"):
+			self.macSdk = config.get("cmake", "mac_sdk")
+		
 		dir = self.getGenerator().binDir
 		name = "Synergy"
 		dist = dir + "/" + name
 		
 		# ensure dist dir is clean
 		if os.path.exists(dist):
-			os.rmdir(dist)
+			shutil.rmtree(dist)
 		
 		os.makedirs(dist)
 		shutil.copytree(dir + "/" + name + ".app", dist + "/" + name + ".app")
-
+		
+		self.try_chdir(dist)
+		err = os.system("ln -s /Applications")
+		self.restore_chdir()
+		
 		fileName = "%s-%s-%s.dmg" % (
 			self.project, 
 			self.getVersionFromCmake(),
@@ -741,6 +824,10 @@ class InternalCommands:
 		return major + '.' + minor + '.' + rev
 
 	def distftp(self, type, ftp):
+		config = self.getConfig()
+		if config.has_option("cmake", "mac_sdk"):
+			self.macSdk = config.get("cmake", "mac_sdk")
+		
 		if not type:
 			raise Exception('Type not specified.')
 		
@@ -1148,24 +1235,13 @@ class InternalCommands:
 			print str(k) + ': ' + generators[k].cmakeName
 
 	def getMacVersion(self):
-		# if we've built with an older sdk, then use that as the
-		# os version for package names, etc.
-		config = self.getConfig()
-		if config.has_option("cmake", "mac_sdk"):
-			macSdk = config.get("cmake", "mac_sdk")
-			split = macSdk.split('.')
-			major = int(split[0])
-			minor = int(split[1])
-			return (major, minor)
-			
-		import commands
-		versions = commands.getoutput('/usr/bin/sw_vers')
-		result = re.search('ProductVersion:\t(\d+)\.(\d+)', versions)
-
+		if not self.macSdk:
+			raise Exception("Mac OS X SDK not set.")
+		
+		result = re.search('(\d+)\.(\d+)', self.macSdk)
 		if not result:
 			print versions
-			raise Exception(
-				'Could not find Mac OS X version in sw_vers output.')
+			raise Exception("Could not find Mac OS X version.")
 
 		major = int(result.group(1))
 		minor = int(result.group(2))
@@ -1197,12 +1273,19 @@ class InternalCommands:
 	def reset(self):
 		if os.path.exists('build'):
 			shutil.rmtree('build')
+		
 		if os.path.exists('bin'):
 			shutil.rmtree('bin')
+		
 		if os.path.exists('lib'):
 			shutil.rmtree('lib')
+		
 		if os.path.exists('src/gui/tmp'):
 			shutil.rmtree('src/gui/tmp')
+		
+		# qt 4.3 generates ui_ files.
+		for filename in glob.glob("src/gui/ui_*"):
+		  os.remove(filename)
 
 # the command handler should be called only from hm.py (i.e. directly 
 # from the command prompt). the purpose of this class is so that we 
@@ -1226,8 +1309,10 @@ class CommandHandler:
 				self.ic.no_prompts = True
 			elif o in ('-g', '--generator'):
 				self.ic.generator_id = a
-			elif o == '--make-gui':
-				self.ic.enable_make_gui = True
+			elif o == '--skip-gui':
+				self.ic.enableMakeGui = False
+			elif o == '--skip-core':
+				self.ic.enableMakeCore = False
 			elif o in ('-d', '--debug'):
 				self.build_targets += ['debug',]
 			elif o in ('-r', '--release'):
@@ -1236,10 +1321,6 @@ class CommandHandler:
 				self.vcRedistDir = a
 			elif o == '--qt-dir':
 				self.qtDir = a
-			elif o == '--game-device':
-				self.ic.gameDevice = True
-			elif o == '--vnc':
-				self.ic.vncSupport = True
 			elif o == '--mac-sdk':
 				self.ic.macSdk = a
 	
@@ -1345,11 +1426,4 @@ class CommandHandler:
 			if o == '--identity':
 				identity = a
 		
-		# HACK: codesign fails intermittently. we need some sort of retry mechanism
-		# but i don't have time right now so just hammer the crap out of it and hope
-		# one attempt works.
-		self.ic.signmac(identity)
-		self.ic.signmac(identity)
-		self.ic.signmac(identity)
-		self.ic.signmac(identity)
 		self.ic.signmac(identity)

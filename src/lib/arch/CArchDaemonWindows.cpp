@@ -21,6 +21,7 @@
 #include "CArchMiscWindows.h"
 #include "XArchWindows.h"
 #include "stdvector.h"
+#include <sstream>
 
 //
 // CArchDaemonWindows
@@ -818,7 +819,14 @@ CArchDaemonWindows::installDaemon()
 	if (!isDaemonInstalled(DEFAULT_DAEMON_NAME, true)) {
 		char path[MAX_PATH];
 		GetModuleFileName(CArchMiscWindows::instanceWin32(), path, MAX_PATH);
-		installDaemon(DEFAULT_DAEMON_NAME, DEFAULT_DAEMON_INFO, path, "", "", true);
+		
+		// wrap in quotes so a malicious user can't start \Program.exe as admin.
+		std::stringstream ss;
+		ss << '"';
+		ss << path;
+		ss << '"';
+
+		installDaemon(DEFAULT_DAEMON_NAME, DEFAULT_DAEMON_INFO, ss.str().c_str(), "", "", true);
 	}
 
 	start(DEFAULT_DAEMON_NAME);

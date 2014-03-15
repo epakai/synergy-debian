@@ -33,6 +33,7 @@ public:
 	~CSimpleEventQueueBuffer();
 
 	// IEventQueueBuffer overrides
+	void				init() { }
 	virtual void		waitForEvent(double timeout);
 	virtual Type		getEvent(CEvent& event, UInt32& dataID);
 	virtual bool		addEvent(UInt32 dataID);

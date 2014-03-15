@@ -27,8 +27,8 @@
 #include "CMSWindowsScreen.h"
 #include "CMSWindowsScreenSaver.h"
 #include "TMethodJob.h"
-#include "CMockEventQueue.h"
-#include "CMockKeyMap.h"
+#include "synergy/CMockEventQueue.h"
+#include "synergy/CMockKeyMap.h"
 
 // wParam = flags, HIBYTE(lParam) = virtual key, LOBYTE(lParam) = scan code
 #define SYNERGY_MSG_FAKE_KEY		SYNERGY_HOOK_LAST_MSG + 4
@@ -41,8 +41,8 @@ class CMSWindowsKeyStateTests : public ::testing::Test
 protected:
 	virtual void SetUp()
 	{
-		// load synrgyhk.dll
-		m_hookLibrary = m_hookLibraryLoader.openHookLibrary("synrgyhk");
+		// load synwinhk.dll
+		m_hookLibrary = m_hookLibraryLoader.openHookLibrary("synwinhk");
 		m_screensaver = new CMSWindowsScreenSaver();
 	}
 
@@ -51,7 +51,7 @@ protected:
 		delete m_screensaver;
 	}
 
-	CMSWindowsDesks* newDesks(IEventQueue& eventQueue)
+	CMSWindowsDesks* newDesks(IEventQueue* eventQueue)
 	{
 		return new CMSWindowsDesks(
 			true, false, m_hookLibrary, m_screensaver, eventQueue,
@@ -74,9 +74,9 @@ private:
 TEST_F(CMSWindowsKeyStateTests, disable_nonWin95OS_eventQueueNotUsed)
 {
 	NiceMock<CMockEventQueue> eventQueue;
-	CMSWindowsDesks* desks = newDesks(eventQueue);
+	CMSWindowsDesks* desks = newDesks(&eventQueue);
 	CMockKeyMap keyMap;
-	CMSWindowsKeyState keyState(desks, getEventTarget(), eventQueue, keyMap);
+	CMSWindowsKeyState keyState(desks, getEventTarget(), &eventQueue, keyMap);
 	
 	// in anything above win95-family, event handler should not be called.
 	EXPECT_CALL(eventQueue, removeHandler(_, _)).Times(0);
@@ -88,9 +88,9 @@ TEST_F(CMSWindowsKeyStateTests, disable_nonWin95OS_eventQueueNotUsed)
 TEST_F(CMSWindowsKeyStateTests, testAutoRepeat_noRepeatAndButtonIsZero_resultIsTrue)
 {
 	NiceMock<CMockEventQueue> eventQueue;
-	CMSWindowsDesks* desks = newDesks(eventQueue);
+	CMSWindowsDesks* desks = newDesks(&eventQueue);
 	CMockKeyMap keyMap;
-	CMSWindowsKeyState keyState(desks, getEventTarget(), eventQueue, keyMap);
+	CMSWindowsKeyState keyState(desks, getEventTarget(), &eventQueue, keyMap);
 	keyState.setLastDown(1);
 
 	bool actual = keyState.testAutoRepeat(true, false, 1);
@@ -102,9 +102,9 @@ TEST_F(CMSWindowsKeyStateTests, testAutoRepeat_noRepeatAndButtonIsZero_resultIsT
 TEST_F(CMSWindowsKeyStateTests, testAutoRepeat_pressFalse_lastDownIsZero)
 {
 	NiceMock<CMockEventQueue> eventQueue;
-	CMSWindowsDesks* desks = newDesks(eventQueue);
+	CMSWindowsDesks* desks = newDesks(&eventQueue);
 	CMockKeyMap keyMap;
-	CMSWindowsKeyState keyState(desks, getEventTarget(), eventQueue, keyMap);
+	CMSWindowsKeyState keyState(desks, getEventTarget(), &eventQueue, keyMap);
 	keyState.setLastDown(1);
 
 	keyState.testAutoRepeat(false, false, 1);
@@ -116,9 +116,9 @@ TEST_F(CMSWindowsKeyStateTests, testAutoRepeat_pressFalse_lastDownIsZero)
 TEST_F(CMSWindowsKeyStateTests, saveModifiers_noModifiers_savedModifiers0)
 {
 	NiceMock<CMockEventQueue> eventQueue;
-	CMSWindowsDesks* desks = newDesks(eventQueue);
+	CMSWindowsDesks* desks = newDesks(&eventQueue);
 	CMockKeyMap keyMap;
-	CMSWindowsKeyState keyState(desks, getEventTarget(), eventQueue, keyMap);
+	CMSWindowsKeyState keyState(desks, getEventTarget(), &eventQueue, keyMap);
 
 	keyState.saveModifiers();
 

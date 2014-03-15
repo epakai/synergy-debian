@@ -24,6 +24,7 @@
 #include "stddeque.h"
 #include "stdset.h"
 #include "CCryptoOptions.h"
+#include "CEventTypes.h"
 
 class CClientProxy;
 class CClientProxyUnknown;
@@ -32,6 +33,7 @@ class IListenSocket;
 class ISocketFactory;
 class IStreamFilterFactory;
 class CServer;
+class IEventQueue;
 
 class CClientListener {
 public:
@@ -39,13 +41,14 @@ public:
 	CClientListener(const CNetworkAddress&,
 							ISocketFactory*,
 							IStreamFilterFactory*,
-							const CCryptoOptions& crypto);
+							const CCryptoOptions& crypto,
+							IEventQueue* events);
 	~CClientListener();
 
 	//! @name manipulators
 	//@{
 
-	void setServer(CServer* server);
+	void				setServer(CServer* server);
 
 	//@}
 
@@ -60,12 +63,8 @@ public:
 	*/
 	CClientProxy*		getNextClient();
 
-	//! Get connected event type
-	/*!
-	Returns the connected event type.  This is sent whenever a
-	a client connects.
-	*/
-	static CEvent::Type	getConnectedEvent();
+	//! Get server which owns this listener
+	CServer*			getServer() { return m_server; }
 
 	//@}
 
@@ -79,15 +78,14 @@ private:
 	typedef std::set<CClientProxyUnknown*> CNewClients;
 	typedef std::deque<CClientProxy*> CWaitingClients;
 
-	IListenSocket*			m_listen;
-	ISocketFactory*			m_socketFactory;
+	IListenSocket*		m_listen;
+	ISocketFactory*		m_socketFactory;
 	IStreamFilterFactory*	m_streamFilterFactory;
-	CNewClients				m_newClients;
-	CWaitingClients			m_waitingClients;
-	CServer*				m_server;
-	CCryptoOptions			m_crypto;
-
-	static CEvent::Type		s_connectedEvent;
+	CNewClients			m_newClients;
+	CWaitingClients		m_waitingClients;
+	CServer*			m_server;
+	CCryptoOptions		m_crypto;
+	IEventQueue*		m_events;
 };
 
 #endif
