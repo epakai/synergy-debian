@@ -6,7 +6,7 @@ Homepage: http://synergy-foss.org/
 Vcs-Bzr: http://bzr.licquia.org/synergy/debian/
 Vcs-Browser: http://bzr.licquia.org/loggerhead/synergy/debian/
 Build-Depends: debhelper (>= 7), libxt-dev, libxtst-dev, libxinerama-dev, cmake, docbook-to-man, libcrypto++-dev, pkg-config, libqt4-dev, libcurl4-gnutls-dev | libcurl-dev
-Standards-Version: 3.9.4
+Standards-Version: 3.9.5
 
 Package: synergy
 Architecture: any
