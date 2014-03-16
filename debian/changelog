@@ -1,6 +1,7 @@
 synergy (1.4.16-1) UNRELEASED; urgency=medium
 
   * New upstream version.
+  * Update Standards-Version.
 
  -- Jeff Licquia <licquia@debian.org>  Sat, 15 Mar 2014 20:36:23 +0000
 
