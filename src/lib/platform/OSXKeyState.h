@@ -214,6 +214,7 @@ private:
 	mutable UInt32		m_deadKeyState;
 	GroupList			m_groups;
 	GroupMap			m_groupMap;
+	
 	bool				m_shiftPressed;
 	bool				m_controlPressed;
 	bool				m_altPressed;

@@ -103,7 +103,7 @@ draggingDestinationWindow
 - (NSDragOperation)
 draggingSourceOperationMask
 {
-	return NSDragOperationCopy;
+	return NSDragOperationNone;
 }
 
 - (NSPoint)draggingLocation
@@ -144,7 +144,7 @@ draggingSourceOperationMask
 
 - (NSDragOperation)draggingSession:(NSDraggingSession *)session sourceOperationMaskForDraggingContext:(NSDraggingContext)context
 {
-	return NSDragOperationCopy;
+	return NSDragOperationNone;
 }
 
 - (void)enumerateDraggingItemsWithOptions:(NSDraggingItemEnumerationOptions)enumOpts forView:(NSView *)view classes:(NSArray *)classArray searchOptions:(NSDictionary *)searchOptions usingBlock:(void (^)(NSDraggingItem *draggingItem, NSInteger idx, BOOL *stop))block
