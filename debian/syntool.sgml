@@ -1,0 +1,174 @@
+<!doctype refentry PUBLIC "-//OASIS//DTD DocBook V4.1//EN" [
+
+<!-- Process this file with docbook-to-man to generate an nroff manual
+     page: `docbook-to-man syntool.sgml > syntool.1'.  You may view
+     the manual page with: `docbook-to-man syntool.sgml | nroff -man |
+     less'.  A typical entry in a Makefile or Makefile.am is:
+
+syntool.1: syntool.sgml
+	docbook-to-man $< > $@
+
+    
+	The docbook-to-man binary is found in the docbook-to-man package.
+	Please remember that if you create the nroff version in one of the
+	debian/rules file targets (such as build), you will need to include
+	docbook-to-man in your Build-Depends control field.
+
+  -->
+
+  <!-- Fill in your name for FIRSTNAME and SURNAME. -->
+  <!ENTITY dhfirstname "<firstname>Joshua</firstname>">
+  <!ENTITY dhsurname   "<surname>Honeycutt</surname>">
+  <!-- Please adjust the date whenever revising the manpage. -->
+  <!ENTITY dhdate      "<date>July 26, 2016</date>">
+  <!-- SECTION should be 1-8, maybe w/ subsection other parameters are
+       allowed: see man(7), man(1). -->
+  <!ENTITY dhsection   "<manvolnum>1</manvolnum>">
+  <!ENTITY dhemail     "<email>joshua.honeycutt@gmail.com</email>">
+  <!ENTITY dhusername  "Joshua Honeycutt">
+  <!ENTITY dhucpackage "<refentrytitle>SYNTOOL</refentrytitle>">
+  <!ENTITY dhpackage   "syntool">
+
+  <!ENTITY debian      "<productname>Debian</productname>">
+  <!ENTITY gnu         "<acronym>GNU</acronym>">
+]>
+
+<refentry>
+  <refentryinfo>
+    <address>
+      &dhemail;
+    </address>
+    <author>
+      &dhfirstname;
+      &dhsurname;
+    </author>
+    <copyright>
+      <year>2013</year>
+      <holder>&dhusername;</holder>
+    </copyright>
+    &dhdate;
+  </refentryinfo>
+  <refmeta>
+    &dhucpackage;
+    
+    &dhsection;
+  </refmeta>
+
+  <refnamediv>
+    <refname>&dhpackage;</refname>
+
+    <refpurpose>synergy tool</refpurpose>
+  </refnamediv>
+
+  <refsynopsisdiv>
+    <cmdsynopsis>
+      <command>&dhpackage;</command>
+      <group>
+        <arg>--login-auth</arg>
+      </group>
+      <group>
+        <arg>--get-plugin-list</arg>
+      </group>
+      <group>
+        <arg>--get-plugin-dir</arg>
+      </group>
+      <group>
+        <arg>--get-profile-dir</arg>
+      </group>
+      <group>
+        <arg>--get-arch</arg>
+      </group>
+    </cmdsynopsis>
+  </refsynopsisdiv>
+
+  <refsect1>
+    <title>DESCRIPTION</title>
+
+    <para>Helper tool for <application>synergy</application> setup gui.</para>
+
+    <para>Not recommended for end user use. Options are not well documented.</para>
+
+    <para>This manual page was written for the &debian; distribution
+      because the original program does not have a manual page.
+    </para>
+  </refsect1>
+
+  <refsect1>
+    <title>OPTIONS</title>
+
+      <varlistentry>
+        <term><option>--login-auth</option>
+        </term>
+        <listitem>
+          <para>Reads credentials from standard input. Prints result from
+          synergy site.</para>
+        </listitem>
+      </varlistentry>
+
+      <varlistentry>
+        <term><option>--get-plugin-list</option>
+        </term>
+        <listitem>
+          <para>Reads credentials from standard input. Prints result from
+          synergy site.</para>
+        </listitem>
+      </varlistentry>
+
+      <varlistentry>
+        <term><option>--get-plugin-dir</option>
+        </term>
+        <listitem>
+          <para>Print the user's plugin directory.
+          </para>
+        </listitem>
+      </varlistentry>
+
+      <varlistentry>
+        <term><option>--get-profile-dir</option>
+        </term>
+        <listitem>
+          <para>Print the user's profile directory.
+          </para>
+        </listitem>
+      </varlistentry>
+
+      <varlistentry>
+        <term><option>--get-arch</option>
+        </term>
+        <listitem>
+          <para> prints the hardware machine name</para>
+        </listitem>
+      </varlistentry>
+
+
+  </refsect1>
+  <refsect1>
+    <title>SEE ALSO</title>
+
+    <para>synergy(1)</para>
+  </refsect1>
+
+  <refsect1>
+    <title>AUTHOR</title>
+    
+    <para>This manual page was written by Joshua Honeycutt 
+	&lt;joshua.honeycutt@gmail.com&gt; for the &debian; system.</para>
+  </refsect1>
+</refentry>
+
+<!-- Keep this comment at the end of the file
+Local variables:
+mode: sgml
+sgml-omittag:t
+sgml-shorttag:t
+sgml-minimize-attributes:nil
+sgml-always-quote-attributes:t
+sgml-indent-step:2
+sgml-indent-data:t
+sgml-parent-document:nil
+sgml-default-dtd-file:nil
+sgml-exposed-tags:nil
+sgml-local-catalogs:nil
+sgml-local-ecat-files:nil
+End:
+-->
