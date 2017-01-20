@@ -6,13 +6,12 @@
      less'.  A typical entry in a Makefile or Makefile.am is:
 
 synergyc.1: synergyc.sgml
-	docbook-to-man $< > $@
+    docbook-to-man $< > $@
 
-    
-	The docbook-to-man binary is found in the docbook-to-man package.
-	Please remember that if you create the nroff version in one of the
-	debian/rules file targets (such as build), you will need to include
-	docbook-to-man in your Build-Depends control field.
+    The docbook-to-man binary is found in the docbook-to-man package.
+    Please remember that if you create the nroff version in one of the
+    debian/rules file targets (such as build), you will need to include
+    docbook-to-man in your Build-Depends control field.
 
   -->
 
@@ -50,13 +49,11 @@ synergyc.1: synergyc.sgml
   </refentryinfo>
   <refmeta>
     &dhucpackage;
-    
     &dhsection;
   </refmeta>
 
   <refnamediv>
     <refname>&dhpackage;</refname>
-
     <refpurpose>synergy client</refpurpose>
   </refnamediv>
 
@@ -64,11 +61,11 @@ synergyc.1: synergyc.sgml
     <cmdsynopsis>
       <command>&dhpackage;</command>
       <group>
-        <arg>--crypto-pass <replaceable>password</replaceable></arg>
+        <arg>--enable-crypto</arg>
       </group>
       <group>
-	<arg>-d <replaceable>level</replaceable></arg>    
-	<arg>--debug <replaceable>level</replaceable></arg>   
+    <arg>-d <replaceable>level</replaceable></arg>    
+    <arg>--debug <replaceable>level</replaceable></arg>   
       </group>
       <group>
         <arg>--display <replaceable>display</replaceable></arg>
@@ -98,6 +95,12 @@ synergyc.1: synergyc.sgml
       <group>
         <arg>--yscroll <replaceable>delta</replaceable></arg>
       </group>
+      <group>
+        <arg>--profile-dir <replaceable>path</replaceable></arg>
+      </group>
+      <group>
+        <arg>--plugin-dir <replaceable>path</replaceable></arg>
+      </group>
       <arg choice="plain"><replaceable>address</replaceable></arg>
     </cmdsynopsis>
     <cmdsynopsis>
@@ -125,11 +128,10 @@ synergyc.1: synergyc.sgml
     <title>OPTIONS</title>
 
       <varlistentry>
-        <term><option>--crypto-pass <replaceable>password</replaceable></option>
+        <term><option>--enable-crypto</option>
         </term>
         <listitem>
-          <para>use <replaceable>password</replaceable> as the password for
-            authenticating to the synergy server.
+          <para>enables encryption if the encryption plugin is available.
           </para>
         </listitem>
       </varlistentry>
@@ -177,7 +179,7 @@ synergyc.1: synergyc.sgml
         </term>
         <listitem>
           <para>write log messages to <replaceable>log-file</replaceable>
-	  </para>
+          </para>
         </listitem>
       </varlistentry>
       <varlistentry>
@@ -186,11 +188,10 @@ synergyc.1: synergyc.sgml
         </term>
         <listitem>
           <para>use <replaceable>screen-name</replaceable> instead of
-	    the hostname.</para> 
-
-	  <para>This option lets the client use a name other than its
-	    hostname for its screen. This name is used when checking
-	    the configuration.</para>
+          the hostname.</para>
+          <para>This option lets the client use a name other than its
+            hostname for its screen. This name is used when checking
+            the configuration.</para>
         </listitem>
       </varlistentry>
       <varlistentry>
@@ -231,7 +232,29 @@ synergyc.1: synergyc.sgml
           <para>set the vertical scrolling delta to
             <replaceable>delta</replaceable>.  If this option is not
             given, the default vertical scrolling delta is 120.
-	  </para>
+          </para>
+        </listitem>
+      </varlistentry>
+      <varlistentry>
+        <term>
+          <option>--profile-dir <replaceable>path</replaceable></option>
+        </term>
+        <listitem>
+          <para>specify an alternate profile directory
+            <replaceable>path</replaceable>. Default is
+            ~/.synergy/
+          </para>
+        </listitem>
+      </varlistentry>
+      <varlistentry>
+        <term>
+          <option>--plugin-dir <replaceable>path</replaceable></option>
+        </term>
+        <listitem>
+          <para>specify an alternate plugin directory
+            <replaceable>path</replaceable>. Default is
+            ~/.synergy/plugins/
+          </para>
         </listitem>
       </varlistentry>
       <varlistentry>
@@ -266,11 +289,12 @@ synergyc.1: synergyc.sgml
             </itemizedlist>
           </para>
           <para>
-	    <replaceable>hostname</replaceable> is a hostname or
+            <replaceable>hostname</replaceable> is a hostname or
             address of a network interface on the server
             system. <replaceable>port</replaceable> is a port number
             from 1 to 65535.  <replaceable>port</replaceable> defaults
-            to 24800.</para>
+            to 24800.
+          </para>
         </listitem>
       </varlistentry>
     </variablelist>
@@ -281,13 +305,12 @@ synergyc.1: synergyc.sgml
 
     <para>Run the client on all computers that aren't the server using
       the following command line:
-      
       <cmdsynopsis>
-	<command>synergyc </command> 
-	<arg choice="plain">-f</arg>
-	<arg choice="plain"><replaceable>server-hostname</replaceable></arg>
+        <command>synergyc </command> 
+        <arg choice="plain">-f</arg>
+        <arg choice="plain"><replaceable>server-hostname</replaceable></arg>
       </cmdsynopsis>
-      
+
       Replace <replaceable>server-hostname</replaceable> with the
       hostname or address of the server system. The `-f' option causes
       synergy to run in the foreground. This option is recommended until
@@ -356,50 +379,42 @@ synergyc.1: synergyc.sgml
   <command>pkill synergyc</command>
 </cmdsynopsis>
 <cmdsynopsis>
-	<command>synergyc</command>
+    <command>synergyc</command>
   <arg><replaceable>options</replaceable></arg>
-	<arg choice="plain"><replaceable>server-hostname</replaceable></arg>
+    <arg choice="plain"><replaceable>server-hostname</replaceable></arg>
       </cmdsynopsis></para>
-    
+
     <para>
       If you are using GNOME, you can add the synergy client to the
       list of the non-session-managed startup programs. For doing this,
       start the control center, choose `Session Properties & Startup'
       and then `Startup Programs'. Add a new entry with `<command>/usr/bin/synergyc
-	<replaceable>server-hostname</replaceable></command>' as the startup command.
+      <replaceable>server-hostname</replaceable></command>' as the startup command.
     </para>
-    
+
     <para>
       <replaceable>options</replaceable> must not include `-f' or `--no-daemon'.
       It's important to make sure no old copies of synergy are running so they
       can't interfere with the new one.
     </para>
   </refsect1>
-  
-  <refsect1>
-    <title>BUGS</title>
 
-    <para>
-      The <option>--crypto-pass</option> option uses new cryptography
-      code that is not well-tested, and has been known to contain
-      security flaws.  See the synergys(1) man page, under NETWORK
-      SECURITY and BUGS, for a discussion of the security provided and
-      potential alternatives.
-    </para>
+<!--  <refsect1>
+    <title>BUGS</title>
   </refsect1>
+-->
 
   <refsect1>
     <title>SEE ALSO</title>
-    
     <para>synergys(1)</para>
   </refsect1>
-  
+
   <refsect1>
     <title>AUTHOR</title>
-    
     <para>This manual page was written by Daniel Lutz &lt;danlutz@debian.org&gt; for
-      the &debian; system. Edited by Titus Barik &lt;barik@ieee.org&gt;
-      and Jeff Licquia &lt;licquia@debian.org&gt;.</para>
+      the &debian; system. Edited by Titus Barik &lt;barik@ieee.org&gt;, Jeff
+      Licquia &lt;licquia@debian.org&gt;, and Joshua Honeycutt 
+	  &lt;joshua.honeycutt@gmail.com&gt;.</para>
   </refsect1>
 </refentry>
 

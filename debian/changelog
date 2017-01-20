@@ -7,6 +7,12 @@ synergy (1.8.7-stable+dfsg.1-1) unstable; urgency=medium
     library tarballs.
   * Removed cprotocolutil-writef patch.
   * Removed system-cryptopp patch.
+  * Added shell script to generate SSL key/certificate files for encryption
+    (/usr/share/synergy/gen_ssl_pem.sh).
+  * Updated man pages (removed old crypto++ references and command line
+    options, added new command line options, formatting).
+  * Added documentation to README.Debian on enabling crypto without pro
+    account.
 
  -- Joshua Honeycutt <joshua.honeycutt@gmail.com>  Fri, 20 Jan 2017 12:58:56 -0600
 
