@@ -1,0 +1,10 @@
+Description: Add keywords to synergy.desktop
+Author: "Joshua Honeycutt" <joshua.honeycutt@gmail.com>
+
+--- a/res/synergy.desktop
++++ b/res/synergy.desktop
+@@ -5,3 +5,4 @@
+ Icon=/usr/share/icons/synergy.ico
+ Type=Application
+ Categories=Utility;
++Keywords=keyboard;mouse;sharing;network;share;

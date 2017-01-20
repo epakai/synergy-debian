@@ -9,12 +9,12 @@ Last-Update: 2014-03-16
 This patch header follows DEP-3: http://dep.debian.net/deps/dep3/
 --- a/src/gui/src/MainWindow.cpp
 +++ b/src/gui/src/MainWindow.cpp
-@@ -127,7 +127,7 @@
- 
- 	showNormal();
+@@ -197,7 +197,7 @@
+ 		showNormal();
+ 	}
  
 -	m_VersionChecker.checkLatest();
 +	// m_VersionChecker.checkLatest();
  
- 	if (appConfig().processMode() == Desktop) {
- 		startSynergy();
+ 	if (!appConfig().autoConfigPrompted()) {
+ 		promptAutoConfig();
