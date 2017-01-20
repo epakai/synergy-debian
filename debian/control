@@ -2,11 +2,10 @@ Source: synergy
 Section: x11
 Priority: optional
 Maintainer: Jeff Licquia <licquia@debian.org>
-Homepage: http://synergy-foss.org/
-Vcs-Git: http://git.licquia.org/raw/synergy-debian.git
-Vcs-Browser: http://git.licquia.org/?p=synergy-debian.git;a=summary
-Build-Depends: debhelper (>= 7), libxt-dev, libxtst-dev, libxinerama-dev, cmake, docbook-utils, libcrypto++-dev, pkg-config, libqt4-dev, libcurl4-gnutls-dev | libcurl-dev, google-mock, libgtest-dev
-Standards-Version: 3.9.5
+Uploaders: Joshua Honeycutt <joshua.honeycutt@gmail.com>
+Homepage: http://symless.com/synergy/
+Build-Depends: cmake, debhelper (>=9), docbook, docbook-utils, libavahi-compat-libdnssd-dev, libqt4-dev, libssl-dev, libxinerama-dev, libxrandr-dev, libxtst-dev, libcurl4-gnutls-dev | libcurl-dev, google-mock, libgtest-dev
+Standards-Version: 3.9.8
 
 Package: synergy
 Architecture: any
@@ -25,5 +24,23 @@ Description: Share mouse, keyboard and clipboard over the network
  together and, if screen locking is enabled, only one screen requires
  a password to unlock them all.
  .
- Packages for Windows/MacOS/RPM and Sources can be found at
- http://sourceforge.net/project/showfiles.php?group_id=59275
+ Synergy binaries are available as paid downloads at 
+ http://symless.com/synergy/ or may be built from source found
+ at https://github.com/symless/synergy
+
+
+Package: synergy-dbg
+Architecture: any
+Section: debug
+Priority: extra
+Depends:
+    synergy (= ${binary:Version}),
+    ${misc:Depends}
+Description: debugging symbols for synergy
+ Synergy lets you easily share a single mouse and keyboard between
+ multiple computers with different operating systems, each with its
+ own display, without special hardware.  It's intended for users
+ with multiple computers on their desk since each system uses its
+ own display.
+ .
+ This package contains the debugging symbols for synergy.
