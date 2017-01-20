@@ -72,9 +72,6 @@ synergys.1: synergys.sgml
         <arg>--config <replaceable>pathname</replaceable></arg>
       </group>
       <group>
-        <arg>--crypto-mode <replaceable>mode</replaceable></arg>
-      </group>
-      <group>
         <arg>--crypto-pass <replaceable>password</replaceable></arg>
       </group>
       <group>
@@ -187,19 +184,6 @@ synergys.1: synergys.sgml
             If no configuration file can be loaded then the
             configuration uses its defaults with just the server
             screen.
-          </para>
-        </listitem>
-      </varlistentry>
-
-      <varlistentry>
-        <term><option>--crypto-mode <replaceable>mode</replaceable></option>
-        </term>
-        <listitem>
-          <para>use <replaceable>mode</replaceable> as the encryption mode
-            for encrypting the connection.</para>
-          <para>If this parameter is not given, encryption is disabled.  See
-            below, under NETWORK SECURITY, for details on the available modes
-            and how they work.
           </para>
         </listitem>
       </varlistentry>
@@ -717,43 +701,14 @@ synergys.1: synergys.sgml
     </para>
     <para>
       To turn on encryption and authentication support, use
-      the <option>--crypto-mode</option>
-      and <option>--crypto-pass</option> options on both client and
+      the <option>--crypto-pass</option> option on both client and
       server.  In this mode, the connection will be encrypted, and the
       server will check the client's password against the one it was
-      started with.  Each crypto mode describes the relationship
-      between encrypted packets; the modes must match on both sides of
-      the connection for it to work.
+      started with.
     </para>
-    <para>Valid modes for <option>--crypto-mode</option> are:</para>
-    <variablelist>
-      <varlistentry>
-        <term>ofb</term>
-        <listitem>
-          <para>Output feedback mode.</para>
-        </listitem>
-      </varlistentry>
-      <varlistentry>
-        <term>cfb</term>
-        <listitem>
-          <para>Cipher feedback mode.</para>
-        </listitem>
-      </varlistentry>
-      <varlistentry>
-        <term>ctr</term>
-        <listitem>
-          <para>Counter mode.</para>
-        </listitem>
-      </varlistentry>
-      <varlistentry>
-        <term>gcm</term>
-        <listitem>
-          <para>Galois/Counter mode.</para>
-        </listitem>
-      </varlistentry>
-    </variablelist>
     <para>
-      If this level of security is not sufficient for some reason, you
+      If this level of security is not sufficient for some reason
+      (see the BUGS section below for a possible reason), you
       can use SSH (secure shell) to provide strong authentication and
       encryption to synergy.  SSH is available on &debian; systems in
       the "openssh-server" and "openssh-client" packages, or from
@@ -779,6 +734,18 @@ synergys.1: synergys.sgml
       all communication through SSH which encrypts it, passes it over
       the network, decrypts it, and hands it back to synergy.
       Authentication is provided by SSH's authentication.
+    </para>
+  </refsect1>
+
+  <refsect1>
+    <title>BUGS</title>
+
+    <para>
+      The cryptography support is fairly new, and to the extent it has
+      been tested, it has not done well.  Users are advised to further
+      secure their synergy sessions using methods such as the SSH
+      method described in the NETWORK SECURITY section above until its
+      security has been verified independently.
     </para>
   </refsect1>
 

@@ -1,2 +1,5 @@
+debian_google-test.patch
 system-cryptopp.patch
 cprotocolutil-writef.patch
+versioncheck-disable.patch
+x11-mouseover.patch

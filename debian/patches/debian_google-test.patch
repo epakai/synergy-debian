@@ -1,0 +1,48 @@
+Description: Builds against Debian packaged google-mock
+ and libgtest-dev
+Author: Joshua Honeycutt <joshua.honeycutt@gmail.com>
+Forwarded: not-needed
+Last-Update: 2016-10-23
+
+--- a/src/test/CMakeLists.txt
++++ b/src/test/CMakeLists.txt
+@@ -15,13 +15,11 @@
+ # along with this program.  If not, see <http://www.gnu.org/licenses/>.
+ 
+ include_directories(
+-	../../tools/gtest-1.6.0
+-	../../tools/gtest-1.6.0/include
+-	../../tools/gmock-1.6.0
+-	../../tools/gmock-1.6.0/include)
++	/usr/src/gtest
++	/usr/src/gmock)
+ 	
+-add_library(gtest STATIC ../../tools/gtest-1.6.0/src/gtest-all.cc)
+-add_library(gmock STATIC ../../tools/gmock-1.6.0/src/gmock-all.cc)
++add_library(gtest STATIC /usr/src/gtest/src/gtest-all.cc)
++add_library(gmock STATIC /usr/src/gmock/src/gmock-all.cc)
+ 
+ add_subdirectory(integtests)
+ add_subdirectory(unittests)
+--- a/src/test/integtests/CMakeLists.txt
++++ b/src/test/integtests/CMakeLists.txt
+@@ -72,8 +72,6 @@
+ 	../../lib/synergy
+ 	../../lib/synwinhk
+ 	../../lib/synwinxt
+-	../../../tools/gtest-1.6.0/include
+-	../../../tools/gmock-1.6.0/include
+ 	../unittests
+ )
+ 
+--- a/src/test/unittests/CMakeLists.txt
++++ b/src/test/unittests/CMakeLists.txt
+@@ -49,8 +49,6 @@
+ 	../../lib/net
+ 	../../lib/platform
+ 	../../lib/synergy
+-	../../../tools/gtest-1.6.0/include
+-	../../../tools/gmock-1.6.0/include
+ 	../../../tools
+ 	io
+ 	synergy

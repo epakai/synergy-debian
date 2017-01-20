@@ -1,9 +1,35 @@
-synergy (1.4.16-1) UNRELEASED; urgency=medium
+synergy (1.4.16-1.2) unstable; urgency=medium
+
+  * Non-maintainer upload.
+  * Apply patch from https://xzrq.net/x11-mouseover.patch as mentioned
+    in https://github.com/symless/synergy/issues/3749#issuecomment-58855820
+    to fix X11 mouse-over issue on synergy server (closes: #764389).
+
+ -- Peter Palfrader <weasel@debian.org>  Sun, 08 Jan 2017 11:20:13 +0100
+
+synergy (1.4.16-1.1) unstable; urgency=medium
+
+  * Non-maintainer upload.
+  * Added debian_google-test.patch to build against Debian's
+    google-mock and libgtest-dev packages. Closes: #812303
+
+ -- Joshua Honeycutt <joshua.honeycutt@gmail.com>  Sun, 23 Oct 2016 23:36:22 -0500
+
+synergy (1.4.16-1) unstable; urgency=low
 
   * New upstream version.
   * Update Standards-Version.
+  * Switch from docbook-to-man to docbook-utils for SGML man
+    page processing.
+  * Switch package version control from bzr to git.
+  * Update man pages to note loss of --crypto-mode.
+  * Add notes about the security of synergy's native crypto.
+  * Remove faulty example.  Closes: #726526.
+  * Tested Qt GUI, which works fine.  Closes: #415604.
+  * Disable nag warning about newer upstream versions.  Closes: #731773.
+  * Update watch file.
 
- -- Jeff Licquia <licquia@debian.org>  Sat, 15 Mar 2014 20:36:23 +0000
+ -- Jeff Licquia <licquia@debian.org>  Sun, 16 Mar 2014 22:58:26 +0000
 
 synergy (1.4.12-3) unstable; urgency=low
 

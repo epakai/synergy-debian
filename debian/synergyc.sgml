@@ -64,9 +64,6 @@ synergyc.1: synergyc.sgml
     <cmdsynopsis>
       <command>&dhpackage;</command>
       <group>
-        <arg>--crypto-mode <replaceable>mode</replaceable></arg>
-      </group>
-      <group>
         <arg>--crypto-pass <replaceable>password</replaceable></arg>
       </group>
       <group>
@@ -126,19 +123,6 @@ synergyc.1: synergyc.sgml
 
   <refsect1>
     <title>OPTIONS</title>
-
-    <variablelist>
-      <varlistentry>
-        <term><option>--crypto-mode <replaceable>mode</replaceable></option>
-        </term>
-        <listitem>
-          <para>use <replaceable>mode</replaceable> as the encryption mode
-            for encrypting the connection.</para>
-          <para>If this parameter is not given, encryption is disabled.  See
-            synergys(1) for details on the available modes and how they work.
-          </para>
-        </listitem>
-      </varlistentry>
 
       <varlistentry>
         <term><option>--crypto-pass <replaceable>password</replaceable></option>
@@ -392,6 +376,18 @@ synergyc.1: synergyc.sgml
     </para>
   </refsect1>
   
+  <refsect1>
+    <title>BUGS</title>
+
+    <para>
+      The <option>--crypto-pass</option> option uses new cryptography
+      code that is not well-tested, and has been known to contain
+      security flaws.  See the synergys(1) man page, under NETWORK
+      SECURITY and BUGS, for a discussion of the security provided and
+      potential alternatives.
+    </para>
+  </refsect1>
+
   <refsect1>
     <title>SEE ALSO</title>
     

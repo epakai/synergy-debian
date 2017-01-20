@@ -70,17 +70,11 @@ tools/cryptopp: tools/cryptopp562.zip
 # Man page builders.  These are better than the upstream man pages
 # in doc.
 
-synergy.1: debian/synergy.sgml
-	docbook-to-man debian/synergy.sgml > synergy.1
-
-synergys.1: debian/synergys.sgml
-	docbook-to-man debian/synergys.sgml > synergys.1
-
-synergyc.1: debian/synergyc.sgml
-	docbook-to-man debian/synergyc.sgml > synergyc.1
-
-synergyd.1: debian/synergyd.sgml
-	docbook-to-man debian/synergyd.sgml > synergyd.1
+%.1: debian/%.sgml
+	mkdir man-$*-tmp
+	cd man-$*-tmp && docbook2man ../$<
+	ls man-$*-tmp/*.1 | head -n 1 | (while read f; do mv $$f $@; done)
+	rm -rf man-$*-tmp
 
 # Main targets.
 

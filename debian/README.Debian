@@ -7,7 +7,9 @@ synergy were available for:
 
   * Windows
   * MacOS X
-  * RPM-Systems.
+  * RPM- and deb-based Linux
+  * Android
+  * iOS
 
 Synergy should work on all systems that use the X Window System, but
 you may have to compile it yourself. The source code is also available
@@ -21,3 +23,18 @@ There was a relatively short-lived fork of synergy called
 this moment, the two projects have re-merged; essentially, the
 synergy-plus team has taken over development.  This package contains
 synergy as distributed by the merged project.
+
+Crypto
+------
+
+As of version 1.4.12, synergy has included an option for encrypting
+the data sent between hosts.  This support features a home-grown
+crypto protocol implemented on top of the Crypto++ library, and has
+already been cracked once.  See:
+
+http://www.cryptofails.com/post/70059598854/synergy-integer-overflow-key-reuse-iv-reuse
+https://defuse.ca/cracking-synergy-bad-cryptography.htm
+
+Users are advised to consider whether this level of security will meet
+their needs before relying on it.  The manual page for synergys
+contains instructions for using SSH to provide additional security.
