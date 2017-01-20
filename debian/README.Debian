@@ -1,40 +1,41 @@
 synergy for Debian
 ------------------
+Synergy includes five binaries:
+	* synergy - Qt gui for configuring client or server
+	* synergyc - command line client
+	* synergys - command line server
+	* synergyd - synergy daemon (not for direct use)
+	* syntool - helper command for synergy
+
+Extra documentation is available at 
+(https://github.com/symless/synergy/wiki).
 
 Synergy works with non-Debian machines; for more information, see the
-project website.  At the time of writing packages/installers for
-synergy were available for:
+project website (http://symless.com/synergy/).  At the time of writing
+packages/installers for synergy were available as paid downloads for:
 
   * Windows
   * MacOS X
   * RPM- and deb-based Linux
-  * Android
-  * iOS
 
 Synergy should work on all systems that use the X Window System, but
 you may have to compile it yourself. The source code is also available
 at the above address.
 
-synergy-plus
-------------
+Synergy encryption
+------------------
 
-There was a relatively short-lived fork of synergy called
-"synergy-plus" that formed when upstream development slowed.  As of
-this moment, the two projects have re-merged; essentially, the
-synergy-plus team has taken over development.  This package contains
-synergy as distributed by the merged project.
+Synergy does not encrypt communication by default. Clipboard contents,
+mouse movements and keyboard events may all be exposed over the network.
 
-Crypto
-------
+On the synergy server a private key and certificate must be created.
+Synergy only generates a key using the gui program 'synergy' once a
+Synergy Pro user has been authenticated. As an alternative the
+Debian synergy package includes a /usr/share/synergy/gen_ssl_pem.sh
+script to generate a key, certificate and fingerprint (used to verify
+connecting to correct server).
 
-As of version 1.4.12, synergy has included an option for encrypting
-the data sent between hosts.  This support features a home-grown
-crypto protocol implemented on top of the Crypto++ library, and has
-already been cracked once.  See:
-
-http://www.cryptofails.com/post/70059598854/synergy-integer-overflow-key-reuse-iv-reuse
-https://defuse.ca/cracking-synergy-bad-cryptography.htm
-
-Users are advised to consider whether this level of security will meet
-their needs before relying on it.  The manual page for synergys
-contains instructions for using SSH to provide additional security.
+After this setup synergyc and synergys can be launched with the 
+--enable-crypto option to encrypt their communication. The gui tool,
+synergy, will still require authenticating as a Synergy Pro user 
+in order to enable encryption through its interface.

@@ -34,13 +34,11 @@
   </refentryinfo>
   <refmeta>
     &dhucpackage;
-    
     &dhsection;
   </refmeta>
 
   <refnamediv>
     <refname>&dhpackage;</refname>
-
     <refpurpose>synergy setup GUI</refpurpose>
   </refnamediv>
 
@@ -54,9 +52,17 @@
     <title>DESCRIPTION</title>
 
     <para>The <application>synergy</application> command starts
-      a graphical interface for setting up Synergy sessions, allowing
-      the mouse and keyboard from one computer to control multiple
-      computers as if they were a single multi-monitor system.</para>
+      a graphical interface for setting up Synergy client or server 
+      sessions, allowing the mouse and keyboard from one computer 
+      to control multiple computers as if they were a single multi-
+      monitor system.
+    </para> 
+    <para>The <application>synergy</application> tool has some 
+      configuration limitations compared to text config. 
+      Configurations are limited to a 3x5 grid (manual configuration 
+      allow for offset displays.) It cannot define non-reciprocal 
+      display connections.
+    </para> 
 
     <para>This manual page was written for the &debian; distribution
       because the original program does not have a manual page.
@@ -65,13 +71,11 @@
 
   <refsect1>
     <title>SEE ALSO</title>
-    
     <para>synergys(1), synergyc(1)</para>
   </refsect1>
-  
+
   <refsect1>
     <title>AUTHOR</title>
-    
     <para>This manual page was written by Jeff Licquia &lt;licquia@debian.org&gt; for
       the &debian; system.</para>
   </refsect1>
