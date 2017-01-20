@@ -1,11 +1,11 @@
 /*
  * synergy -- mouse and keyboard sharing utility
- * Copyright (C) 2012 Bolton Software Ltd.
+ * Copyright (C) 2012-2016 Symless Ltd.
  * Copyright (C) 2008 Volker Lanz (vl@fidra.de)
  * 
  * This package is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
- * found in the file COPYING that should have accompanied this file.
+ * found in the file LICENSE that should have accompanied this file.
  * 
  * This package is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
@@ -36,6 +36,8 @@ class ServerConfigDialog : public QDialog, public Ui::ServerConfigDialogBase
 
 	public slots:
 		void accept();
+		void showEvent(QShowEvent* event);
+		void message(const QString& message) { m_Message = message; }
 
 	protected slots:
 		void on_m_pButtonNewHotkey_clicked();
@@ -57,6 +59,7 @@ class ServerConfigDialog : public QDialog, public Ui::ServerConfigDialogBase
 		ServerConfig& m_OrigServerConfig;
 		ServerConfig m_ServerConfig;
 		ScreenSetupModel m_ScreenSetupModel;
+		QString m_Message;
 };
 
 #endif

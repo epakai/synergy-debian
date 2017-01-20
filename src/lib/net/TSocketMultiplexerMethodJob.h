@@ -1,11 +1,11 @@
 /*
  * synergy -- mouse and keyboard sharing utility
- * Copyright (C) 2012 Bolton Software Ltd.
+ * Copyright (C) 2012-2016 Symless Ltd.
  * Copyright (C) 2004 Chris Schoeneman
  * 
  * This package is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
- * found in the file COPYING that should have accompanied this file.
+ * found in the file LICENSE that should have accompanied this file.
  * 
  * This package is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
@@ -16,11 +16,10 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#ifndef TSOCKERMULTIPLEXERMETHODJOB_H
-#define TSOCKERMULTIPLEXERMETHODJOB_H
+#pragma once
 
-#include "ISocketMultiplexerJob.h"
-#include "CArch.h"
+#include "net/ISocketMultiplexerJob.h"
+#include "arch/Arch.h"
 
 //! Use a method as a socket multiplexer job
 /*!
@@ -34,20 +33,20 @@ public:
 
 	//! run() invokes \c object->method(arg)
 	TSocketMultiplexerMethodJob(T* object, Method method,
-							CArchSocket socket, bool readable, bool writeable);
+							ArchSocket socket, bool readable, bool writeable);
 	virtual ~TSocketMultiplexerMethodJob();
 
 	// IJob overrides
 	virtual ISocketMultiplexerJob*
 						run(bool readable, bool writable, bool error);
-	virtual CArchSocket	getSocket() const;
+	virtual ArchSocket	getSocket() const;
 	virtual bool		isReadable() const;
 	virtual bool		isWritable() const;
 
 private:
 	T*					m_object;
 	Method				m_method;
-	CArchSocket			m_socket;
+	ArchSocket			m_socket;
 	bool				m_readable;
 	bool				m_writable;
 	void*				m_arg;
@@ -56,7 +55,7 @@ private:
 template <class T>
 inline
 TSocketMultiplexerMethodJob<T>::TSocketMultiplexerMethodJob(T* object,
-				Method method, CArchSocket socket,
+				Method method, ArchSocket socket,
 				bool readable, bool writable) :
 	m_object(object),
 	m_method(method),
@@ -87,7 +86,7 @@ TSocketMultiplexerMethodJob<T>::run(bool read, bool write, bool error)
 
 template <class T>
 inline
-CArchSocket
+ArchSocket
 TSocketMultiplexerMethodJob<T>::getSocket() const
 {
 	return m_socket;
@@ -108,5 +107,3 @@ TSocketMultiplexerMethodJob<T>::isWritable() const
 {
 	return m_writable;
 }
-
-#endif

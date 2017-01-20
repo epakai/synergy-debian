@@ -1,11 +1,11 @@
 /*
  * synergy -- mouse and keyboard sharing utility
- * Copyright (C) 2012 Bolton Software Ltd.
+ * Copyright (C) 2012-2016 Symless Ltd.
  * Copyright (C) 2008 Volker Lanz (vl@fidra.de)
  * 
  * This package is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
- * found in the file COPYING that should have accompanied this file.
+ * found in the file LICENSE that should have accompanied this file.
  * 
  * This package is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
@@ -18,8 +18,13 @@
 
 #include "ServerConfig.h"
 #include "Hotkey.h"
+#include "MainWindow.h"
+#include "AddClientDialog.h"
 
 #include <QtCore>
+#include <QMessageBox>
+#include <QAbstractButton>
+#include <QPushButton>
 
 static const struct
 {
@@ -28,18 +33,26 @@ static const struct
 	 const char* name;
 } neighbourDirs[] =
 {
-	{  0, -1, "up" },
 	{  1,  0, "right" },
-	{  0,  1, "down" },
 	{ -1,  0, "left" },
+	{  0, -1, "up" },
+	{  0,  1, "down" },
+
 };
 
+const int serverDefaultIndex = 7;
 
-ServerConfig::ServerConfig(QSettings* settings, int numColumns, int numRows) :
+ServerConfig::ServerConfig(QSettings* settings, int numColumns, int numRows ,
+				QString serverName, MainWindow* mainWindow) :
 	m_pSettings(settings),
 	m_Screens(),
 	m_NumColumns(numColumns),
-	m_NumRows(numRows)
+	m_NumRows(numRows),
+	m_ServerName(serverName),
+	m_IgnoreAutoConfigClient(false),
+	m_EnableDragAndDrop(false),
+	m_ClipboardSharing(true),
+	m_pMainWindow(mainWindow)
 {
 	Q_ASSERT(m_pSettings);
 
@@ -102,6 +115,8 @@ void ServerConfig::saveSettings()
 	settings().setValue("hasSwitchDoubleTap", hasSwitchDoubleTap());
 	settings().setValue("switchDoubleTap", switchDoubleTap());
 	settings().setValue("switchCornerSize", switchCornerSize());
+	settings().setValue("ignoreAutoConfigClient", ignoreAutoConfigClient());
+	settings().setValue("enableDragAndDrop", enableDragAndDrop());
 
 	writeSettings(settings(), switchCorners(), "switchCorner");
 
@@ -144,6 +159,8 @@ void ServerConfig::loadSettings()
 	haveSwitchDoubleTap(settings().value("hasSwitchDoubleTap", false).toBool());
 	setSwitchDoubleTap(settings().value("switchDoubleTap", 250).toInt());
 	setSwitchCornerSize(settings().value("switchCornerSize").toInt());
+	setIgnoreAutoConfigClient(settings().value("ignoreAutoConfigClient").toBool());
+	setEnableDragAndDrop(settings().value("enableDragAndDrop", true).toBool());
 
 	readSettings(settings(), switchCorners(), "switchCorner", false, NumSwitchCorners);
 
@@ -230,6 +247,7 @@ QTextStream& operator<<(QTextStream& outStream, const ServerConfig& config)
 	outStream << "\t" << "relativeMouseMoves = " << (config.relativeMouseMoves() ? "true" : "false") << endl;
 	outStream << "\t" << "screenSaverSync = " << (config.screenSaverSync() ? "true" : "false") << endl;
 	outStream << "\t" << "win32KeepForeground = " << (config.win32KeepForeground() ? "true" : "false") << endl;
+	outStream << "\t" << "clipboardSharing = " << (config.clipboardSharing() ? "true" : "false") << endl;
 
 	if (config.hasSwitchDelay())
 		outStream << "\t" << "switchDelay = " << config.switchDelay() << endl;
@@ -262,4 +280,124 @@ int ServerConfig::numScreens() const
 			rval++;
 
 	return rval;
+}
+
+int ServerConfig::autoAddScreen(const QString name)
+{
+	int serverIndex = -1;
+	int targetIndex = -1;
+	if (!findScreenName(m_ServerName, serverIndex)) {
+		if (!fixNoServer(m_ServerName, serverIndex)) {
+			return kAutoAddScreenManualServer;
+		}
+	}
+	if (findScreenName(name, targetIndex)) {
+		// already exists.
+		return kAutoAddScreenIgnore;
+	}
+
+	int result = showAddClientDialog(name);
+
+	if (result == kAddClientIgnore) {
+		return kAutoAddScreenIgnore;
+	}
+
+	if (result == kAddClientOther) {
+		addToFirstEmptyGrid(name);
+		return kAutoAddScreenManualClient;
+	}
+
+	bool success = false;
+	int startIndex = serverIndex;
+	int offset = 1;
+	int dirIndex = 0;
+
+	if (result == kAddClientLeft) {
+		offset = -1;
+		dirIndex = 1;
+	}
+	else if (result == kAddClientUp) {
+		offset = -5;
+		dirIndex = 2;
+	}
+	else if (result == kAddClientDown) {
+		offset = 5;
+		dirIndex = 3;
+	}
+
+
+	int idx = adjacentScreenIndex(startIndex, neighbourDirs[dirIndex].x,
+					neighbourDirs[dirIndex].y);
+	while (idx != -1) {
+		if (screens()[idx].isNull()) {
+			m_Screens[idx].setName(name);
+			success = true;
+			break;
+		}
+
+		startIndex += offset;
+		idx = adjacentScreenIndex(startIndex, neighbourDirs[dirIndex].x,
+					neighbourDirs[dirIndex].y);
+	}
+
+	if (!success) {
+		addToFirstEmptyGrid(name);
+		return kAutoAddScreenManualClient;
+	}
+
+	saveSettings();
+	return kAutoAddScreenOk;
+}
+
+bool ServerConfig::findScreenName(const QString& name, int& index)
+{
+	bool found = false;
+	for (int i = 0; i < screens().size(); i++) {
+		if (!screens()[i].isNull() &&
+			screens()[i].name().compare(name) == 0) {
+			index = i;
+			found = true;
+			break;
+		}
+	}
+	return found;
+}
+
+bool ServerConfig::fixNoServer(const QString& name, int& index)
+{
+	bool fixed = false;
+	if (screens()[serverDefaultIndex].isNull()) {
+		m_Screens[serverDefaultIndex].setName(name);
+		index = serverDefaultIndex;
+		fixed = true;
+	}
+
+	return fixed;
+}
+
+int ServerConfig::showAddClientDialog(const QString& clientName)
+{
+	int result = kAddClientIgnore;
+
+	if (!m_pMainWindow->isActiveWindow()) {
+		m_pMainWindow->showNormal();
+		m_pMainWindow->activateWindow();
+	}
+
+	AddClientDialog addClientDialog(clientName, m_pMainWindow);
+	addClientDialog.exec();
+	result = addClientDialog.addResult();
+	m_IgnoreAutoConfigClient = addClientDialog.ignoreAutoConfigClient();
+
+	return result;
+}
+
+void::ServerConfig::addToFirstEmptyGrid(const QString &clientName)
+{
+	for (int i = 0; i < screens().size(); i++) {
+		if (screens()[i].isNull()) {
+			m_Screens[i].setName(clientName);
+			break;
+		}
+	}
 }

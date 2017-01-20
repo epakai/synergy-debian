@@ -1,12 +1,12 @@
 /*
  * synergy -- mouse and keyboard sharing utility
- * Copyright (C) 2012 Bolton Software Ltd.
+ * Copyright (C) 2012-2016 Symless Ltd.
  * Copyright (C) 2008 Volker Lanz (vl@fidra.de)
- * 
+ *
  * This package is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
- * found in the file COPYING that should have accompanied this file.
- * 
+ * found in the file LICENSE that should have accompanied this file.
+ *
  * This package is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
@@ -20,6 +20,7 @@
 #define TRAY_RETRY_WAIT 2000
 
 #include "QSynergyApplication.h"
+#include "LicenseManager.h"
 #include "MainWindow.h"
 #include "AppConfig.h"
 #include "SetupWizard.h"
@@ -31,6 +32,7 @@
 
 #if defined(Q_OS_MAC)
 #include <Carbon/Carbon.h>
+
 #endif
 
 class QThreadImpl : public QThread
@@ -51,7 +53,7 @@ bool checkMacAssistiveDevices();
 int main(int argc, char* argv[])
 {
 	QCoreApplication::setOrganizationName("Synergy");
-	QCoreApplication::setOrganizationDomain("http://synergy-foss.org/");
+	QCoreApplication::setOrganizationDomain("http://symless.com/");
 	QCoreApplication::setApplicationName("Synergy");
 
 	QSynergyApplication app(argc, argv);
@@ -64,7 +66,7 @@ int main(int argc, char* argv[])
 			"Please drag Synergy to the Applications folder, and open it from there.");
 		return 1;
 	}
-	
+
 	if (!checkMacAssistiveDevices())
 	{
 		return 1;
@@ -81,11 +83,13 @@ int main(int argc, char* argv[])
 #endif
 
 	QSettings settings;
-	AppConfig appConfig(&settings);
+	AppConfig appConfig (&settings);
+	qRegisterMetaType<Edition>("Edition");
+	LicenseManager licenseManager (&appConfig);
 
 	app.switchTranslator(appConfig.language());
 
-	MainWindow mainWindow(settings, appConfig);
+	MainWindow mainWindow(settings, appConfig, licenseManager);
 	SetupWizard setupWizard(mainWindow, true);
 
 	if (appConfig.wizardShouldRun())
@@ -94,7 +98,7 @@ int main(int argc, char* argv[])
 	}
 	else
 	{
-		mainWindow.start();
+		mainWindow.open();
 	}
 
 	return app.exec();
@@ -135,13 +139,16 @@ bool checkMacAssistiveDevices()
 	// tab, with a list of allowed applications. synergy should
 	// show up there automatically, but will be unchecked.
 
-	const void* keys[] = { kAXTrustedCheckOptionPrompt };
-	const void* values[] = { kCFBooleanTrue };
+	if (AXIsProcessTrusted()) {
+		return true;
+	}
 
-	CFDictionaryRef options = CFDictionaryCreate(NULL, keys, values, 1, NULL, NULL);
+	const void* keys[] = { kAXTrustedCheckOptionPrompt };
+	const void* trueValue[] = { kCFBooleanTrue };
+	CFDictionaryRef options = CFDictionaryCreate(NULL, keys, trueValue, 1, NULL, NULL);
+
 	bool result = AXIsProcessTrustedWithOptions(options);
 	CFRelease(options);
-
 	return result;
 
 #else
@@ -152,7 +159,8 @@ bool checkMacAssistiveDevices()
 		QMessageBox::information(
 			NULL, "Synergy",
 			"Please enable access to assistive devices "
-			"(System Preferences), then re-open Synergy.");
+			"System Preferences -> Security & Privacy -> "
+			"Privacy -> Accessibility, then re-open Synergy.");
 	}
 	return result;
 

@@ -1,11 +1,11 @@
 /*
  * synergy -- mouse and keyboard sharing utility
- * Copyright (C) 2012 Bolton Software Ltd.
+ * Copyright (C) 2012-2016 Symless Ltd.
  * Copyright (C) 2004 Chris Schoeneman
  * 
  * This package is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
- * found in the file COPYING that should have accompanied this file.
+ * found in the file LICENSE that should have accompanied this file.
  * 
  * This package is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
@@ -16,13 +16,12 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#ifndef IDATASOCKET_H
-#define IDATASOCKET_H
+#pragma once
 
-#include "ISocket.h"
-#include "IStream.h"
-#include "CString.h"
-#include "CEventTypes.h"
+#include "net/ISocket.h"
+#include "io/IStream.h"
+#include "base/String.h"
+#include "base/EventTypes.h"
 
 //! Data stream socket interface
 /*!
@@ -31,13 +30,13 @@ represent a full-duplex data stream.
 */
 class IDataSocket : public ISocket, public synergy::IStream {
 public:
-	class CConnectionFailedInfo {
+	class ConnectionFailedInfo {
 	public:
-		CConnectionFailedInfo(const char* what) : m_what(what) { }
-		CString			m_what;
+		ConnectionFailedInfo(const char* what) : m_what(what) { }
+		String			m_what;
 	};
 
-	IDataSocket(IEventQueue* events) : IStream(events) { }
+	IDataSocket(IEventQueue* events) { }
 
 	//! @name manipulators
 	//@{
@@ -49,7 +48,7 @@ public:
 	event when it fails.  The stream acts as if shutdown for input and
 	output until the stream connects.
 	*/
-	virtual void		connect(const CNetworkAddress&) = 0;
+	virtual void		connect(const NetworkAddress&) = 0;
 
 	//@}
 
@@ -58,7 +57,7 @@ public:
 	// in VC++6.  it claims the methods are unused locals and warns
 	// that it's removing them.  it's presumably tickled by inheriting
 	// methods with identical signatures from both superclasses.
-	virtual void		bind(const CNetworkAddress&) = 0;
+	virtual void		bind(const NetworkAddress&) = 0;
 	virtual void		close();
 	virtual void*		getEventTarget() const;
 
@@ -69,7 +68,6 @@ public:
 	virtual void		shutdownInput() = 0;
 	virtual void		shutdownOutput() = 0;
 	virtual bool		isReady() const = 0;
+	virtual bool		isFatal() const = 0;
 	virtual UInt32		getSize() const = 0;
 };
-
-#endif

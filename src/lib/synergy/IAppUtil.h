@@ -1,11 +1,11 @@
 /*
  * synergy -- mouse and keyboard sharing utility
- * Copyright (C) 2012 Bolton Software Ltd.
+ * Copyright (C) 2012-2016 Symless Ltd.
  * Copyright (C) 2002 Chris Schoeneman
  * 
  * This package is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
- * found in the file COPYING that should have accompanied this file.
+ * found in the file LICENSE that should have accompanied this file.
  * 
  * This package is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
@@ -18,12 +18,11 @@
  
 #pragma once
 
-#include "IInterface.h"
-#include "IApp.h"
+#include "common/IInterface.h"
+#include "synergy/IApp.h"
 
 class IAppUtil : public IInterface {
 public:
-	virtual bool parseArg(const int& argc, const char* const* argv, int& i) = 0;
 	virtual void adoptApp(IApp* app) = 0;
 	virtual IApp& app() const = 0;
 	virtual int run(int argc, char** argv) = 0;

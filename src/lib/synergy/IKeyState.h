@@ -1,11 +1,11 @@
 /*
  * synergy -- mouse and keyboard sharing utility
- * Copyright (C) 2012 Bolton Software Ltd.
+ * Copyright (C) 2012-2016 Symless Ltd.
  * Copyright (C) 2003 Chris Schoeneman
  * 
  * This package is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
- * found in the file COPYING that should have accompanied this file.
+ * found in the file LICENSE that should have accompanied this file.
  * 
  * This package is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
@@ -16,16 +16,15 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#ifndef IKEYSTATE_H
-#define IKEYSTATE_H
+#pragma once
 
-#include "IInterface.h"
-#include "KeyTypes.h"
-#include "CEvent.h"
-#include "CString.h"
-#include "stdset.h"
-#include "IEventQueue.h"
-#include "CEventTypes.h"
+#include "synergy/key_types.h"
+#include "base/Event.h"
+#include "base/String.h"
+#include "base/IEventQueue.h"
+#include "base/EventTypes.h"
+#include "common/stdset.h"
+#include "common/IInterface.h"
 
 //! Key state interface
 /*!
@@ -41,18 +40,18 @@ public:
 	};
 
 	//! Key event data
-	class CKeyInfo {
+	class KeyInfo {
 	public:
-		static CKeyInfo* alloc(KeyID, KeyModifierMask, KeyButton, SInt32 count);
-		static CKeyInfo* alloc(KeyID, KeyModifierMask, KeyButton, SInt32 count,
-							const std::set<CString>& destinations);
-		static CKeyInfo* alloc(const CKeyInfo&);
+		static KeyInfo* alloc(KeyID, KeyModifierMask, KeyButton, SInt32 count);
+		static KeyInfo* alloc(KeyID, KeyModifierMask, KeyButton, SInt32 count,
+							const std::set<String>& destinations);
+		static KeyInfo* alloc(const KeyInfo&);
 
 		static bool isDefault(const char* screens);
-		static bool contains(const char* screens, const CString& name);
-		static bool equal(const CKeyInfo*, const CKeyInfo*);
-		static CString join(const std::set<CString>& destinations);
-		static void split(const char* screens, std::set<CString>&);
+		static bool contains(const char* screens, const String& name);
+		static bool equal(const KeyInfo*, const KeyInfo*);
+		static String join(const std::set<String>& destinations);
+		static void split(const char* screens, std::set<String>&);
 
 	public:
 		KeyID			m_key;
@@ -123,7 +122,14 @@ public:
 	complete and false if normal key processing should continue.
 	*/
 	virtual bool		fakeCtrlAltDel() = 0;
-
+	
+	//! Fake a media key
+	/*!
+	 Synthesizes a media key down and up. Only Mac would implement this by
+	 use cocoa appkit framework.
+	 */
+	virtual bool		fakeMediaKey(KeyID id) = 0;
+	
 	//@}
 	//! @name accessors
 	//@{
@@ -165,9 +171,4 @@ public:
 	virtual void		pollPressedKeys(KeyButtonSet& pressedKeys) const = 0;
 
 	//@}
-
-private:
-	IEventQueue*		m_events;
 };
-
-#endif

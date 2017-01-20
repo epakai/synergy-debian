@@ -1,11 +1,11 @@
 /*
  * synergy -- mouse and keyboard sharing utility
- * Copyright (C) 2012 Bolton Software Ltd.
+ * Copyright (C) 2012-2016 Symless Ltd.
  * Copyright (C) 2002 Chris Schoeneman
  * 
  * This package is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
- * found in the file COPYING that should have accompanied this file.
+ * found in the file LICENSE that should have accompanied this file.
  * 
  * This package is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
@@ -16,11 +16,10 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#ifndef IARCHDAEMON_H
-#define IARCHDAEMON_H
+#pragma once
 
-#include "IInterface.h"
-#include "CString.h"
+#include "common/IInterface.h"
+#include "base/String.h"
 
 //! Interface for architecture dependent daemonizing
 /*!
@@ -52,14 +51,13 @@ public:
 							const char* description,
 							const char* pathname,
 							const char* commandLine,
-							const char* dependencies,
-							bool allUsers) = 0;
+							const char* dependencies) = 0;
 
 	//! Uninstall daemon
 	/*!
 	Uninstall a daemon.  Throws an \c XArchDaemon on failure.
 	*/
-	virtual void		uninstallDaemon(const char* name, bool allUsers) = 0;
+	virtual void		uninstallDaemon(const char* name) = 0;
 
 	//! Install daemon
 	/*!
@@ -88,16 +86,16 @@ public:
 	  Becomes a service.  Argument 0 is the name of the service
 	  and the rest are the arguments passed to StartService().
 	  \c func is only called when the service is actually started.
-	  \c func must call \c CArchMiscWindows::runDaemon() to finally
+	  \c func must call \c ArchMiscWindows::runDaemon() to finally
 	  becoming a service.  The \c runFunc function passed to \c runDaemon()
-	  must call \c CArchMiscWindows::daemonRunning(true) when it
+	  must call \c ArchMiscWindows::daemonRunning(true) when it
 	  enters the main loop (i.e. after initialization) and
-	  \c CArchMiscWindows::daemonRunning(false) when it leaves
+	  \c ArchMiscWindows::daemonRunning(false) when it leaves
 	  the main loop.  The \c stopFunc function passed to \c runDaemon()
 	  is called when the daemon must exit the main loop and it must cause
 	  \c runFunc to return.  \c func should return what \c runDaemon()
 	  returns.  \c func or \c runFunc can call
-	  \c CArchMiscWindows::daemonFailed() to indicate startup failure.
+	  \c ArchMiscWindows::daemonFailed() to indicate startup failure.
 	</ul>
 	*/
 	virtual int			daemonize(const char* name, DaemonFunc func) = 0;
@@ -110,13 +108,13 @@ public:
 	may still fail.  This method ignores whether or not the
 	service is already installed.
 	*/
-	virtual bool		canInstallDaemon(const char* name, bool allUsers) = 0;
+	virtual bool		canInstallDaemon(const char* name) = 0;
 
 	//! Check if the daemon is installed
 	/*!
 	Returns true iff the daemon is installed.
 	*/
-	virtual bool		isDaemonInstalled(const char* name, bool allUsers) = 0;
+	virtual bool		isDaemonInstalled(const char* name) = 0;
 
 	//@}
 
@@ -128,5 +126,3 @@ public:
 
 	//@}
 };
-
-#endif

@@ -1,11 +1,11 @@
 /*
  * synergy -- mouse and keyboard sharing utility
- * Copyright (C) 2012 Bolton Software Ltd.
+ * Copyright (C) 2012-2016 Symless Ltd.
  * Copyright (C) 2002 Chris Schoeneman
  * 
  * This package is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
- * found in the file COPYING that should have accompanied this file.
+ * found in the file LICENSE that should have accompanied this file.
  * 
  * This package is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
@@ -16,13 +16,18 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#ifndef XSYNERGY_H
-#define XSYNERGY_H
+#pragma once
 
-#include "XBase.h"
+#include "base/XBase.h"
 
 //! Generic synergy exception
 XBASE_SUBCLASS(XSynergy, XBase);
+
+//! Subscription error
+/*!
+Thrown when there is a problem with the subscription.
+*/
+XBASE_SUBCLASS(XSubscription, XSynergy);
 
 //! Client error exception
 /*!
@@ -49,7 +54,7 @@ public:
 	//@}
 
 protected:
-	virtual CString		getWhat() const throw();
+	virtual String		getWhat() const throw();
 
 private:
 	int					m_major;
@@ -63,22 +68,23 @@ a client that is already connected.
 */
 class XDuplicateClient : public XSynergy {
 public:
-	XDuplicateClient(const CString& name);
+	XDuplicateClient(const String& name);
+	virtual ~XDuplicateClient() _NOEXCEPT { }
 
 	//! @name accessors
 	//@{
 
 	//! Get client's name
-	virtual const CString&
+	virtual const String&
 						getName() const throw();
 
 	//@}
 
 protected:
-	virtual CString		getWhat() const throw();
+	virtual String		getWhat() const throw();
 
 private:
-	CString				m_name;
+	String				m_name;
 };
 
 //! Client not in map exception
@@ -88,22 +94,23 @@ unknown to the server.
 */
 class XUnknownClient : public XSynergy {
 public:
-	XUnknownClient(const CString& name);
+	XUnknownClient(const String& name);
+	virtual ~XUnknownClient() _NOEXCEPT { }
 
 	//! @name accessors
 	//@{
 
 	//! Get the client's name
-	virtual const CString&
+	virtual const String&
 						getName() const throw();
 
 	//@}
 
 protected:
-	virtual CString		getWhat() const throw();
+	virtual String		getWhat() const throw();
 
 private:
-	CString				m_name;
+	String				m_name;
 };
 
 //! Generic exit eception
@@ -115,15 +122,14 @@ exit(int).
 class XExitApp : public XSynergy {
 public:
 	XExitApp(int code);
+	virtual ~XExitApp() _NOEXCEPT { }
 
 	//! Get the exit code
 	int getCode() const throw();
 
 protected:
-	virtual CString	getWhat() const throw();
+	virtual String	getWhat() const throw();
 	
 private:
 	int	m_code;
 };
-
-#endif

@@ -1,9 +1,9 @@
 # synergy -- mouse and keyboard sharing utility
-# Copyright (C) 2013 Bolton Software Ltd.
+# Copyright (C) 2013-2016 Symless Ltd.
 # 
 # This package is free software; you can redistribute it and/or
 # modify it under the terms of the GNU General Public License
-# found in the file COPYING that should have accompanied this file.
+# found in the file LICENSE that should have accompanied this file.
 # 
 # This package is distributed in the hope that it will be useful,
 # but WITHOUT ANY WARRANTY; without even the implied warranty of
@@ -13,25 +13,18 @@
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
-set(headers
-	synwinhk.h
+file(GLOB headers "*.h")
+file(GLOB sources "*.cpp")
+
+if (SYNERGY_ADD_HEADERS)
+	list(APPEND sources ${headers})
+endif()
+
+include_directories(
+	../
 )
 
-set(source
-	synwinhk.cpp
-)
-
-list(APPEND source
-	${headers}
-)
-
-set(includes
-	../common
-	../synergy
-)
-
-include_directories(${includes})
-add_library(synwinhk SHARED ${source})
+add_library(synwinhk SHARED ${sources})
 
 # copy the dlls (and supporting files) from the lib dir to 
 # the bin dir, so that synergyc and synergys can easily find them.

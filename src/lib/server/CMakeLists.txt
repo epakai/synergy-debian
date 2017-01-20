@@ -1,10 +1,10 @@
 # synergy -- mouse and keyboard sharing utility
-# Copyright (C) 2012 Bolton Software Ltd.
+# Copyright (C) 2012-2016 Symless Ltd.
 # Copyright (C) 2009 Nick Bolton
 # 
 # This package is free software; you can redistribute it and/or
 # modify it under the terms of the GNU General Public License
-# found in the file COPYING that should have accompanied this file.
+# found in the file LICENSE that should have accompanied this file.
 # 
 # This package is distributed in the hope that it will be useful,
 # but WITHOUT ANY WARRANTY; without even the implied warranty of
@@ -14,63 +14,28 @@
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
-set(inc
-	CBaseClientProxy.h
-	CClientListener.h
-	CClientProxy.h
-	CClientProxy1_0.h
-	CClientProxy1_1.h
-	CClientProxy1_2.h
-	CClientProxy1_3.h
-	CClientProxy1_4.h
-	CClientProxy1_5.h
-	CClientProxyUnknown.h
-	CConfig.h
-	CInputFilter.h
-	CPrimaryClient.h
-	CServer.h
-)
+file(GLOB headers "*.h")
+file(GLOB sources "*.cpp")
 
-set(src
-	CBaseClientProxy.cpp
-	CClientListener.cpp
-	CClientProxy.cpp
-	CClientProxy1_0.cpp
-	CClientProxy1_1.cpp
-	CClientProxy1_2.cpp
-	CClientProxy1_3.cpp
-	CClientProxy1_4.cpp
-	CClientProxy1_5.cpp
-	CClientProxyUnknown.cpp
-	CConfig.cpp
-	CInputFilter.cpp
-	CPrimaryClient.cpp
-	CServer.cpp
-)
-
-if (WIN32)
-	list(APPEND src ${inc})
+if (SYNERGY_ADD_HEADERS)
+	list(APPEND sources ${headers})
 endif()
 
-set(inc
-	../arch
-	../base
-	../common
-	../io
-	../mt
-	../net
-	../synergy
-	../../../tools
+include_directories(
+	../
+	../../../ext
+	../../../ext/gtest-1.6.0/include
 )
 
 if (UNIX)
-	list(APPEND inc
+	include_directories(
 		../../..
 	)
 endif()
 
-include_directories(${inc})
-add_library(server STATIC ${src})
+add_library(server STATIC ${sources})
+
+target_link_libraries(server shared)
 
 if (UNIX)
 	target_link_libraries(server synergy)

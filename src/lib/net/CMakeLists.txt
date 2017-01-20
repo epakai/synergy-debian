@@ -1,10 +1,10 @@
 # synergy -- mouse and keyboard sharing utility
-# Copyright (C) 2012 Bolton Software Ltd.
+# Copyright (C) 2012-2016 Symless Ltd.
 # Copyright (C) 2009 Nick Bolton
 # 
 # This package is free software; you can redistribute it and/or
 # modify it under the terms of the GNU General Public License
-# found in the file COPYING that should have accompanied this file.
+# found in the file LICENSE that should have accompanied this file.
 # 
 # This package is distributed in the hope that it will be useful,
 # but WITHOUT ANY WARRANTY; without even the implied warranty of
@@ -14,53 +14,43 @@
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
-set(inc
-	CNetworkAddress.h
-	CSocketMultiplexer.h
-	CTCPListenSocket.h
-	CTCPSocket.h
-	CTCPSocketFactory.h
-	IDataSocket.h
-	IListenSocket.h
-	ISocket.h
-	ISocketFactory.h
-	ISocketMultiplexerJob.h
-	TSocketMultiplexerMethodJob.h
-	XSocket.h
-)
+file(GLOB headers "*.h")
+file(GLOB sources "*.cpp")
 
-set(src
-	CNetworkAddress.cpp
-	CSocketMultiplexer.cpp
-	CTCPListenSocket.cpp
-	CTCPSocket.cpp
-	CTCPSocketFactory.cpp
-	IDataSocket.cpp
-	XSocket.cpp
-)
-
-if (WIN32)
-	list(APPEND src ${inc})
+if (SYNERGY_ADD_HEADERS)
+	list(APPEND sources ${headers})
 endif()
 
-set(inc
-	../arch
-	../base
-	../common
-	../io
-	../mt
-	../synergy
+include_directories(
+	../
+	${OPENSSL_INCLUDE}
 )
 
 if (UNIX)
-	list(APPEND inc
+	include_directories(
 		../../..
 	)
 endif()
 
-include_directories(${inc})
-add_library(net STATIC ${src})
+add_library(net STATIC ${sources})
+
+if (WIN32)
+	add_custom_command(
+		TARGET net
+		POST_BUILD
+		COMMAND xcopy /Y /Q
+			..\\..\\..\\..\\ext\\${OPENSSL_PLAT_DIR}\\out32dll\\libeay32.*
+			..\\..\\..\\..\\bin\\${CMAKE_CFG_INTDIR}
+	)
+	add_custom_command(
+		TARGET net 
+		POST_BUILD
+		COMMAND xcopy /Y /Q
+			..\\..\\..\\..\\ext\\${OPENSSL_PLAT_DIR}\\out32dll\\ssleay32.*
+			..\\..\\..\\..\\bin\\${CMAKE_CFG_INTDIR}
+	)
+endif()
 
 if (UNIX)
-	target_link_libraries(net mt io)
+	target_link_libraries(net mt io ${OPENSSL_LIBS})
 endif()

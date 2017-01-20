@@ -1,11 +1,11 @@
 /*
  * synergy -- mouse and keyboard sharing utility
- * Copyright (C) 2012 Bolton Software Ltd.
+ * Copyright (C) 2012-2016 Symless Ltd.
  * Copyright (C) 2004 Chris Schoeneman
  * 
  * This package is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
- * found in the file COPYING that should have accompanied this file.
+ * found in the file LICENSE that should have accompanied this file.
  * 
  * This package is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
@@ -16,13 +16,12 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#ifndef ISTREAM_H
-#define ISTREAM_H
+#pragma once
 
-#include "IInterface.h"
-#include "CEvent.h"
-#include "IEventQueue.h"
-#include "CEventTypes.h"
+#include "common/IInterface.h"
+#include "base/Event.h"
+#include "base/IEventQueue.h"
+#include "base/EventTypes.h"
 
 class IEventQueue;
 
@@ -34,7 +33,7 @@ Defines the interface for all streams.
 */
 class IStream : public IInterface {
 public:
-	IStream(IEventQueue* events) : m_events(events) { }
+	IStream() { }
 
 	//! @name manipulators
 	//@{
@@ -116,11 +115,6 @@ public:
 	virtual UInt32		getSize() const = 0;
 
 	//@}
-
-private:
-	IEventQueue*		m_events;
 };
 
 }
-
-#endif

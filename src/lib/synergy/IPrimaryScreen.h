@@ -1,11 +1,11 @@
 /*
  * synergy -- mouse and keyboard sharing utility
- * Copyright (C) 2012 Bolton Software Ltd.
+ * Copyright (C) 2012-2016 Symless Ltd.
  * Copyright (C) 2003 Chris Schoeneman
  * 
  * This package is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
- * found in the file COPYING that should have accompanied this file.
+ * found in the file LICENSE that should have accompanied this file.
  * 
  * This package is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
@@ -16,14 +16,13 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#ifndef IPRIMARYSCREEN_H
-#define IPRIMARYSCREEN_H
+#pragma once
 
-#include "IInterface.h"
-#include "KeyTypes.h"
-#include "MouseTypes.h"
-#include "CEvent.h"
-#include "CEventTypes.h"
+#include "synergy/key_types.h"
+#include "synergy/mouse_types.h"
+#include "base/Event.h"
+#include "base/EventTypes.h"
+#include "common/IInterface.h"
 
 //! Primary screen interface
 /*!
@@ -33,39 +32,39 @@ primary screen implementations.
 class IPrimaryScreen : public IInterface {
 public:
 	//! Button event data
-	class CButtonInfo {
+	class ButtonInfo {
 	public:
-		static CButtonInfo* alloc(ButtonID, KeyModifierMask);
-		static CButtonInfo* alloc(const CButtonInfo&);
+		static ButtonInfo* alloc(ButtonID, KeyModifierMask);
+		static ButtonInfo* alloc(const ButtonInfo&);
 
-		static bool			equal(const CButtonInfo*, const CButtonInfo*);
+		static bool			equal(const ButtonInfo*, const ButtonInfo*);
 
 	public:
 		ButtonID		m_button;
 		KeyModifierMask	m_mask;
 	};
 	//! Motion event data
-	class CMotionInfo {
+	class MotionInfo {
 	public:
-		static CMotionInfo* alloc(SInt32 x, SInt32 y);
+		static MotionInfo* alloc(SInt32 x, SInt32 y);
 
 	public:
 		SInt32			m_x;
 		SInt32			m_y;
 	};
 	//! Wheel motion event data
-	class CWheelInfo {
+	class WheelInfo {
 	public:
-		static CWheelInfo* alloc(SInt32 xDelta, SInt32 yDelta);
+		static WheelInfo* alloc(SInt32 xDelta, SInt32 yDelta);
 
 	public:
 		SInt32			m_xDelta;
 		SInt32			m_yDelta;
 	};
 	//! Hot key event data
-	class CHotKeyInfo {
+	class HotKeyInfo {
 	public:
-		static CHotKeyInfo* alloc(UInt32 id);
+		static HotKeyInfo* alloc(UInt32 id);
 
 	public:
 		UInt32			m_id;
@@ -164,5 +163,3 @@ public:
 
 	//@}
 };
-
-#endif

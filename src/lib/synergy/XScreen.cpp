@@ -1,11 +1,11 @@
 /*
  * synergy -- mouse and keyboard sharing utility
- * Copyright (C) 2012 Bolton Software Ltd.
+ * Copyright (C) 2012-2016 Symless Ltd.
  * Copyright (C) 2002 Chris Schoeneman
  * 
  * This package is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
- * found in the file COPYING that should have accompanied this file.
+ * found in the file LICENSE that should have accompanied this file.
  * 
  * This package is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
@@ -16,13 +16,13 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#include "XScreen.h"
+#include "synergy/XScreen.h"
 
 //
 // XScreenOpenFailure
 //
 
-CString
+String
 XScreenOpenFailure::getWhat() const throw()
 {
 	return format("XScreenOpenFailure", "unable to open screen");
@@ -33,7 +33,7 @@ XScreenOpenFailure::getWhat() const throw()
 // XScreenXInputFailure
 //
 
-CString
+String
 XScreenXInputFailure::getWhat() const throw()
 {
 	return "";
@@ -50,7 +50,7 @@ XScreenUnavailable::XScreenUnavailable(double timeUntilRetry) :
 	// do nothing
 }
 
-XScreenUnavailable::~XScreenUnavailable()
+XScreenUnavailable::~XScreenUnavailable() _NOEXCEPT
 {
 	// do nothing
 }
@@ -61,7 +61,7 @@ XScreenUnavailable::getRetryTime() const
 	return m_timeUntilRetry;
 }
 
-CString
+String
 XScreenUnavailable::getWhat() const throw()
 {
 	return format("XScreenUnavailable", "unable to open screen");

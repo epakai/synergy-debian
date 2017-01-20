@@ -1,11 +1,11 @@
 /*
  * synergy -- mouse and keyboard sharing utility
- * Copyright (C) 2012 Bolton Software Ltd.
+ * Copyright (C) 2012-2016 Symless Ltd.
  * Copyright (C) 2002 Chris Schoeneman
  * 
  * This package is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
- * found in the file COPYING that should have accompanied this file.
+ * found in the file LICENSE that should have accompanied this file.
  * 
  * This package is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
@@ -16,8 +16,10 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#include "synwinhk.h"
-#include "ProtocolTypes.h"
+#include "synwinhk/synwinhk.h"
+
+#include "synergy/protocol_types.h"
+
 #include <zmouse.h>
 #include <tchar.h>
  
@@ -116,8 +118,8 @@ static WPARAM			g_deadVirtKey     = 0;
 static WPARAM			g_deadRelease     = 0;
 static LPARAM			g_deadLParam      = 0;
 static BYTE				g_deadKeyState[256] = { 0 };
+static BYTE				g_keyState[256]   = { 0 };
 static DWORD			g_hookThread      = 0;
-static DWORD			g_attachedThread  = 0;
 static bool				g_fakeInput       = false;
 
 #if defined(_MSC_VER)
@@ -133,53 +135,6 @@ int _fltused=0;
 }
 #endif
 
-
-//
-// internal functions
-//
-
-static
-void
-detachThread()
-{
-	if (g_attachedThread != 0 && g_hookThread != g_attachedThread) {
-		AttachThreadInput(g_hookThread, g_attachedThread, FALSE);
-		g_attachedThread = 0;
-	}
-}
-
-static
-bool
-attachThreadToForeground()
-{
-	// only attach threads if using low level hooks.  a low level hook
-	// runs in the thread that installed the hook but we have to make
-	// changes that require being attached to the target thread (which
-	// should be the foreground window).  a regular hook runs in the
-	// thread that just removed the event from its queue so we're
-	// already in the right thread.
-	if (g_hookThread != 0) {
-		HWND window    = GetForegroundWindow();
-        if (window == NULL)
-            return false;
-
-		DWORD threadID = GetWindowThreadProcessId(window, NULL);
-		// skip if no change
-		if (g_attachedThread != threadID) {
-			// detach from previous thread
-			detachThread();
-
-			// attach to new thread
-			if (threadID != 0 && threadID != g_hookThread) {
-				AttachThreadInput(g_hookThread, threadID, TRUE);
-				g_attachedThread = threadID;
-			}
-			return true;
-		}
-	}
-	return false;
-}
-
 #if !NO_GRAB_KEYBOARD
 static
 WPARAM
@@ -190,17 +145,41 @@ makeKeyMsg(UINT virtKey, char c, bool noAltGr)
 
 static
 void
-keyboardGetState(BYTE keys[256])
+keyboardGetState(BYTE keys[256], DWORD vkCode, bool kf_up)
 {
 	// we have to use GetAsyncKeyState() rather than GetKeyState() because
 	// we don't pass through most keys so the event synchronous state
 	// doesn't get updated.  we do that because certain modifier keys have
 	// side effects, like alt and the windows key.
-	SHORT key;
-	for (int i = 0; i < 256; ++i) {
-		key     = GetAsyncKeyState(i);
-		keys[i] = (BYTE)((key < 0) ? 0x80u : 0);
+	if (vkCode < 0 || vkCode >= 256) {
+		return;
 	}
+
+	// Keep track of key state on our own in case GetAsyncKeyState() fails
+	g_keyState[vkCode] = kf_up ? 0 : 0x80;
+	g_keyState[VK_SHIFT] = g_keyState[VK_LSHIFT] | g_keyState[VK_RSHIFT];
+
+	SHORT key;
+	// Test whether GetAsyncKeyState() is being honest with us
+	key = GetAsyncKeyState(vkCode);
+
+	if (key & 0x80) {
+		// The only time we know for sure that GetAsyncKeyState() is working 
+		// is when it tells us that the current key is down.
+		// In this case, update g_keyState to reflect what GetAsyncKeyState()
+		// is telling us, just in case we have gotten out of sync
+
+		for (int i = 0; i < 256; ++i) {
+			key = GetAsyncKeyState(i);
+			g_keyState[i] = (BYTE)((key < 0) ? 0x80u : 0);
+		}
+	}
+
+	// copy g_keyState to keys
+	for (int i = 0; i < 256; ++i) {
+		keys[i] = g_keyState[i];
+	}
+
 	key = GetKeyState(VK_CAPITAL);
 	keys[VK_CAPITAL] = (BYTE)(((key < 0) ? 0x80 : 0) | (key & 1));
 }
@@ -209,6 +188,9 @@ static
 bool
 doKeyboardHookHandler(WPARAM wParam, LPARAM lParam)
 {
+	DWORD vkCode = static_cast<DWORD>(wParam);
+	bool kf_up = (lParam & (KF_UP << 16)) != 0;
+
 	// check for special events indicating if we should start or stop
 	// passing events through and not report them to the server.  this
 	// is used to allow the server to synthesize events locally but
@@ -252,7 +234,7 @@ doKeyboardHookHandler(WPARAM wParam, LPARAM lParam)
 
 	// we need the keyboard state for ToAscii()
 	BYTE keys[256];
-	keyboardGetState(keys);
+	keyboardGetState(keys, vkCode, kf_up);
 
 	// ToAscii() maps ctrl+letter to the corresponding control code
 	// and ctrl+backspace to delete.  we don't want those translations
@@ -304,7 +286,7 @@ doKeyboardHookHandler(WPARAM wParam, LPARAM lParam)
 	// map the key event to a character.  we have to put the dead
 	// key back first and this has the side effect of removing it.
 	if (g_deadVirtKey != 0) {
-		if(ToAscii((UINT)g_deadVirtKey, (g_deadLParam & 0x10ff0000u) >> 16,
+		if (ToAscii((UINT)g_deadVirtKey, (g_deadLParam & 0x10ff0000u) >> 16,
 					g_deadKeyState, &c, flags) == 2)
 		{
 			// If ToAscii returned 2, it means that we accidentally removed
@@ -336,7 +318,7 @@ doKeyboardHookHandler(WPARAM wParam, LPARAM lParam)
 		PostThreadMessage(g_threadID, SYNERGY_MSG_DEBUG,
 							wParam | 0x05000000, lParam);
 		if (g_deadVirtKey != 0) {
-			if(ToAscii((UINT)g_deadVirtKey, (g_deadLParam & 0x10ff0000u) >> 16,
+			if (ToAscii((UINT)g_deadVirtKey, (g_deadLParam & 0x10ff0000u) >> 16,
 							g_deadKeyState, &c, flags) == 2)
 			{
 				ToAscii((UINT)g_deadVirtKey, (g_deadLParam & 0x10ff0000u) >> 16,
@@ -367,7 +349,7 @@ doKeyboardHookHandler(WPARAM wParam, LPARAM lParam)
 	default:
 		// key is a dead key
 
-		if(lParam & 0x80000000u)
+		if (lParam & 0x80000000u)
 			// This handles the obscure situation where a key has been
 			// pressed which is both a dead key and a normal character
 			// depending on which modifiers have been pressed. We
@@ -467,7 +449,6 @@ static
 bool
 keyboardHookHandler(WPARAM wParam, LPARAM lParam)
 {
-	attachThreadToForeground();
 	return doKeyboardHookHandler(wParam, lParam);
 }
 #endif
@@ -524,7 +505,7 @@ doMouseHookHandler(WPARAM wParam, SInt32 x, SInt32 y, SInt32 data)
 			// outside of the screen.  jeez.  naturally we end up getting
 			// fake motion in the other direction to get the position back
 			// on the screen, which plays havoc with switch on double tap.
-			// CServer deals with that.  we'll clamp positions onto the
+			// Server deals with that.  we'll clamp positions onto the
 			// screen.  also, if we discard events for positions outside
 			// of the screen then the mouse appears to get a bit jerky
 			// near the edge.  we can either accept that or pass the bogus
@@ -578,7 +559,6 @@ static
 bool
 mouseHookHandler(WPARAM wParam, SInt32 x, SInt32 y, SInt32 data)
 {
-//	attachThreadToForeground();
 	return doMouseHookHandler(wParam, x, y, data);
 }
 
@@ -904,8 +884,10 @@ init(DWORD threadID)
 			// old process (probably) still exists so refuse to
 			// reinitialize this DLL (and thus steal it from the
 			// old process).
-			CloseHandle(process);
-			return 0;
+			int result = CloseHandle(process);
+			if (result == false) {
+				return 0;
+			}
 		}
 
 		// clean up after old process.  the system should've already
@@ -1047,9 +1029,6 @@ uninstall(void)
 	// discard old dead keys
 	g_deadVirtKey = 0;
 	g_deadLParam  = 0;
-
-	// detach from thread
-	detachThread();
 
 	// uninstall hooks
 	if (g_keyboardLL != NULL) {

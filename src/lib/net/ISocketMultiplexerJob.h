@@ -1,11 +1,11 @@
 /*
  * synergy -- mouse and keyboard sharing utility
- * Copyright (C) 2012 Bolton Software Ltd.
+ * Copyright (C) 2012-2016 Symless Ltd.
  * Copyright (C) 2004 Chris Schoeneman
  * 
  * This package is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
- * found in the file COPYING that should have accompanied this file.
+ * found in the file LICENSE that should have accompanied this file.
  * 
  * This package is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
@@ -16,11 +16,10 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#ifndef ISOCKETMULTIPLEXERJOB_H
-#define ISOCKETMULTIPLEXERJOB_H
+#pragma once
 
-#include "IArchNetwork.h"
-#include "IInterface.h"
+#include "arch/IArchNetwork.h"
+#include "common/IInterface.h"
 
 //! Socket multiplexer job
 /*!
@@ -57,7 +56,7 @@ public:
 	/*!
 	Return the socket to multiplex
 	*/
-	virtual CArchSocket	getSocket() const = 0;
+	virtual ArchSocket	getSocket() const = 0;
 
 	//! Check for interest in readability
 	/*!
@@ -75,5 +74,3 @@ public:
 
 	//@}
 };
-
-#endif

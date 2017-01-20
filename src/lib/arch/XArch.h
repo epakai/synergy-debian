@@ -1,11 +1,11 @@
 /*
  * synergy -- mouse and keyboard sharing utility
- * Copyright (C) 2012 Bolton Software Ltd.
+ * Copyright (C) 2012-2016 Symless Ltd.
  * Copyright (C) 2002 Chris Schoeneman
  * 
  * This package is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
- * found in the file COPYING that should have accompanied this file.
+ * found in the file LICENSE that should have accompanied this file.
  * 
  * This package is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
@@ -16,11 +16,11 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#ifndef XARCH_H
-#define XARCH_H
+#pragma once
 
-#include "common.h"
-#include "stdstring.h"
+#include "common/common.h"
+#include "common/stdstring.h"
+#include "common/stdexcept.h"
 
 //! Generic thread exception
 /*!
@@ -56,27 +56,17 @@ string for that error code.
 class XArchEval {
 public:
 	XArchEval() { }
-	virtual ~XArchEval() { }
-
-	virtual XArchEval*	clone() const throw() = 0;
-
-	virtual std::string	eval() const throw() = 0;
+	virtual ~XArchEval() _NOEXCEPT { }
+	
+	virtual std::string	eval() const = 0;
 };
 
 //! Generic exception architecture dependent library
-class XArch {
+class XArch : public std::runtime_error {
 public:
-	XArch(XArchEval* adoptedEvaluator) : m_eval(adoptedEvaluator) { }
-	XArch(const std::string& msg) : m_eval(NULL), m_what(msg) { }
-	XArch(const XArch& e) : m_eval(e.m_eval != NULL ? e.m_eval->clone() : NULL),
-							m_what(e.m_what) { }
-	~XArch() { delete m_eval; }
-
-	std::string			what() const throw();
-
-private:
-	XArchEval*			m_eval;
-	mutable std::string	m_what;
+	XArch(XArchEval* adopted) : std::runtime_error(adopted->eval()) { delete adopted; }
+	XArch(const std::string& msg) : std::runtime_error(msg) { }
+	virtual ~XArch() _NOEXCEPT { }
 };
 
 // Macro to declare XArch derived types
@@ -169,6 +159,3 @@ XARCH_SUBCLASS(XArchDaemonUninstallFailed, XArchDaemon);
 
 //! Attempted to uninstall a daemon that was not installed
 XARCH_SUBCLASS(XArchDaemonUninstallNotInstalled, XArchDaemonUninstallFailed);
-
-
-#endif

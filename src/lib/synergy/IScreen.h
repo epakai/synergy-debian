@@ -1,11 +1,11 @@
 /*
  * synergy -- mouse and keyboard sharing utility
- * Copyright (C) 2012 Bolton Software Ltd.
+ * Copyright (C) 2012-2016 Symless Ltd.
  * Copyright (C) 2003 Chris Schoeneman
  * 
  * This package is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
- * found in the file COPYING that should have accompanied this file.
+ * found in the file LICENSE that should have accompanied this file.
  * 
  * This package is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
@@ -16,13 +16,12 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#ifndef ISCREEN_H
-#define ISCREEN_H
+#pragma once
 
-#include "IInterface.h"
-#include "ClipboardTypes.h"
-#include "CEvent.h"
-#include "CEventTypes.h"
+#include "synergy/clipboard_types.h"
+#include "base/Event.h"
+#include "base/EventTypes.h"
+#include "common/IInterface.h"
 
 class IClipboard;
 
@@ -32,7 +31,7 @@ This interface defines the methods common to all screens.
 */
 class IScreen : public IInterface {
 public:
-	struct CClipboardInfo {
+	struct ClipboardInfo {
 	public:
 		ClipboardID		m_id;
 		UInt32			m_sequenceNumber;
@@ -70,5 +69,3 @@ public:
 	
 	//@}
 };
-
-#endif

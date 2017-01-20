@@ -1,11 +1,11 @@
 /*
  * synergy -- mouse and keyboard sharing utility
- * Copyright (C) 2012 Bolton Software Ltd.
+ * Copyright (C) 2012-2016 Symless Ltd.
  * Copyright (C) 2008 Volker Lanz (vl@fidra.de)
  * 
  * This package is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
- * found in the file COPYING that should have accompanied this file.
+ * found in the file LICENSE that should have accompanied this file.
  * 
  * This package is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
@@ -31,6 +31,7 @@ class QSettings;
 class QString;
 class QFile;
 class ServerConfigDialog;
+class MainWindow;
 
 class ServerConfig : public BaseConfig
 {
@@ -38,7 +39,8 @@ class ServerConfig : public BaseConfig
 	friend QTextStream& operator<<(QTextStream& outStream, const ServerConfig& config);
 
 	public:
-		ServerConfig(QSettings* settings, int numColumns, int numRows);
+		ServerConfig(QSettings* settings, int numColumns, int numRows,
+			QString serverName, MainWindow* mainWindow);
 		~ServerConfig();
 
 	public:
@@ -58,12 +60,16 @@ class ServerConfig : public BaseConfig
 		int switchCornerSize() const { return m_SwitchCornerSize; }
 		const QList<bool>& switchCorners() const { return m_SwitchCorners; }
 		const HotkeyList& hotkeys() const { return m_Hotkeys; }
+		bool ignoreAutoConfigClient() const { return m_IgnoreAutoConfigClient; }
+		bool enableDragAndDrop() const { return m_EnableDragAndDrop; }
+		bool clipboardSharing() const { return m_ClipboardSharing; }
 
 		void saveSettings();
 		void loadSettings();
 		bool save(const QString& fileName) const;
 		void save(QFile& file) const;
 		int numScreens() const;
+		int autoAddScreen(const QString name);
 
 	protected:
 		QSettings& settings() { return *m_pSettings; }
@@ -83,11 +89,20 @@ class ServerConfig : public BaseConfig
 		void setSwitchDoubleTap(int val) { m_SwitchDoubleTap = val; }
 		void setSwitchCorner(int c, bool on) { m_SwitchCorners[c] = on; }
 		void setSwitchCornerSize(int val) { m_SwitchCornerSize = val; }
+		void setIgnoreAutoConfigClient(bool on) { m_IgnoreAutoConfigClient = on; }
+		void setEnableDragAndDrop(bool on) { m_EnableDragAndDrop = on; }
+		void setClipboardSharing(bool on) { m_ClipboardSharing = on; }
 		QList<bool>& switchCorners() { return m_SwitchCorners; }
 		HotkeyList& hotkeys() { return m_Hotkeys; }
 
 		void init();
 		int adjacentScreenIndex(int idx, int deltaColumn, int deltaRow) const;
+
+	private:
+		bool findScreenName(const QString& name, int& index);
+		bool fixNoServer(const QString& name, int& index);
+		int showAddClientDialog(const QString& clientName);
+		void addToFirstEmptyGrid(const QString& clientName);
 
 	private:
 		QSettings* m_pSettings;
@@ -106,9 +121,21 @@ class ServerConfig : public BaseConfig
 		int m_SwitchCornerSize;
 		QList<bool> m_SwitchCorners;
 		HotkeyList m_Hotkeys;
+		QString m_ServerName;
+		bool m_IgnoreAutoConfigClient;
+		bool m_EnableDragAndDrop;
+		bool m_ClipboardSharing;
+		MainWindow* m_pMainWindow;
 };
 
 QTextStream& operator<<(QTextStream& outStream, const ServerConfig& config);
+
+enum {
+	kAutoAddScreenOk,
+	kAutoAddScreenManualServer,
+	kAutoAddScreenManualClient,
+	kAutoAddScreenIgnore
+};
 
 #endif
 
