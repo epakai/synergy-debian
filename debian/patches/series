@@ -1,5 +1,4 @@
 debian_google-test.patch
-system-cryptopp.patch
-cprotocolutil-writef.patch
+desktop-keywords.patch
 versioncheck-disable.patch
-x11-mouseover.patch
+new_ssl.patch
