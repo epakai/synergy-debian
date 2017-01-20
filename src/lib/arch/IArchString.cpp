@@ -1,11 +1,11 @@
 /*
  * synergy -- mouse and keyboard sharing utility
- * Copyright (C) 2012 Bolton Software Ltd.
+ * Copyright (C) 2012-2016 Symless Ltd.
  * Copyright (C) 2011 Chris Schoeneman
  * 
  * This package is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
- * found in the file COPYING that should have accompanied this file.
+ * found in the file LICENSE that should have accompanied this file.
  * 
  * This package is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
@@ -16,14 +16,15 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#include "IArchString.h"
-#include "common.h"
-#include "CArch.h"
+#include "arch/IArchString.h"
+#include "arch/Arch.h"
+#include "common/common.h"
+
 #include <climits>
 #include <cstring>
 #include <cstdlib>
 
-static CArchMutex              s_mutex = NULL;
+static ArchMutex              s_mutex = NULL;
 
 //
 // use C library non-reentrant multibyte conversion with mutex

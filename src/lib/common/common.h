@@ -1,11 +1,11 @@
 /*
  * synergy -- mouse and keyboard sharing utility
- * Copyright (C) 2012 Bolton Software Ltd.
+ * Copyright (C) 2012-2016 Symless Ltd.
  * Copyright (C) 2002 Chris Schoeneman
  * 
  * This package is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
- * found in the file COPYING that should have accompanied this file.
+ * found in the file LICENSE that should have accompanied this file.
  * 
  * This package is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
@@ -16,8 +16,7 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#ifndef COMMON_H
-#define COMMON_H
+#pragma once
 
 // this file should be included, directly or indirectly by every other.
 
@@ -131,19 +130,15 @@
 // math functions we define __FP__, the include guard macro for fp.h, to
 // prevent fp.h from being included.
 #if defined(__APPLE__)
-#define __FP__
+#	define __FP__
 #endif
 
 // define NULL
 #include <stddef.h>
 
-// we don't want to use NULL since it's old and nasty, so replace any
-// usages with nullptr (warning: this could break many things).
-// if not c++0x yet, future proof code by allowing use of nullptr
-#ifdef nullptr
-#define NULL nullptr
-#else
-#define nullptr NULL
+// if not c++0x, future proof code by allowing use of nullptr
+#ifndef nullptr
+#	define nullptr NULL
 #endif
 
 // make assert available since we use it a lot
@@ -152,11 +147,10 @@
 #include <string.h>
 
 enum {
-	kExitSuccess    = 0,  // successful completion
-	kExitFailed     = 1,  // general failure
-	kExitTerminated = 2,  // killed by signal
-	kExitArgs       = 3,  // bad arguments
-	kExitConfig     = 4  // cannot read configuration
+	kExitSuccess      = 0, // successful completion
+	kExitFailed       = 1, // general failure
+	kExitTerminated   = 2, // killed by signal
+	kExitArgs         = 3, // bad arguments
+	kExitConfig       = 4, // cannot read configuration
+	kExitSubscription = 5  // subscription error
 };
-
-#endif

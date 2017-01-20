@@ -1,11 +1,11 @@
 /*
  * synergy -- mouse and keyboard sharing utility
- * Copyright (C) 2012 Bolton Software Ltd.
+ * Copyright (C) 2012-2016 Symless Ltd.
  * Copyright (C) 2002 Chris Schoeneman
  * 
  * This package is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
- * found in the file COPYING that should have accompanied this file.
+ * found in the file LICENSE that should have accompanied this file.
  * 
  * This package is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
@@ -16,13 +16,12 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#ifndef XSOCKET_H
-#define XSOCKET_H
+#pragma once
 
-#include "XIO.h"
-#include "XBase.h"
-#include "CString.h"
-#include "BasicTypes.h"
+#include "io/XIO.h"
+#include "base/XBase.h"
+#include "base/String.h"
+#include "common/basic_types.h"
 
 //! Generic socket exception
 XBASE_SUBCLASS(XSocket, XBase);
@@ -42,7 +41,8 @@ public:
 		kBadPort		//!< The port is invalid
 	};
 
-	XSocketAddress(EError, const CString& hostname, int port) throw();
+	XSocketAddress(EError, const String& hostname, int port) _NOEXCEPT;
+	virtual ~XSocketAddress() _NOEXCEPT { }
 
 	//! @name accessors
 	//@{
@@ -50,7 +50,7 @@ public:
 	//! Get the error code
 	EError				getError() const throw();
 	//! Get the hostname
-	CString				getHostname() const throw();
+	String				getHostname() const throw();
 	//! Get the port
 	int					getPort() const throw();
 
@@ -58,11 +58,11 @@ public:
 
 protected:
 	// XBase overrides
-	virtual CString		getWhat() const throw();
+	virtual String		getWhat() const throw();
 
 private:
 	EError				m_error;
-	CString				m_hostname;
+	String				m_hostname;
 	int					m_port;
 };
 
@@ -96,5 +96,3 @@ XBASE_SUBCLASS_FORMAT(XSocketConnect, XSocket);
 Thrown when a socket cannot be created (by the operating system).
 */
 XBASE_SUBCLASS_FORMAT(XSocketCreate, XSocket);
-
-#endif

@@ -1,10 +1,10 @@
 # synergy -- mouse and keyboard sharing utility
-# Copyright (C) 2012 Bolton Software Ltd.
+# Copyright (C) 2012-2016 Symless Ltd.
 # Copyright (C) 2009 Nick Bolton
 # 
 # This package is free software; you can redistribute it and/or
 # modify it under the terms of the GNU General Public License
-# found in the file COPYING that should have accompanied this file.
+# found in the file LICENSE that should have accompanied this file.
 # 
 # This package is distributed in the hope that it will be useful,
 # but WITHOUT ANY WARRANTY; without even the implied warranty of
@@ -14,14 +14,14 @@
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
-set(src
+set(sources
 	synergyp.cpp
 )
 
 if (WIN32)
-	list(APPEND src
-		CMSWindowsPortableTaskBarReceiver.cpp
-		CMSWindowsPortableTaskBarReceiver.h
+	file(GLOB arch_headers "MSWindows*.h")
+	file(GLOB arch_sources "MSWindows*.cpp")
+	list(APPEND sources
 		resource.h
 		synergyp.ico
 		synergyp.rc
@@ -31,42 +31,39 @@ if (WIN32)
 		tb_wait.ico
 	)
 elseif (APPLE)
-	list(APPEND src COSXPortableTaskBarReceiver.cpp)	
+	file(GLOB arch_headers "OSX*.h")
+	file(GLOB arch_sources "OSX*.cpp")
 elseif (UNIX)
-	list(APPEND src CXWindowsPortableTaskBarReceiver.cpp)
+	file(GLOB arch_headers "XWindows*.h")
+	file(GLOB arch_sources "XWindows*.cpp")
 endif()
 
-set(inc
-	../../lib/arch
-	../../lib/base
-	../../lib/common
-	../../lib/io
-	../../lib/ipc
-	../../lib/mt
-	../../lib/net
-	../../lib/platform
-	../../lib/synergy
-	../../lib/server
-	../../lib/synwinhk
-	../../lib/synwinxt
+list(APPEND sources ${arch_sources})
+list(APPEND headers ${arch_headers})
+
+if (SYNERGY_ADD_HEADERS)
+	list(APPEND sources ${headers})
+endif()
+
+include_directories(
+	../
+	../../lib/
 )
 
 if (UNIX)
-	list(APPEND inc
+	include_directories(
 		../../..
 	)
 endif()
 
-include_directories(${inc})
-
 if (WIN32)
-	add_executable(synergyp WIN32 ${src})
+	add_executable(synergyp WIN32 ${sources})
 else()
-	add_executable(synergyp ${src})
+	add_executable(synergyp ${sources})
 endif()	
 	
 target_link_libraries(synergyp
-	arch base client common io mt net ipc platform server synergy client cryptopp ${libs})
+	arch base client common io mt net ipc platform server synergy client ${libs} ${OPENSSL_LIBS})
 
 if (CONF_CPACK)
 	install(TARGETS

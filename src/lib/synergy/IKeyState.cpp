@@ -1,11 +1,11 @@
 /*
  * synergy -- mouse and keyboard sharing utility
- * Copyright (C) 2012 Bolton Software Ltd.
+ * Copyright (C) 2012-2016 Symless Ltd.
  * Copyright (C) 2004 Chris Schoeneman
  * 
  * This package is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
- * found in the file COPYING that should have accompanied this file.
+ * found in the file LICENSE that should have accompanied this file.
  * 
  * This package is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
@@ -16,8 +16,9 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#include "IKeyState.h"
-#include "CEventQueue.h"
+#include "synergy/IKeyState.h"
+#include "base/EventQueue.h"
+
 #include <cstring>
 #include <cstdlib>
 
@@ -25,20 +26,19 @@
 // IKeyState
 //
 
-IKeyState::IKeyState(IEventQueue* events) :
-	m_events(events)
+IKeyState::IKeyState(IEventQueue* events)
 {
 }
 
 //
-// IKeyState::CKeyInfo
+// IKeyState::KeyInfo
 //
 
-IKeyState::CKeyInfo*
-IKeyState::CKeyInfo::alloc(KeyID id,
+IKeyState::KeyInfo*
+IKeyState::KeyInfo::alloc(KeyID id,
 				KeyModifierMask mask, KeyButton button, SInt32 count)
 {
-	CKeyInfo* info           = (CKeyInfo*)malloc(sizeof(CKeyInfo));
+	KeyInfo* info           = (KeyInfo*)malloc(sizeof(KeyInfo));
 	info->m_key              = id;
 	info->m_mask             = mask;
 	info->m_button           = button;
@@ -48,15 +48,15 @@ IKeyState::CKeyInfo::alloc(KeyID id,
 	return info;
 }
 
-IKeyState::CKeyInfo*
-IKeyState::CKeyInfo::alloc(KeyID id,
+IKeyState::KeyInfo*
+IKeyState::KeyInfo::alloc(KeyID id,
 				KeyModifierMask mask, KeyButton button, SInt32 count,
-				const std::set<CString>& destinations)
+				const std::set<String>& destinations)
 {
-	CString screens = join(destinations);
+	String screens = join(destinations);
 
 	// build structure
-	CKeyInfo* info  = (CKeyInfo*)malloc(sizeof(CKeyInfo) + screens.size());
+	KeyInfo* info  = (KeyInfo*)malloc(sizeof(KeyInfo) + screens.size());
 	info->m_key     = id;
 	info->m_mask    = mask;
 	info->m_button  = button;
@@ -66,10 +66,10 @@ IKeyState::CKeyInfo::alloc(KeyID id,
 	return info;
 }
 
-IKeyState::CKeyInfo*
-IKeyState::CKeyInfo::alloc(const CKeyInfo& x)
+IKeyState::KeyInfo*
+IKeyState::KeyInfo::alloc(const KeyInfo& x)
 {
-	CKeyInfo* info  = (CKeyInfo*)malloc(sizeof(CKeyInfo) +
+	KeyInfo* info  = (KeyInfo*)malloc(sizeof(KeyInfo) +
 										strlen(x.m_screensBuffer));
 	info->m_key     = x.m_key;
 	info->m_mask    = x.m_mask;
@@ -81,13 +81,13 @@ IKeyState::CKeyInfo::alloc(const CKeyInfo& x)
 }
 
 bool
-IKeyState::CKeyInfo::isDefault(const char* screens)
+IKeyState::KeyInfo::isDefault(const char* screens)
 {
 	return (screens == NULL || screens[0] == '\0');
 }
 
 bool
-IKeyState::CKeyInfo::contains(const char* screens, const CString& name)
+IKeyState::KeyInfo::contains(const char* screens, const String& name)
 {
 	// special cases
 	if (isDefault(screens)) {
@@ -98,7 +98,7 @@ IKeyState::CKeyInfo::contains(const char* screens, const CString& name)
 	}
 
 	// search
-	CString match;
+	String match;
 	match.reserve(name.size() + 2);
 	match += ":";
 	match += name;
@@ -107,7 +107,7 @@ IKeyState::CKeyInfo::contains(const char* screens, const CString& name)
 }
 
 bool
-IKeyState::CKeyInfo::equal(const CKeyInfo* a, const CKeyInfo* b)
+IKeyState::KeyInfo::equal(const KeyInfo* a, const KeyInfo* b)
 {
 	return (a->m_key    == b->m_key &&
 			a->m_mask   == b->m_mask &&
@@ -116,14 +116,14 @@ IKeyState::CKeyInfo::equal(const CKeyInfo* a, const CKeyInfo* b)
 			strcmp(a->m_screensBuffer, b->m_screensBuffer) == 0);
 }
 
-CString
-IKeyState::CKeyInfo::join(const std::set<CString>& destinations)
+String
+IKeyState::KeyInfo::join(const std::set<String>& destinations)
 {
 	// collect destinations into a string.  names are surrounded by ':'
 	// which makes searching easy.  the string is empty if there are no
 	// destinations and "*" means all destinations.
-	CString screens;
-	for (std::set<CString>::const_iterator i = destinations.begin();
+	String screens;
+	for (std::set<String>::const_iterator i = destinations.begin();
 								i != destinations.end(); ++i) {
 		if (*i == "*") {
 			screens = "*";
@@ -141,7 +141,7 @@ IKeyState::CKeyInfo::join(const std::set<CString>& destinations)
 }
 
 void
-IKeyState::CKeyInfo::split(const char* screens, std::set<CString>& dst)
+IKeyState::KeyInfo::split(const char* screens, std::set<String>& dst)
 {
 	dst.clear();
 	if (isDefault(screens)) {
@@ -155,7 +155,7 @@ IKeyState::CKeyInfo::split(const char* screens, std::set<CString>& dst)
 	const char* i = screens + 1;
 	while (*i != '\0') {
 		const char* j = strchr(i, ':');
-		dst.insert(CString(i, j - i));
+		dst.insert(String(i, j - i));
 		i = j + 1;
 	}
 }

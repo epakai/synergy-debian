@@ -1,11 +1,11 @@
 /*
  * synergy -- mouse and keyboard sharing utility
- * Copyright (C) 2012 Bolton Software Ltd.
+ * Copyright (C) 2012-2016 Symless Ltd.
  * Copyright (C) 2002 Chris Schoeneman
  * 
  * This package is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
- * found in the file COPYING that should have accompanied this file.
+ * found in the file LICENSE that should have accompanied this file.
  * 
  * This package is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
@@ -16,15 +16,15 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#ifndef IPLATFORMSCREEN_H
-#define IPLATFORMSCREEN_H
+#pragma once
 
-#include "IScreen.h"
-#include "IPrimaryScreen.h"
-#include "ISecondaryScreen.h"
-#include "IKeyState.h"
-#include "ClipboardTypes.h"
-#include "OptionTypes.h"
+#include "synergy/DragInformation.h"
+#include "synergy/clipboard_types.h"
+#include "synergy/IScreen.h"
+#include "synergy/IPrimaryScreen.h"
+#include "synergy/ISecondaryScreen.h"
+#include "synergy/IKeyState.h"
+#include "synergy/option_types.h"
 
 class IClipboard;
 
@@ -122,7 +122,7 @@ public:
 	Set options to given values.  Ignore unknown options and don't
 	modify options that aren't given in \c options.
 	*/
-	virtual void		setOptions(const COptionsList& options) = 0;
+	virtual void		setOptions(const OptionsList& options) = 0;
 
 	//! Set clipboard sequence number
 	/*!
@@ -180,6 +180,7 @@ public:
 	virtual bool		fakeKeyUp(KeyButton button) = 0;
 	virtual void		fakeAllKeysUp() = 0;
 	virtual bool		fakeCtrlAltDel() = 0;
+	virtual bool		fakeMediaKey(KeyID id);
 	virtual bool		isKeyDown(KeyButton) const = 0;
 	virtual KeyModifierMask
 						getActiveModifiers() const = 0;
@@ -188,12 +189,13 @@ public:
 	virtual SInt32		pollActiveGroup() const = 0;
 	virtual void		pollPressedKeys(KeyButtonSet& pressedKeys) const = 0;
 
-	virtual CString&	getDraggingFilename() = 0;
-	virtual bool		getDraggingStarted() = 0;
-	virtual bool		getFakeDraggingStarted() = 0;
+	virtual String&	getDraggingFilename() = 0;
+	virtual void		clearDraggingFilename() = 0;
+	virtual bool		isDraggingStarted() = 0;
+	virtual bool		isFakeDraggingStarted() = 0;
 
-	virtual void		fakeDraggingFiles(CString str) = 0;
-	virtual const CString&
+	virtual void		fakeDraggingFiles(DragFileList fileList) = 0;
+	virtual const String&
 						getDropTarget() const = 0;
 					
 protected:
@@ -202,7 +204,7 @@ protected:
 	A platform screen is expected to install a handler for system
 	events in its c'tor like so:
 	\code
-	m_events->adoptHandler(CEvent::kSystem,
+	m_events->adoptHandler(Event::kSystem,
 	 					 m_events->getSystemTarget(),
 	 					 new TMethodEventJob<CXXXPlatformScreen>(this,
 	 						 &CXXXPlatformScreen::handleSystemEvent));
@@ -213,15 +215,13 @@ protected:
 
 	A primary screen has further responsibilities.  It should post
 	the events in \c IPrimaryScreen as appropriate.  It should also
-	call \c onKey() on its \c CKeyState whenever a key is pressed
+	call \c onKey() on its \c KeyState whenever a key is pressed
 	or released (but not for key repeats).  And it should call
-	\c updateKeyMap() on its \c CKeyState if necessary when the keyboard
+	\c updateKeyMap() on its \c KeyState if necessary when the keyboard
 	mapping changes.
 
 	The target of all events should be the value returned by
 	\c getEventTarget().
 	*/
-	virtual void		handleSystemEvent(const CEvent& event, void*) = 0;
+	virtual void		handleSystemEvent(const Event& event, void*) = 0;
 };
-
-#endif

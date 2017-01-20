@@ -1,10 +1,14 @@
-QT += widgets network
+QT += widgets \
+    network
 TEMPLATE = app
 TARGET = synergy
+DEFINES += VERSION_STAGE=\\\"$$QMAKE_VERSION_STAGE\\\"
+DEFINES += VERSION_REVISION=\\\"$$QMAKE_VERSION_REVISION\\\"
 DEPENDPATH += . \
     res
 INCLUDEPATH += . \
-    src
+    src \
+    ../lib/shared/
 FORMS += res/MainWindowBase.ui \
     res/AboutDialogBase.ui \
     res/ServerConfigDialogBase.ui \
@@ -12,7 +16,11 @@ FORMS += res/MainWindowBase.ui \
     res/ActionDialogBase.ui \
     res/HotkeyDialogBase.ui \
     res/SettingsDialogBase.ui \
-    res/SetupWizardBase.ui
+    res/SetupWizardBase.ui \
+    res/AddClientDialogBase.ui \
+    res/ActivationDialog.ui \
+    res/CancelActivationDialog.ui \
+    res/FailedLoginDialog.ui
 SOURCES += src/main.cpp \
     src/MainWindow.cpp \
     src/AboutDialog.cpp \
@@ -41,7 +49,24 @@ SOURCES += src/main.cpp \
     src/Ipc.cpp \
     src/SynergyLocale.cpp \
     src/QUtility.cpp \
-    src/PremiumAuth.cpp
+    src/ZeroconfServer.cpp \
+    src/ZeroconfThread.cpp \
+    src/ZeroconfRegister.cpp \
+    src/ZeroconfBrowser.cpp \
+    src/ZeroconfService.cpp \
+    src/DataDownloader.cpp \
+    src/AddClientDialog.cpp \
+    src/CommandProcess.cpp \
+    src/CoreInterface.cpp \
+    src/Fingerprint.cpp \
+    src/SslCertificate.cpp \
+    src/WebClient.cpp \
+    src/ActivationNotifier.cpp \
+    src/ActivationDialog.cpp \
+    src/CancelActivationDialog.cpp \
+    src/FailedLoginDialog.cpp \
+    ../lib/shared/SerialKey.cpp \
+    src/LicenseManager.cpp
 HEADERS += src/MainWindow.h \
     src/AboutDialog.h \
     src/ServerConfig.h \
@@ -69,18 +94,39 @@ HEADERS += src/MainWindow.h \
     src/Ipc.h \
     src/SynergyLocale.h \
     src/QUtility.h \
-    src/PremiumAuth.h
+    src/ZeroconfServer.h \
+    src/ZeroconfThread.h \
+    src/ZeroconfRegister.h \
+    src/ZeroconfRecord.h \
+    src/ZeroconfBrowser.h \
+    src/ZeroconfService.h \
+    src/DataDownloader.h \
+    src/AddClientDialog.h \
+    src/CommandProcess.h \
+    src/ProcessorArch.h \
+    src/CoreInterface.h \
+    src/Fingerprint.h \
+    src/SslCertificate.h \
+    src/WebClient.h \
+    src/ActivationNotifier.h \
+    src/ElevateMode.h \
+    src/ActivationDialog.h \
+    src/CancelActivationDialog.h \
+    src/FailedLoginDialog.h \
+    ../lib/shared/EditionType.h \
+    ../lib/shared/SerialKey.h \
+    src/LicenseManager.h
 RESOURCES += res/Synergy.qrc
 RC_FILE = res/win/Synergy.rc
 macx { 
-	QMAKE_INFO_PLIST = res/mac/Info.plist
+    QMAKE_INFO_PLIST = res/mac/Info.plist
     TARGET = Synergy
     QSYNERGY_ICON.files = res/mac/Synergy.icns
     QSYNERGY_ICON.path = Contents/Resources
     QMAKE_BUNDLE_DATA += QSYNERGY_ICON
-    LIBS += -framework \
-        ApplicationServices
+    LIBS += $$MACX_LIBS
 }
+unix:!macx:LIBS += -ldns_sd
 debug { 
     OBJECTS_DIR = tmp/debug
     MOC_DIR = tmp/debug
@@ -94,5 +140,8 @@ release {
 win32 { 
     Debug:DESTDIR = ../../bin/Debug
     Release:DESTDIR = ../../bin/Release
+    LIBS += -L"../../ext/bonjour/x64" \
+        -ldnssd
+    INCLUDEPATH += "$(BONJOUR_SDK_HOME)/Include"
 }
 else:DESTDIR = ../../bin

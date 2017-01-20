@@ -1,11 +1,11 @@
 /*
  * synergy -- mouse and keyboard sharing utility
- * Copyright (C) 2012 Bolton Software Ltd.
+ * Copyright (C) 2012-2016 Symless Ltd.
  * Copyright (C) 2002 Chris Schoeneman
  * 
  * This package is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
- * found in the file COPYING that should have accompanied this file.
+ * found in the file LICENSE that should have accompanied this file.
  * 
  * This package is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
@@ -16,12 +16,11 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#ifndef ICLIPBOARD_H
-#define ICLIPBOARD_H
+#pragma once
 
-#include "IInterface.h"
-#include "CString.h"
-#include "BasicTypes.h"
+#include "base/String.h"
+#include "base/EventTypes.h"
+#include "common/IInterface.h"
 
 //! Clipboard interface
 /*!
@@ -58,8 +57,8 @@ public:
 	*/
 	enum EFormat {
 		kText,			//!< Text format, UTF-8, newline is LF
+        kHTML,			//!< HTML format, HTML fragment, UTF-8, newline is LF
 		kBitmap,		//!< Bitmap format, BMP 24/32bpp, BI_RGB
-		kHTML,			//!< HTML format, HTML fragment, UTF-8, newline is LF
 		kNumFormats		//!< The number of clipboard formats
 	};
 
@@ -80,7 +79,7 @@ public:
 	Add data in the given format to the clipboard.  May only be
 	called after a successful empty().
 	*/
-	virtual void		add(EFormat, const CString& data) = 0;
+	virtual void		add(EFormat, const String& data) = 0;
 
 	//@}
 	//! @name accessors
@@ -126,14 +125,14 @@ public:
 	if there is no data in that format.  Must be called between
 	a successful open() and close().
 	*/
-	virtual CString		get(EFormat) const = 0;
+	virtual String		get(EFormat) const = 0;
 
 	//! Marshall clipboard data
 	/*!
 	Merge \p clipboard's data into a single buffer that can be later
 	unmarshalled to restore the clipboard and return the buffer.
 	*/
-	static CString		marshall(const IClipboard* clipboard);
+	static String		marshall(const IClipboard* clipboard);
 
 	//! Unmarshall clipboard data
 	/*!
@@ -141,7 +140,7 @@ public:
 	Sets the clipboard time to \c time.
 	*/
 	static void			unmarshall(IClipboard* clipboard,
-							const CString& data, Time time);
+							const String& data, Time time);
 
 	//! Copy clipboard
 	/*!
@@ -166,7 +165,5 @@ public:
 
 private:
 	static UInt32		readUInt32(const char*);
-	static void			writeUInt32(CString*, UInt32);
+	static void			writeUInt32(String*, UInt32);
 };
-
-#endif

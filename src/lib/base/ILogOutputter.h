@@ -1,11 +1,11 @@
 /*
  * synergy -- mouse and keyboard sharing utility
- * Copyright (C) 2012 Bolton Software Ltd.
+ * Copyright (C) 2012-2016 Symless Ltd.
  * Copyright (C) 2002 Chris Schoeneman
  * 
  * This package is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
- * found in the file COPYING that should have accompanied this file.
+ * found in the file LICENSE that should have accompanied this file.
  * 
  * This package is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
@@ -16,12 +16,11 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#ifndef ILOGOUTPUTTER_H
-#define ILOGOUTPUTTER_H
+#pragma once
 
-#include "IInterface.h"
-#include "CLog.h"
-#include "ELevel.h"
+#include "base/Log.h"
+#include "base/ELevel.h"
+#include "common/IInterface.h"
 
 //! Outputter interface
 /*!
@@ -60,7 +59,7 @@ public:
 	//! Write a message with level
 	/*!
 	Writes \c message, which has the given \c level, to a log.
-	If this method returns true then CLog will stop passing the
+	If this method returns true then Log will stop passing the
 	message to all outputters in the outputter chain, otherwise
 	it continues.  Most implementations should return true.
 	*/
@@ -68,5 +67,3 @@ public:
 
 	//@}
 };
-
-#endif

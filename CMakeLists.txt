@@ -1,10 +1,10 @@
 # synergy -- mouse and keyboard sharing utility
-# Copyright (C) 2012 Bolton Software Ltd.
+# Copyright (C) 2012-2016 Symless Ltd.
 # Copyright (C) 2009 Nick Bolton
 # 
 # This package is free software; you can redistribute it and/or
 # modify it under the terms of the GNU General Public License
-# found in the file COPYING that should have accompanied this file.
+# found in the file LICENSE that should have accompanied this file.
 # 
 # This package is distributed in the hope that it will be useful,
 # but WITHOUT ANY WARRANTY; without even the implied warranty of
@@ -16,12 +16,12 @@
 
 # Version number for Synergy
 set(VERSION_MAJOR 1)
-set(VERSION_MINOR 4)
-set(VERSION_REV 16)
+set(VERSION_MINOR 8)
+set(VERSION_REV 7)
+set(VERSION_STAGE stable)
 set(VERSION "${VERSION_MAJOR}.${VERSION_MINOR}.${VERSION_REV}")
 
-# The check for 2.6 may be too strict (consider lowering).
-cmake_minimum_required(VERSION 2.4.7)
+cmake_minimum_required(VERSION 2.6)
 
 # CMake complains if we don't have this.
 if (COMMAND cmake_policy)
@@ -46,10 +46,10 @@ set(LIBRARY_OUTPUT_PATH ${PROJECT_SOURCE_DIR}/lib)
 # for unix, put debug files in a separate bin "debug" dir.
 # release bin files should stay in the root of the bin dir.
 if (CMAKE_GENERATOR STREQUAL "Unix Makefiles")
-  if (CMAKE_BUILD_TYPE STREQUAL Debug)
-    set(EXECUTABLE_OUTPUT_PATH ${PROJECT_SOURCE_DIR}/bin/debug)
-    set(LIBRARY_OUTPUT_PATH ${PROJECT_SOURCE_DIR}/lib/debug)
-  endif()
+	if (CMAKE_BUILD_TYPE STREQUAL Debug)
+		set(EXECUTABLE_OUTPUT_PATH ${PROJECT_SOURCE_DIR}/bin/debug)
+		set(LIBRARY_OUTPUT_PATH ${PROJECT_SOURCE_DIR}/lib/debug)
+	endif()
 endif()
 
 # Set some easy to type variables.
@@ -64,8 +64,24 @@ set(doc_dir ${root_dir}/doc)
 # lib, it is automatically passed to the linker.
 set(libs)
 
+# only include headers as "source" if not unix makefiles,
+# which is useful when using an IDE.
+if (${CMAKE_GENERATOR} STREQUAL "Unix Makefiles")
+	set(SYNERGY_ADD_HEADERS FALSE)
+else()
+	set(SYNERGY_ADD_HEADERS TRUE)
+endif()
+
 # Depending on the platform, pass in the required defines.
 if (UNIX)
+
+	# warnings as errors:
+	# we have a problem with people checking in code with warnings.
+	set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Werror -Wno-unused-local-typedef")
+
+	if (NOT APPLE)
+		set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fPIC")
+	endif()
 
 	# For config.h, detect the libraries, functions, etc.
 	include(CheckIncludeFiles)
@@ -150,16 +166,19 @@ if (UNIX)
 	endif()
 	
 	if (APPLE)
-		exec_program(uname ARGS -v OUTPUT_VARIABLE DARWIN_VERSION)
-		string(REGEX MATCH "[0-9]+" DARWIN_VERSION ${DARWIN_VERSION})
-		message(STATUS "DARWIN_VERSION=${DARWIN_VERSION}")
-		if (DARWIN_VERSION LESS 9)
-			# 10.4: universal (32-bit intel and power pc) 
+		message(STATUS "OSX_TARGET_MAJOR=${OSX_TARGET_MAJOR}")
+		message(STATUS "OSX_TARGET_MINOR=${OSX_TARGET_MINOR}")
+
+		if (NOT (OSX_TARGET_MAJOR EQUAL 10))
+			message(FATAL_ERROR "Mac OS X target must be 10.x")
+		endif ()
+
+		if (OSX_TARGET_MINOR LESS 6)
+			# <= 10.5: 32-bit Intel and PowerPC
 			set(CMAKE_OSX_ARCHITECTURES "ppc;i386"
 				CACHE STRING "" FORCE)
 		else()
-			# 10.5+: 32-bit only -- missing funcs in 64-bit os libs
-			# such as GetGlobalMouse.
+			# >= 10.6: Intel only
 			set(CMAKE_OSX_ARCHITECTURES "i386"
 				CACHE STRING "" FORCE)
 		endif()
@@ -186,7 +205,10 @@ if (UNIX)
 		set(CMAKE_INCLUDE_PATH "${CMAKE_INCLUDE_PATH}:/usr/local/include")
 
 		set(XKBlib "X11/Xlib.h;X11/XKBlib.h")
-		check_symbol_exists("XRRNotifyEvent" "${XKBlib};X11/extensions/Xrandr.h" HAVE_X11_EXTENSIONS_XRANDR_H)
+		set(CMAKE_EXTRA_INCLUDE_FILES "${XKBlib};X11/extensions/Xrandr.h")
+		check_type_size("XRRNotifyEvent" X11_EXTENSIONS_XRANDR_H)
+		set(HAVE_X11_EXTENSIONS_XRANDR_H "${X11_EXTENSIONS_XRANDR_H}")
+		set(CMAKE_EXTRA_INCLUDE_FILES)
 
 		check_include_files("${XKBlib};X11/extensions/dpms.h" HAVE_X11_EXTENSIONS_DPMS_H)
 		check_include_files("X11/extensions/Xinerama.h" HAVE_X11_EXTENSIONS_XINERAMA_H)
@@ -248,12 +270,12 @@ if (UNIX)
 		if (HAVE_Xrandr)
 			list(APPEND libs Xrandr)
 		endif()
-    
-    # this was outside of the linux scope,
-    # not sure why, moving it back inside.
-    if(HAVE_Xi)
-      list(APPEND libs Xi)
-    endif()
+		
+		# this was outside of the linux scope,
+		# not sure why, moving it back inside.
+		if(HAVE_Xi)
+			list(APPEND libs Xi)
+		endif()
 
 	endif()
 
@@ -286,7 +308,7 @@ if (UNIX)
 
 else() # not-unix
 
-	list(APPEND libs Wtsapi32 Userenv Wininet comsuppw)
+	list(APPEND libs Wtsapi32 Userenv Wininet comsuppw Shlwapi)
 
 	add_definitions(
 		/DWIN32
@@ -305,82 +327,32 @@ else() # not-unix
 endif()
 
 add_subdirectory(src)
-add_subdirectory(tools)
 
 if (WIN32)
-	# add /analyze in order to unconver potential bugs in the source code
-	# Details: http://msdn.microsoft.com/en-us/library/fwkeyyhe.aspx
-	# add /FR to generate browse information (ncb files) usefull for using IDE
+	# TODO:	consider using /analyze to uncover potential bugs in the source code.
 
-	#define _BIND_TO_CURRENT_CRT_VERSION 1
-	#define _BIND_TO_CURRENT_ATL_VERSION 1
-	#define _BIND_TO_CURRENT_MFC_VERSION 1
-	#define _BIND_TO_CURRENT_OPENMP_VERSION 1
-	# next line replaced the previous 4 ones:
-	#define _BIND_TO_CURRENT_VCLIBS_VERSION 1;
-
-	# compiler: /MP - use multi cores to compile
-	# added _SECURE_SCL=1 for finding bugs with iterators - http://msdn.microsoft.com/en-us/library/aa985965.aspx
+	# /WX - warnings as errors (we have a problem with people checking in code with warnings).
+	# /FR - generate browse information (ncb files) useful for using IDE.
+	# /MP - use multi cores to compile.
+	# /D _BIND_TO_CURRENT_VCLIBS_VERSION - TODO: explain why.
+	# /D _SECURE_SCL=1 - find bugs with iterators.
+	set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} /WX /FR /MP /D _BIND_TO_CURRENT_VCLIBS_VERSION=1 /D _SECURE_SCL=1")
 	
-	# common args between all vs builds
-	set(VS_ARGS "/FR /MP /D _BIND_TO_CURRENT_VCLIBS_VERSION=1 /D _SECURE_SCL=1 ${VS_ARGS_EXTRA}")
-	
-	# we may use `cmake -D VS_ARGS_EXTRA="/analyze"` for example to specify
-	# analyze mode (since we don't always want to use it; e.g. on non-team 
-	# or non-x86 compiler editions where there's no support)
-	set(CMAKE_CXX_FLAGS_DEBUG "${CMAKE_CXX_FLAGS_DEBUG} ${VS_ARGS}")
-	set(CMAKE_C_FLAGS_DEBUG "${CMAKE_C_FLAGS_DEBUG} ${VS_ARGS}")
-
-	# this line removes "/D NDEBUG" from release, we want them in order to
-	# find bugs even on release builds.
-	set(CMAKE_CXX_FLAGS_RELEASE "/MD /O2 /Ob2")
+	# /MD - use multi-core libraries.
+	# /O2 - get the fastest code.
+	# /Ob2 - expand inline functions (auto-inlining).
+	set(CMAKE_CXX_FLAGS_RELEASE "${CMAKE_CXX_FLAGS_RELEASE} /MD /O2 /Ob2")
 
 endif()
 
+if (${CMAKE_SYSTEM_NAME} MATCHES "IRIX")
+	set_target_properties(synergys PROPERTIES LINK_FLAGS "-all -woff 33 -woff 84 -woff 15")
+	set_target_properties(synergyc PROPERTIES LINK_FLAGS "-all -woff 33 -woff 84 -woff 15")
+	set_target_properties(synergyd PROPERTIES LINK_FLAGS "-all -woff 33 -woff 84 -woff 15")
+endif()
+
 if (CONF_CPACK)
-
-	if (WIN32)
-	   message(FATAL_ERROR "CPack support for Windows has been removed.")
-	endif()
-
-	if (UNIX)
-		if (APPLE)
-			message(FATAL_ERROR "CPack support for Apple has been removed.")
-		else ()
-			install(FILES bin/synergy
-				DESTINATION bin
-				PERMISSIONS
-				OWNER_READ OWNER_WRITE OWNER_EXECUTE
-				GROUP_READ GROUP_EXECUTE
-				WORLD_READ WORLD_EXECUTE)
-
-			# install gnome menu item
-			install(FILES res/synergy.desktop
-				DESTINATION share/applications)
-			install(FILES res/synergy.ico
-				DESTINATION share/icons)
-		endif()
-	endif()
-
-	# The default CPack behaviour is not to append the system processor
-	# type, which is undesirable in our case, since we want to support 
-	# both 32-bit and 64-bit processors.
-	set(CPACK_SYSTEM_NAME ${CMAKE_SYSTEM_NAME}-${CMAKE_SYSTEM_PROCESSOR})
-
-	set(CPACK_PACKAGE_NAME "synergy")
-	set(CPACK_PACKAGE_VENDOR "The Synergy Project")
-	set(CPACK_PACKAGE_DESCRIPTION_SUMMARY "Synergy server and client")
-	set(CPACK_PACKAGE_VERSION_MAJOR ${VERSION_MAJOR})
-	set(CPACK_PACKAGE_VERSION_MINOR ${VERSION_MINOR})
-	set(CPACK_PACKAGE_VERSION_PATCH ${VERSION_REV})
-	set(CPACK_PACKAGE_VERSION ${VERSION})
-	set(CPACK_PACKAGE_CONTACT http://synergy-foss.org/)
-	set(CPACK_RESOURCE_FILE_LICENSE "${cmake_dir}/License.rtf")
-	set(CPACK_RESOURCE_FILE_README "${cmake_dir}/Readme.txt")
-
-	# Must be last (since it relies of CPACK_ vars).
-	include(CPack)
-
+	message(FATAL_ERROR "CPack support has been removed.")
 endif()
 
 if (CONF_DOXYGEN)
@@ -391,10 +363,3 @@ if (CONF_DOXYGEN)
 	configure_file(${cmake_dir}/doxygen.cfg.in ${doc_dir}/doxygen.cfg)
 
 endif()
-
-if (${CMAKE_SYSTEM_NAME} MATCHES "IRIX")
-	set_target_properties(synergys PROPERTIES LINK_FLAGS "-all -woff 33 -woff 84 -woff 15")
-	set_target_properties(synergyc PROPERTIES LINK_FLAGS "-all -woff 33 -woff 84 -woff 15")
-	set_target_properties(synergyd PROPERTIES LINK_FLAGS "-all -woff 33 -woff 84 -woff 15")
-endif()
-

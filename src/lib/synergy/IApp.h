@@ -1,11 +1,11 @@
 /*
  * synergy -- mouse and keyboard sharing utility
- * Copyright (C) 2012 Bolton Software Ltd.
+ * Copyright (C) 2012-2016 Symless Ltd.
  * Copyright (C) 2012 Nick Bolton
  * 
  * This package is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
- * found in the file COPYING that should have accompanied this file.
+ * found in the file LICENSE that should have accompanied this file.
  * 
  * This package is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
@@ -18,24 +18,21 @@
 
 #pragma once
 
-#include "IInterface.h"
+#include "common/IInterface.h"
 
 typedef int (*StartupFunc)(int, char**);
 
 class ILogOutputter;
-class CArgsBase;
+class ArgsBase;
 class IArchTaskBarReceiver;
-class CScreen;
+namespace synergy { class Screen; }
 class IEventQueue;
 
 class IApp : public IInterface
 {
 public:
 	virtual void setByeFunc(void(*bye)(int)) = 0;
-	virtual bool isArg(int argi, int argc, const char* const* argv,
-		const char* name1, const char* name2,
-		int minRequiredParameters = 0) = 0;
-	virtual CArgsBase& argsBase() const = 0;
+	virtual ArgsBase& argsBase() const = 0;
 	virtual int standardStartup(int argc, char** argv) = 0;
 	virtual int runInner(int argc, char** argv, ILogOutputter* outputter, StartupFunc startup) = 0;
 	virtual void startNode() = 0;
@@ -45,6 +42,6 @@ public:
 	virtual void initApp(int argc, const char** argv) = 0;
 	virtual const char* daemonName() const = 0;
 	virtual int foregroundStartup(int argc, char** argv) = 0;
-	virtual CScreen* createScreen() = 0;
+	virtual synergy::Screen* createScreen() = 0;
 	virtual IEventQueue*			getEvents() const = 0;
 };

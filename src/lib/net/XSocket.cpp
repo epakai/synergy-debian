@@ -1,11 +1,11 @@
 /*
  * synergy -- mouse and keyboard sharing utility
- * Copyright (C) 2012 Bolton Software Ltd.
+ * Copyright (C) 2012-2016 Symless Ltd.
  * Copyright (C) 2002 Chris Schoeneman
  * 
  * This package is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
- * found in the file COPYING that should have accompanied this file.
+ * found in the file LICENSE that should have accompanied this file.
  * 
  * This package is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
@@ -16,15 +16,15 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#include "XSocket.h"
-#include "CStringUtil.h"
+#include "net/XSocket.h"
+#include "base/String.h"
 
 //
 // XSocketAddress
 //
 
 XSocketAddress::XSocketAddress(EError error,
-				const CString& hostname, int port) throw() :
+				const String& hostname, int port) _NOEXCEPT :
 	m_error(error),
 	m_hostname(hostname),
 	m_port(port)
@@ -38,7 +38,7 @@ XSocketAddress::getError() const throw()
 	return m_error;
 }
 
-CString
+String
 XSocketAddress::getHostname() const throw()
 {
 	return m_hostname;
@@ -50,7 +50,7 @@ XSocketAddress::getPort() const throw()
 	return m_port;
 }
 
-CString
+String
 XSocketAddress::getWhat() const throw()
 {
 	static const char* s_errorID[] = {
@@ -69,7 +69,7 @@ XSocketAddress::getWhat() const throw()
 	};
 	return format(s_errorID[m_error], s_errorMsg[m_error],
 								m_hostname.c_str(), 
-								CStringUtil::print("%d", m_port).c_str());
+								synergy::string::sprintf("%d", m_port).c_str());
 }
 
 
@@ -77,7 +77,7 @@ XSocketAddress::getWhat() const throw()
 // XSocketIOClose
 //
 
-CString
+String
 XSocketIOClose::getWhat() const throw()
 {
 	return format("XSocketIOClose", "close: %{1}", what());
@@ -88,7 +88,7 @@ XSocketIOClose::getWhat() const throw()
 // XSocketBind
 //
 
-CString
+String
 XSocketBind::getWhat() const throw()
 {
 	return format("XSocketBind", "cannot bind address: %{1}", what());
@@ -99,7 +99,7 @@ XSocketBind::getWhat() const throw()
 // XSocketConnect
 //
 
-CString
+String
 XSocketConnect::getWhat() const throw()
 {
 	return format("XSocketConnect", "cannot connect socket: %{1}", what());
@@ -110,7 +110,7 @@ XSocketConnect::getWhat() const throw()
 // XSocketCreate
 //
 
-CString
+String
 XSocketCreate::getWhat() const throw()
 {
 	return format("XSocketCreate", "cannot create socket: %{1}", what());

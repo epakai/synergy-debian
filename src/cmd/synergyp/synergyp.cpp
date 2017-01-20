@@ -1,10 +1,10 @@
 /*
  * synergy -- mouse and keyboard sharing utility
- * Copyright (C) 2013 Bolton Software Ltd.
+ * Copyright (C) 2013-2016 Symless Ltd.
  * 
  * This package is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
- * found in the file COPYING that should have accompanied this file.
+ * found in the file LICENSE that should have accompanied this file.
  * 
  * This package is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
@@ -15,40 +15,40 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#define WIN32_LEAN_AND_MEAN
-
-#include "Windows.h"
-#include "CServerApp.h"
-#include "CClientApp.h"
-#include "CLog.h"
-#include "CArch.h"
-#include "CEventQueue.h"
+#include "synergy/ServerApp.h"
+#include "synergy/ClientApp.h"
+#include "arch/Arch.h"
+#include "base/Log.h"
+#include "base/EventQueue.h"
 
 #if WINAPI_MSWINDOWS
-#include "CMSWindowsPortableTaskBarReceiver.h"
+#include "MSWindowsPortableTaskBarReceiver.h"
 #elif WINAPI_XWINDOWS
-#include "CXWindowsPortableTaskBarReceiver.h"
+#include "XWindowsPortableTaskBarReceiver.h"
 #elif WINAPI_CARBON
-#include "COSXPortableTaskBarReceiver.h"
+#include "OSXPortableTaskBarReceiver.h"
 #else
 #error Platform not supported.
 #endif
+
+#define WIN32_LEAN_AND_MEAN
+#include <Windows.h>
 
 INT WINAPI
 WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, PSTR lpCmdLine, INT nCmdShow)
 {
 #if SYSAPI_WIN32
 	// record window instance for tray icon, etc
-	CArchMiscWindows::setInstanceWin32(GetModuleHandle(NULL));
+	ArchMiscWindows::setInstanceWin32(GetModuleHandle(NULL));
 #endif
 	
-	CArch arch;
+	Arch arch;
 	arch.init();
 
-	CLog log;
-	CEventQueue events;
+	Log log;
+	EventQueue events;
 
-	CLOG->insert(new CMesssageBoxLogOutputter());
+	CLOG->insert(new MesssageBoxLogOutputter());
 
 	int argc = __argc;
 	char** argv = __argv;
@@ -79,11 +79,11 @@ WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, PSTR lpCmdLine, INT nCmdSh
 	}
 	
 	if (server) {
-		CServerApp app(&events, createTaskBarReceiver);
+		ServerApp app(&events, createTaskBarReceiver);
 		return app.run(argc, argv);
 	}
 	else if (client) {
-		CClientApp app(&events, createTaskBarReceiver);
+		ClientApp app(&events, createTaskBarReceiver);
 		return app.run(argc, argv);
 	}
 

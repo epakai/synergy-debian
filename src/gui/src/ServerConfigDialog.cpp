@@ -1,11 +1,11 @@
 /*
  * synergy -- mouse and keyboard sharing utility
- * Copyright (C) 2012 Bolton Software Ltd.
+ * Copyright (C) 2012-2016 Symless Ltd.
  * Copyright (C) 2008 Volker Lanz (vl@fidra.de)
  * 
  * This package is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
- * found in the file COPYING that should have accompanied this file.
+ * found in the file LICENSE that should have accompanied this file.
  * 
  * This package is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
@@ -23,13 +23,15 @@
 
 #include <QtCore>
 #include <QtGui>
+#include <QMessageBox>
 
 ServerConfigDialog::ServerConfigDialog(QWidget* parent, ServerConfig& config, const QString& defaultScreenName) :
 	QDialog(parent, Qt::WindowTitleHint | Qt::WindowSystemMenuHint),
 	Ui::ServerConfigDialogBase(),
 	m_OrigServerConfig(config),
 	m_ServerConfig(config),
-	m_ScreenSetupModel(serverConfig().screens(), serverConfig().numColumns(), serverConfig().numRows())
+	m_ScreenSetupModel(serverConfig().screens(), serverConfig().numColumns(), serverConfig().numRows()),
+	m_Message("")
 {
 	setupUi(this);
 
@@ -52,6 +54,12 @@ ServerConfigDialog::ServerConfigDialog(QWidget* parent, ServerConfig& config, co
 	m_pCheckBoxCornerBottomRight->setChecked(serverConfig().switchCorner(BaseConfig::BottomRight));
 	m_pSpinBoxSwitchCornerSize->setValue(serverConfig().switchCornerSize());
 
+	m_pCheckBoxIgnoreAutoConfigClient->setChecked(serverConfig().ignoreAutoConfigClient());
+
+	m_pCheckBoxEnableDragAndDrop->setChecked(serverConfig().enableDragAndDrop());
+
+	m_pCheckBoxEnableClipboard->setChecked(serverConfig().clipboardSharing());
+
 	foreach(const Hotkey& hotkey, serverConfig().hotkeys())
 		m_pListHotkeys->addItem(hotkey.text());
 
@@ -59,6 +67,17 @@ ServerConfigDialog::ServerConfigDialog(QWidget* parent, ServerConfig& config, co
 
 	if (serverConfig().numScreens() == 0)
 		model().screen(serverConfig().numColumns() / 2, serverConfig().numRows() / 2) = Screen(defaultScreenName);
+}
+
+void ServerConfigDialog::showEvent(QShowEvent* event)
+{
+	QDialog::show();
+
+	if (!m_Message.isEmpty())
+	{
+		// TODO: ideally this massage box should pop up after the dialog is shown
+		QMessageBox::information(this, tr("Configure server"), m_Message);
+	}
 }
 
 void ServerConfigDialog::accept()
@@ -81,6 +100,9 @@ void ServerConfigDialog::accept()
 	serverConfig().setSwitchCorner(BaseConfig::BottomLeft, m_pCheckBoxCornerBottomLeft->isChecked());
 	serverConfig().setSwitchCorner(BaseConfig::BottomRight, m_pCheckBoxCornerBottomRight->isChecked());
 	serverConfig().setSwitchCornerSize(m_pSpinBoxSwitchCornerSize->value());
+	serverConfig().setIgnoreAutoConfigClient(m_pCheckBoxIgnoreAutoConfigClient->isChecked());
+	serverConfig().setEnableDragAndDrop(m_pCheckBoxEnableDragAndDrop->isChecked());
+	serverConfig().setClipboardSharing(m_pCheckBoxEnableClipboard->isChecked());
 
 	// now that the dialog has been accepted, copy the new server config to the original one,
 	// which is a reference to the one in MainWindow.

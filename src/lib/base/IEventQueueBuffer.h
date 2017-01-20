@@ -1,11 +1,11 @@
 /*
  * synergy -- mouse and keyboard sharing utility
- * Copyright (C) 2012 Bolton Software Ltd.
+ * Copyright (C) 2012-2016 Symless Ltd.
  * Copyright (C) 2004 Chris Schoeneman
  * 
  * This package is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
- * found in the file COPYING that should have accompanied this file.
+ * found in the file LICENSE that should have accompanied this file.
  * 
  * This package is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
@@ -16,14 +16,13 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#ifndef IEVENTQUEUEBUFFER_H
-#define IEVENTQUEUEBUFFER_H
+#pragma once
 
-#include "IInterface.h"
-#include "BasicTypes.h"
+#include "common/IInterface.h"
+#include "common/basic_types.h"
 
-class CEvent;
-class CEventQueueTimer;
+class Event;
+class EventQueueTimer;
 
 //! Event queue buffer interface
 /*!
@@ -58,11 +57,11 @@ public:
 	Get the next event from the buffer.  Return kNone if no event is
 	available.  If a system event is next, return kSystem and fill in
 	event.  The event data in a system event can point to a static
-	buffer (because CEvent::deleteData() will not attempt to delete
+	buffer (because Event::deleteData() will not attempt to delete
 	data in a kSystem event).  Otherwise, return kUser and fill in
 	\p dataID with the value passed to \c addEvent().
 	*/
-	virtual Type		getEvent(CEvent& event, UInt32& dataID) = 0;
+	virtual Type		getEvent(Event& event, UInt32& dataID) = 0;
 
 	//! Post an event
 	/*!
@@ -89,16 +88,14 @@ public:
 	used only by the buffer but it must be a valid object (i.e.
 	not NULL).
 	*/
-	virtual CEventQueueTimer*
+	virtual EventQueueTimer*
 						newTimer(double duration, bool oneShot) const = 0;
 
 	//! Destroy a timer object
 	/*!
 	Destroy a timer object previously returned by \c newTimer().
 	*/
-	virtual void		deleteTimer(CEventQueueTimer*) const = 0;
+	virtual void		deleteTimer(EventQueueTimer*) const = 0;
 
 	//@}
 };
-
-#endif

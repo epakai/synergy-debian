@@ -1,11 +1,11 @@
 /*
  * synergy -- mouse and keyboard sharing utility
- * Copyright (C) 2012 Bolton Software Ltd.
+ * Copyright (C) 2012-2016 Symless Ltd.
  * Copyright (C) 2002 Chris Schoeneman
  * 
  * This package is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
- * found in the file COPYING that should have accompanied this file.
+ * found in the file LICENSE that should have accompanied this file.
  * 
  * This package is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
@@ -16,15 +16,14 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#ifndef ICLIENT_H
-#define ICLIENT_H
+#pragma once
 
-#include "IScreen.h"
-#include "ClipboardTypes.h"
-#include "KeyTypes.h"
-#include "MouseTypes.h"
-#include "OptionTypes.h"
-#include "CString.h"
+#include "synergy/clipboard_types.h"
+#include "synergy/IScreen.h"
+#include "synergy/key_types.h"
+#include "synergy/mouse_types.h"
+#include "synergy/option_types.h"
+#include "base/String.h"
 
 //! Client interface
 /*!
@@ -154,7 +153,7 @@ public:
 	Set options to given values.  Ignore unknown options and don't
 	modify our options that aren't given in \c options.
 	*/
-	virtual void		setOptions(const COptionsList& options) = 0;
+	virtual void		setOptions(const OptionsList& options) = 0;
 
 	//@}
 	//! @name accessors
@@ -164,7 +163,7 @@ public:
 	/*!
 	Return the client's name.
 	*/
-	virtual CString		getName() const = 0;
+	virtual String		getName() const = 0;
 
 	//@}
 
@@ -175,5 +174,3 @@ public:
 							SInt32& width, SInt32& height) const = 0;
 	virtual void		getCursorPos(SInt32& x, SInt32& y) const = 0;
 };
-
-#endif

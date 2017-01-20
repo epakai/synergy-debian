@@ -1,11 +1,11 @@
 /*
  * synergy -- mouse and keyboard sharing utility
- * Copyright (C) 2012 Bolton Software Ltd.
+ * Copyright (C) 2012-2016 Symless Ltd.
  * Copyright (C) 2012 Nick Bolton
  *
  * This package is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
- * found in the file COPYING that should have accompanied this file.
+ * found in the file LICENSE that should have accompanied this file.
  *
  * This package is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
@@ -23,6 +23,7 @@
 #include <QTimer>
 #include "IpcReader.h"
 #include "Ipc.h"
+#include <QDataStream>
 
 IpcClient::IpcClient() :
 m_ReaderStarted(false),
@@ -97,7 +98,7 @@ void IpcClient::sendHello()
 	stream.writeRawData(typeBuf, 1);
 }
 
-void IpcClient::sendCommand(const QString& command, bool elevate)
+void IpcClient::sendCommand(const QString& command, ElevateMode const elevate)
 {
 	QDataStream stream(m_Socket);
 
@@ -113,7 +114,8 @@ void IpcClient::sendCommand(const QString& command, bool elevate)
 	stream.writeRawData(charCommand, length);
 
 	char elevateBuf[1];
-	elevateBuf[0] = elevate ? 1 : 0;
+    // Refer to enum ElevateMode documentation for why this flag is mapped this way
+	elevateBuf[0] = (elevate == ElevateAlways) ? 1 : 0;
 	stream.writeRawData(elevateBuf, 1);
 }
 

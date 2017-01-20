@@ -1,11 +1,11 @@
 /*
  * synergy -- mouse and keyboard sharing utility
- * Copyright (C) 2012 Bolton Software Ltd.
+ * Copyright (C) 2012-2016 Symless Ltd.
  * Copyright (C) 2002 Chris Schoeneman
  * 
  * This package is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
- * found in the file COPYING that should have accompanied this file.
+ * found in the file LICENSE that should have accompanied this file.
  * 
  * This package is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
@@ -16,14 +16,13 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#ifndef ISOCKET_H
-#define ISOCKET_H
+#pragma once
 
-#include "IInterface.h"
-#include "CEvent.h"
-#include "CEventTypes.h"
+#include "common/IInterface.h"
+#include "base/Event.h"
+#include "base/EventTypes.h"
 
-class CNetworkAddress;
+class NetworkAddress;
 
 //! Generic socket interface
 /*!
@@ -39,7 +38,7 @@ public:
 	/*!
 	Binds the socket to a particular address.
 	*/
-	virtual void		bind(const CNetworkAddress&) = 0;
+	virtual void		bind(const NetworkAddress&) = 0;
 
 	//! Close socket
 	/*!
@@ -59,5 +58,3 @@ public:
 
 	//@}
 };
-
-#endif
