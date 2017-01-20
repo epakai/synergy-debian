@@ -1,21 +1,46 @@
-This package was debianized by Cord Beermann <cord@debian.org> on
-Sat,  4 Feb 2006 21:40:52 +0100.
+Format: http://www.debian.org/doc/packaging-manuals/copyright-format/1.0/
+Upstream-Name: Synergy
+Source: https://github.com/symless/synergy/releases
+Comment: bonjour and openssl- directories were removed because they include
+         non-source files.
+         openssl, gmock, and gtest tarballs were removed to reduce size.
+         Synergy is built against Debian packaged libraries.
+Files-Excluded: ext/bonjour
+                ext/openssl-osx
+                ext/openssl-win32
+                ext/openssl-win64
+                ext/openssl-1.0.2.tar.gz
+                ext/gmock-1.6.0.zip
+                ext/gtest-1.6.0.zip
+                res/ShellExecAsUser.dll
 
-It was downloaded from http://sf.net/project/showfiles.php?group_id=59275
+Files: *
+Copyright: 2012-2016 Synergy Si Ltd.
+           2008-2014 Nick Bolton
+           2002-2014 Chris Schoeneman
+License: GPL-2
 
-Copyright Notice, as taken from cmd/synergyc/synergyc.cpp:
+Files: debian/*
+Copyright: 2016 Joshua Honeycutt <joshua.honeycutt@gmail.com>
+           2014 Jeff Licquia <licquia@debian.org>
+           2006 Cord Beermann <cord@debian.org>
+           2005 Daniel Lutz <danlutz@debian.org>
+License: GPL-2
 
-   Copyright (C) 2002 Chris Schoeneman
+License: GPL-2
+ This package is free software; you can redistribute it and/or modify
+ it under the terms of the GNU General Public License as published by
+ the Free Software Foundation; either version 2 of the License, or
+ (at your option) any later version.
+ .
+ This package is distributed in the hope that it will be useful,
+ but WITHOUT ANY WARRANTY; without even the implied warranty of
+ MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ GNU General Public License for more details.
+ .
+ You should have received a copy of the GNU General Public License
+ along with this program. If not, see <http://www.gnu.org/licenses/>
+ .
+ On Debian systems, the complete text of the GNU General
+ Public License version 2 can be found in "/usr/share/common-licenses/GPL-2".
 
-   This package is free software; you can redistribute it and/or
-   modify it under the terms of the GNU General Public License
-   found in the file COPYING that should have accompanied this file.
-
-   This package is distributed in the hope that it will be useful,
-   but WITHOUT ANY WARRANTY; without even the implied warranty of
-   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-   GNU General Public License for more details.
-
-On Debian systems, the full text of the GNU General Public License,
-version 2 (as distributed as COPYING in the source), can be found in
-the file /usr/share/common-licenses/GPL-2.
