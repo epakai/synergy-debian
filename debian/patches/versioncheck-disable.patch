@@ -14,7 +14,7 @@ This patch header follows DEP-3: http://dep.debian.net/deps/dep3/
  	}
  
 -	m_VersionChecker.checkLatest();
-+	// m_VersionChecker.checkLatest();
++	//m_VersionChecker.checkLatest();
  
  	if (!appConfig().autoConfigPrompted()) {
  		promptAutoConfig();
