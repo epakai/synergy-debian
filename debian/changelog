@@ -1,7 +1,7 @@
 synergy (1.8.7-stable+dfsg.1-1) unstable; urgency=medium
 
-  * Non-maintainer upload.
-  * New upstream version. Closes: #764390, #818490
+  * New maintainer (Closes: #852081)
+  * New upstream version. (Closes: #764390, #818490)
   * Update watchfile to check symless github.
   * Upstream tarball modified to remove non-DFSG files and unused external
     library tarballs.
