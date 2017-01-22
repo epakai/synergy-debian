@@ -1,10 +1,25 @@
+Description: Enable Pro features of synergy
+	This makes all SerialKey objects Pro and non-expiring
+	Expiration and Trial checks return false
+	Edition functions always return pro
+	Unit tests related to SerialKey are removed
+	potential calls to RaiseActivationDialog() were removed
+	Crypto is enabled by default
+Author: "Joshua Honeycutt" <joshua.honeycutt@gmail.com>
+Forwarded: not-needed
+Last-Update 2017-01-22
+
 --- a/src/lib/shared/SerialKey.cpp
 +++ b/src/lib/shared/SerialKey.cpp
-@@ -32,7 +32,7 @@
+@@ -30,9 +30,9 @@
+ 
+ SerialKey::SerialKey(Edition edition):
  	m_userLimit(1),
- 	m_warnTime(ULLONG_MAX),
- 	m_expireTime(ULLONG_MAX),
+-	m_warnTime(ULLONG_MAX),
+-	m_expireTime(ULLONG_MAX),
 -	m_edition(edition),
++	m_warnTime(0),
++	m_expireTime(0),
 +	m_edition(kPro),
  	m_trial(false)
  {
@@ -114,6 +129,106 @@
  private:
  	std::string			m_name;
  	std::string			m_email;
+--- a/src/gui/src/MainWindow.cpp
++++ b/src/gui/src/MainWindow.cpp
+@@ -458,10 +458,7 @@
+ 
+ void MainWindow::checkLicense(const QString &line)
+ {
+-	if (line.contains("trial has expired")) {
+-		licenseManager().refresh();
+-		raiseActivationDialog();
+-	}
++	return;
+ }
+ 
+ void MainWindow::checkFingerprint(const QString& line)
+@@ -554,11 +551,6 @@
+ {
+ 	SerialKey serialKey = m_LicenseManager->serialKey();
+ 	time_t currentTime = ::time(0);
+-	if (serialKey.isExpired(currentTime)) {
+-		if (QDialog::Rejected == raiseActivationDialog()) {
+-			return;
+-		}
+-	}
+ 
+ 	bool desktopMode = appConfig().processMode() == Desktop;
+ 	bool serviceMode = appConfig().processMode() == Service;
+@@ -1239,7 +1231,6 @@
+ 
+ void MainWindow::on_m_pActivate_triggered()
+ {
+-	raiseActivationDialog();
+ }
+ 
+ void MainWindow::on_m_pButtonApply_clicked()
+@@ -1480,12 +1471,7 @@
+ 
+ void MainWindow::on_windowShown()
+ {
+-	time_t currentTime = ::time(0);
+-	if (!m_AppConfig->activationHasRun()
+-			&& ((m_AppConfig->edition() == kUnregistered) ||
+-				(m_LicenseManager->serialKey().isExpired(currentTime)))) {
+-		raiseActivationDialog();
+-	}
++	return;
+ }
+ 
+ QString MainWindow::getProfileRootForArg()
+--- a/src/gui/src/SettingsDialog.cpp
++++ b/src/gui/src/SettingsDialog.cpp
+@@ -64,7 +64,6 @@
+ #endif
+ 
+ 	m_pCheckBoxEnableCrypto->setChecked(m_appConfig.getCryptoEnabled());
+-	m_pCheckBoxEnableCrypto->setEnabled(m_appConfig.edition() == kPro);
+ }
+ 
+ void SettingsDialog::accept()
+--- a/src/gui/res/SettingsDialogBase.ui
++++ b/src/gui/res/SettingsDialogBase.ui
+@@ -177,7 +177,7 @@
+       <item row="0" column="0">
+        <widget class="QCheckBox" name="m_pCheckBoxEnableCrypto">
+         <property name="enabled">
+-         <bool>false</bool>
++         <bool>true</bool>
+         </property>
+         <property name="text">
+          <string>Use &amp;SSL encryption</string>
+--- a/src/gui/src/AppConfig.cpp
++++ b/src/gui/src/AppConfig.cpp
+@@ -286,7 +286,7 @@
+ }
+ 
+ bool AppConfig::getCryptoEnabled() const {
+-	return (edition() == kPro) && m_CryptoEnabled;
++	return m_CryptoEnabled;
+ }
+ 
+ void AppConfig::setAutoHide(bool b) { m_AutoHide = b; }
+--- a/src/gui/src/SetupWizard.cpp
++++ b/src/gui/src/SetupWizard.cpp
+@@ -23,6 +23,7 @@
+ #include "EditionType.h"
+ #include "QSynergyApplication.h"
+ #include "QUtility.h"
++#include "SslCertificate.h"
+ 
+ #include <QMessageBox>
+ 
+@@ -128,6 +129,9 @@
+ 
+ 	if (m_StartMain)
+ 	{
++		SslCertificate sslCertificate;
++		sslCertificate.generateCertificate();
++		m_MainWindow.updateLocalFingerprint();
+ 		m_MainWindow.updateZeroconfService();
+ 		m_MainWindow.open();
+ 	}
 --- a/src/test/unittests/shared/SerialKeyTests.cpp
 +++ /dev/null
 @@ -1,147 +0,0 @@
@@ -264,51 +379,3 @@
 -	SerialKey serial("7B76323B747269616C3B62617369633B426F623B313B656D61696C3B636F6D70616E79206E616D653B303B38363430307D");
 -	EXPECT_EQ(0, serial.daysLeft(86401));
 -}
---- a/src/gui/src/MainWindow.cpp
-+++ b/src/gui/src/MainWindow.cpp
-@@ -458,10 +458,7 @@
- 
- void MainWindow::checkLicense(const QString &line)
- {
--	if (line.contains("trial has expired")) {
--		licenseManager().refresh();
--		raiseActivationDialog();
--	}
-+	return;
- }
- 
- void MainWindow::checkFingerprint(const QString& line)
-@@ -554,11 +551,6 @@
- {
- 	SerialKey serialKey = m_LicenseManager->serialKey();
- 	time_t currentTime = ::time(0);
--	if (serialKey.isExpired(currentTime)) {
--		if (QDialog::Rejected == raiseActivationDialog()) {
--			return;
--		}
--	}
- 
- 	bool desktopMode = appConfig().processMode() == Desktop;
- 	bool serviceMode = appConfig().processMode() == Service;
-@@ -1239,7 +1231,6 @@
- 
- void MainWindow::on_m_pActivate_triggered()
- {
--	raiseActivationDialog();
- }
- 
- void MainWindow::on_m_pButtonApply_clicked()
-@@ -1480,12 +1471,7 @@
- 
- void MainWindow::on_windowShown()
- {
--	time_t currentTime = ::time(0);
--	if (!m_AppConfig->activationHasRun()
--			&& ((m_AppConfig->edition() == kUnregistered) ||
--				(m_LicenseManager->serialKey().isExpired(currentTime)))) {
--		raiseActivationDialog();
--	}
-+	return;
- }
- 
- QString MainWindow::getProfileRootForArg()
