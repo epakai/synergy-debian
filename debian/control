@@ -1,8 +1,7 @@
 Source: synergy
 Section: x11
 Priority: optional
-Maintainer: Jeff Licquia <licquia@debian.org>
-Uploaders: Joshua Honeycutt <joshua.honeycutt@gmail.com>
+Maintainer: Joshua Honeycutt <joshua.honeycutt@gmail.com>
 Homepage: http://symless.com/synergy/
 Build-Depends: cmake, debhelper (>=9), docbook, docbook-utils, libavahi-compat-libdnssd-dev, libqt4-dev, libssl-dev, libxinerama-dev, libxrandr-dev, libxtst-dev, libcurl4-gnutls-dev | libcurl-dev, google-mock, libgtest-dev
 Standards-Version: 3.9.8
