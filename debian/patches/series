@@ -3,4 +3,4 @@ desktop-keywords.patch
 versioncheck-disable.patch
 new_ssl.patch
 guitests.patch
-remove_auth.patch
+enable_pro.patch
