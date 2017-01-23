@@ -25,17 +25,19 @@ at the above address.
 Synergy encryption
 ------------------
 
-Synergy does not encrypt communication by default. Clipboard contents,
-mouse movements and keyboard events may all be exposed over the network.
+Synergy may be run without encryption. Clipboard contents, mouse movements
+and keyboard events may all be exposed over the network.
 
-On the synergy server a private key and certificate must be created.
-Synergy only generates a key using the gui program 'synergy' once a
-Synergy Pro user has been authenticated. As an alternative the
-Debian synergy package includes a /usr/share/synergy/gen_ssl_pem.sh
-script to generate a key, certificate and fingerprint (used to verify
-connecting to correct server).
+Debian's synergy package has been modified to be the "Pro" edition as
+distributed my Symless. This allows for SSL encryption to be used. When 
+running the GUI executable 'synergy' encryption will be enabled once the
+Setup Wizard has run for the first time.
 
-After this setup synergyc and synergys can be launched with the 
---enable-crypto option to encrypt their communication. The gui tool,
-synergy, will still require authenticating as a Synergy Pro user 
-in order to enable encryption through its interface.
+Synergy's server and client may be executed manually as 'synergys' and
+'synergyc' respectively. To enable encryption they must be passed the
+--enable-crypto option. In addition the synergy server 'synergys' requires
+an SSL key and certificate to be pre-generated. To allow synergy server to 
+be run without the GUI Debian's synergy package includes a script
+'/usr/share/synergy/gen_ssl_pem.sh' to generate a key, and fingerprint.
+The fingerprint printed by the script can be used to verify clients are
+connecting to the correct server.
