@@ -1,0 +1,17 @@
+--- a/src/gui/src/AboutDialog.cpp
++++ b/src/gui/src/AboutDialog.cpp
+@@ -29,13 +29,9 @@
+ 
+ 	m_versionChecker.setApp(synergyApp);
+ 	QString version = m_versionChecker.getVersion();
+-	version = version + '-' + VERSION_STAGE +  '-' + VERSION_REVISION;
++	version = version;
+ 	m_pLabelSynergyVersion->setText(version);
+ 
+-	QString buildDateString = QString::fromLocal8Bit(__DATE__).simplified();
+-	QDate buildDate = QLocale("en_US").toDate(buildDateString, "MMM d yyyy");
+-	m_pLabelBuildDate->setText(buildDate.toString(Qt::SystemLocaleLongDate));
+-
+ 	// change default size based on os
+ #if defined(Q_OS_MAC)
+ 	QSize size(600, 380);
