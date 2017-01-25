@@ -3,7 +3,7 @@ Description: Disable version checks in GUI
  when an upstream update is available.
 Author: Jeff Licquia <licquia@debian.org>
 Forwarded: not-needed
-Bug-Debian: http://bugs.debian.org/731773
+Bug-Debian: https://bugs.debian.org/731773
 Last-Update: 2014-03-16
 ---
 This patch header follows DEP-3: http://dep.debian.net/deps/dep3/

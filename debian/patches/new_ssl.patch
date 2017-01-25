@@ -2,6 +2,8 @@ Description: Adjust showSecureCipherInfo() to build with newer openssl versions
 Author: Joshua Honeycutt <joshua.honeycutt@gmail.com>
 Forwarded: https://github.com/symless/synergy/pull/5746
 Last-Update: 2016-11-20
+---
+This patch header follows DEP-3: http://dep.debian.net/deps/dep3/
 --- a/src/lib/net/SecureSocket.cpp
 +++ b/src/lib/net/SecureSocket.cpp
 @@ -807,8 +807,12 @@
