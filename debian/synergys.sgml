@@ -330,9 +330,11 @@ synergys.1: synergys.sgml
   <refsect1>
     <title>CONFIGURING THE SERVER</title>
     <para>
-      The synergy server requires configuration.  The configuration
-      file is a plain text file broken into sections.  Each section
-      has the form:
+      The synergy server requires configuration. Example
+      configurations are available in
+      <filename>/usr/share/doc/synergy/examples</filename>
+      The configuration file is a plain text file broken
+      into sections. Each section has the form:
     </para>
 
     <screen>
