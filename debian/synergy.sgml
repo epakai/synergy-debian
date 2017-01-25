@@ -4,7 +4,7 @@
   <!ENTITY dhfirstname "<firstname>Jeff</firstname>">
   <!ENTITY dhsurname   "<surname>Licquia</surname>">
   <!-- Please adjust the date whenever revising the manpage. -->
-  <!ENTITY dhdate      "<date>June 3, 2013</date>">
+  <!ENTITY dhdate      "<date>January 24, 2017</date>">
   <!-- SECTION should be 1-8, maybe w/ subsection other parameters are
        allowed: see man(7), man(1). -->
   <!ENTITY dhsection   "<manvolnum>1</manvolnum>">
@@ -59,14 +59,19 @@
     </para> 
     <para>The <application>synergy</application> tool has some 
       configuration limitations compared to text config. 
-      Configurations are limited to a 3x5 grid (manual configuration 
-      allow for offset displays.) It cannot define non-reciprocal 
-      display connections.
+      It cannot define non-reciprocal display connections.
+      Configurations are limited to a 3x5 grid. Text configuration 
+      allows for offset displays and one-to-many edges.
     </para> 
 
     <para>This manual page was written for the &debian; distribution
       because the original program does not have a manual page.
     </para>
+  </refsect1>
+
+  <refsect1>
+    <title>FILES</title>
+    <para>~/.config/Synergy/Synergy.conf</para>
   </refsect1>
 
   <refsect1>

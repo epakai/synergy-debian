@@ -8,7 +8,7 @@ Standards-Version: 3.9.8
 
 Package: synergy
 Architecture: any
-Depends: ${shlibs:Depends}, ${misc:Depends}
+Depends: ${shlibs:Depends}, ${misc:Depends}, openssl
 Description: Share mouse, keyboard and clipboard over the network
  Synergy lets you easily share a single mouse and keyboard between
  multiple computers with different operating systems, each with its

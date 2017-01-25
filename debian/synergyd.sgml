@@ -4,7 +4,7 @@
   <!ENTITY dhfirstname "<firstname>Jeff</firstname>">
   <!ENTITY dhsurname   "<surname>Licquia</surname>">
   <!-- Please adjust the date whenever revising the manpage. -->
-  <!ENTITY dhdate      "<date>April 22, 2012</date>">
+  <!ENTITY dhdate      "<date>January 24, 2017</date>">
   <!-- SECTION should be 1-8, maybe w/ subsection other parameters are
        allowed: see man(7), man(1). -->
   <!ENTITY dhsection   "<manvolnum>1</manvolnum>">
@@ -34,7 +34,6 @@
   </refentryinfo>
   <refmeta>
     &dhucpackage;
-    
     &dhsection;
   </refmeta>
 
@@ -47,6 +46,9 @@
   <refsynopsisdiv>
     <cmdsynopsis>
       <command>&dhpackage;</command>
+      <group>
+        <arg>-f</arg>
+      </group>
     </cmdsynopsis>
   </refsynopsisdiv>
 
@@ -56,22 +58,41 @@
     <para>Starts the <application>synergyd</application>
     mouse/keyboard sharing daemon.</para>
 
+    <para><application>synergyd</application> accepts connections from
+    <application>synergyc</application> and <application>synergys</application>
+    over IPC when they are run with the <arg>--ipc</arg> option.</para>
+
     <para>This manual page was written for the &debian; distribution
       because the original program does not have a manual page.
     </para>
   </refsect1>
 
   <refsect1>
+    <title>OPTIONS</title>
+    <variablelist>
+      <varlistentry>
+        <term><option>-f</option>
+        </term>
+        <listitem>
+          <para>runs synergyd in foreground where it will report
+          any ipc events.</para>
+        </listitem>
+      </varlistentry>
+    </variablelist>
+  </refsect1>
+
+  <refsect1>
     <title>SEE ALSO</title>
-    
+
     <para>synergys(1), synergyc(1)</para>
   </refsect1>
-  
+
   <refsect1>
     <title>AUTHOR</title>
-    
+
     <para>This manual page was written by Jeff Licquia &lt;licquia@debian.org&gt; for
-      the &debian; system.</para>
+    the &debian; system. Edited by Joshua Honeycutt &lt;joshua.honeycutt@gmail.com&gt;
+    </para>
   </refsect1>
 </refentry>
 

@@ -20,7 +20,7 @@ syntool.1: syntool.sgml
   <!ENTITY dhfirstname "<firstname>Joshua</firstname>">
   <!ENTITY dhsurname   "<surname>Honeycutt</surname>">
   <!-- Please adjust the date whenever revising the manpage. -->
-  <!ENTITY dhdate      "<date>July 26, 2016</date>">
+  <!ENTITY dhdate      "<date>January 24, 2017</date>">
   <!-- SECTION should be 1-8, maybe w/ subsection other parameters are
        allowed: see man(7), man(1). -->
   <!ENTITY dhsection   "<manvolnum>1</manvolnum>">
@@ -43,7 +43,7 @@ syntool.1: syntool.sgml
       &dhsurname;
     </author>
     <copyright>
-      <year>2013</year>
+      <year>2016</year>
       <holder>&dhusername;</holder>
     </copyright>
     &dhdate;
@@ -65,12 +65,6 @@ syntool.1: syntool.sgml
       <command>&dhpackage;</command>
       <group>
         <arg>--login-auth</arg>
-      </group>
-      <group>
-        <arg>--get-plugin-list</arg>
-      </group>
-      <group>
-        <arg>--get-plugin-dir</arg>
       </group>
       <group>
         <arg>--get-profile-dir</arg>
@@ -100,24 +94,6 @@ syntool.1: syntool.sgml
         <listitem>
           <para>Reads credentials from standard input. Prints result from
           synergy site.</para>
-        </listitem>
-      </varlistentry>
-
-      <varlistentry>
-        <term><option>--get-plugin-list</option>
-        </term>
-        <listitem>
-          <para>Reads credentials from standard input. Prints result from
-          synergy site.</para>
-        </listitem>
-      </varlistentry>
-
-      <varlistentry>
-        <term><option>--get-plugin-dir</option>
-        </term>
-        <listitem>
-          <para>Print the user's plugin directory.
-          </para>
         </listitem>
       </varlistentry>
 

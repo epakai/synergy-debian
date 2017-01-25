@@ -19,7 +19,7 @@ synergyc.1: synergyc.sgml
   <!ENTITY dhfirstname "<firstname>Jeff</firstname>">
   <!ENTITY dhsurname   "<surname>Licquia</surname>">
   <!-- Please adjust the date whenever revising the manpage. -->
-  <!ENTITY dhdate      "<date>June 2, 2013</date>">
+  <!ENTITY dhdate      "<date>January 24, 2017</date>">
   <!-- SECTION should be 1-8, maybe w/ subsection other parameters are
        allowed: see man(7), man(1). -->
   <!ENTITY dhsection   "<manvolnum>1</manvolnum>">
@@ -136,14 +136,14 @@ synergyc.1: synergyc.sgml
 
   <refsect1>
     <title>OPTIONS</title>
-
+    <variablelist>
       <varlistentry>
         <term><option>--enable-crypto</option>
         </term>
         <listitem>
           <para>enables encryption. <command>synergyc</command> verifies the server
           fingerprint matches one available in
-          <filename>&lt;profile-dir&gt;/SSL/Fingerprints/TrustedServers.txt</filename>
+          <filename>~/SSL/Fingerprints/TrustedServers.txt</filename>
           </para>
         </listitem>
       </varlistentry>
@@ -327,14 +327,16 @@ synergyc.1: synergyc.sgml
     <para>Run the client on all computers that aren't the server using
       the following command line:
       <cmdsynopsis>
-        <command>synergyc </command> 
+        <command>synergyc</command> 
         <arg choice="plain">-f</arg>
+        <arg choice="plain">-1</arg>
         <arg choice="plain"><replaceable>server-hostname</replaceable></arg>
       </cmdsynopsis>
 
       Replace <replaceable>server-hostname</replaceable> with the
       hostname or address of the server system. The `-f' option causes
-      synergy to run in the foreground. This option is recommended until
+      synergy to run in the foreground. The `-1' option causes synergy
+      to exit on failure. These options are recommended until
       you've verified that the configuration works.
       If you didn't include the system's
       hostname in the configuration file (either as a screen name or
@@ -379,11 +381,26 @@ synergyc.1: synergyc.sgml
           program using that port (24800) and restart the
           server</para>
       </listitem>
+      <listitem>
+        <para>failed to verify server certificate fingerprint:</para>
+        <para>A matching fingerprint for the server was not found in 
+        the client's <filename>~/.synergy/SSL/Fingerprints/TrustedServers.txt</filename>
+        </para>
     </itemizedlist>
 
     <para>
     Once all the clients are running, try moving the mouse to each
     screen.  Be sure to check all the configured links. 
+    </para>
+  </refsect1>
+
+  <refsect1>
+    <title>ENABLING CRYPTO</title>
+
+    <para>To connect to a synergy server with crypto enabled the client
+    must have the server's fingerprint in its trusted servers list:
+    <filename>~/.synergy/SSL/Fingerprints/TrustedServers.txt</filename>.
+    Run the client with the <arg>--enable-crypto</arg> option.
     </para>
   </refsect1>
 
@@ -424,6 +441,10 @@ synergyc.1: synergyc.sgml
     <title>BUGS</title>
   </refsect1>
 -->
+  <refsect1>
+    <title>FILES</title>
+    <para>~/.synergy/SSL/Fingerprints/TrustedServers.txt</para>
+  </refsect1>
 
   <refsect1>
     <title>SEE ALSO</title>
@@ -435,7 +456,7 @@ synergyc.1: synergyc.sgml
     <para>This manual page was written by Daniel Lutz &lt;danlutz@debian.org&gt; for
       the &debian; system. Edited by Titus Barik &lt;barik@ieee.org&gt;, Jeff
       Licquia &lt;licquia@debian.org&gt;, and Joshua Honeycutt 
-	  &lt;joshua.honeycutt@gmail.com&gt;.</para>
+      &lt;joshua.honeycutt@gmail.com&gt;.</para>
   </refsect1>
 </refentry>
 
