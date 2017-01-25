@@ -12,7 +12,7 @@ Extra documentation is available at
 
 Synergy works with non-Debian machines; for more information, see the
 project website (http://symless.com/synergy/).  At the time of writing
-packages/installers for synergy were available as paid downloads for:
+packages/installers for Synergy were available as paid downloads for:
 
   * Windows
   * MacOS X
@@ -20,7 +20,7 @@ packages/installers for synergy were available as paid downloads for:
 
 Synergy should work on all systems that use the X Window System, but
 you may have to compile it yourself. The source code is also available
-at the above address.
+at (https://github.com/symless/synergy).
 
 Synergy encryption
 ------------------
@@ -36,8 +36,9 @@ Setup Wizard has run for the first time.
 Synergy's server and client may be executed manually as 'synergys' and
 'synergyc' respectively. To enable encryption they must be passed the
 --enable-crypto option. In addition the synergy server 'synergys' requires
-an SSL key and certificate to be pre-generated. To allow synergy server to 
-be run without the GUI Debian's synergy package includes a script
+an SSL key and fingerprint to be pre-generated. Then each client must add
+the fingerprint to their list of trusted servers. To allow synergy server
+to be run without the GUI Debian's synergy package includes a script
 '/usr/share/synergy/gen_ssl_pem.sh' to generate a key, and fingerprint.
-The fingerprint printed by the script can be used to verify clients are
-connecting to the correct server.
+connecting to the correct server. synergys and synergyc man pages 
+document this usage more thoroughly.
