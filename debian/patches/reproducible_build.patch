@@ -1,3 +1,10 @@
+Description: Removes build date from the About dialog.
+This helps ensure builds are reproducible.
+Author: Joshua Honeycutt <joshua.honeycutt@gmail.com>
+Forwarded: not-needed
+Last-Update: 2017-01-25
+---
+This patch header follows DEP-3: http://dep.debian.net/deps/dep3/
 --- a/src/gui/src/AboutDialog.cpp
 +++ b/src/gui/src/AboutDialog.cpp
 @@ -29,13 +29,9 @@

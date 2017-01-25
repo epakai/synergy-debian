@@ -8,7 +8,8 @@ Description: Enable Pro features of synergy
 Author: "Joshua Honeycutt" <joshua.honeycutt@gmail.com>
 Forwarded: not-needed
 Last-Update 2017-01-22
-
+---
+This patch header follows DEP-3: http://dep.debian.net/deps/dep3/
 --- a/src/lib/shared/SerialKey.cpp
 +++ b/src/lib/shared/SerialKey.cpp
 @@ -30,9 +30,9 @@
