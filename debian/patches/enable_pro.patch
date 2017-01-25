@@ -131,7 +131,15 @@ Last-Update 2017-01-22
  	std::string			m_email;
 --- a/src/gui/src/MainWindow.cpp
 +++ b/src/gui/src/MainWindow.cpp
-@@ -458,10 +458,7 @@
+@@ -165,6 +165,7 @@
+ 		m_AppConfig->saveSettings();
+ 		m_LicenseManager->notifyUpdate (lastVersion, currentVersion);
+ 	}
++	updateLocalFingerprint();
+ }
+ 
+ MainWindow::~MainWindow()
+@@ -458,10 +459,7 @@
  
  void MainWindow::checkLicense(const QString &line)
  {
@@ -143,7 +151,7 @@ Last-Update 2017-01-22
  }
  
  void MainWindow::checkFingerprint(const QString& line)
-@@ -554,11 +551,6 @@
+@@ -554,11 +552,6 @@
  {
  	SerialKey serialKey = m_LicenseManager->serialKey();
  	time_t currentTime = ::time(0);
@@ -155,7 +163,7 @@ Last-Update 2017-01-22
  
  	bool desktopMode = appConfig().processMode() == Desktop;
  	bool serviceMode = appConfig().processMode() == Service;
-@@ -1239,7 +1231,6 @@
+@@ -1239,7 +1232,6 @@
  
  void MainWindow::on_m_pActivate_triggered()
  {
@@ -163,7 +171,7 @@ Last-Update 2017-01-22
  }
  
  void MainWindow::on_m_pButtonApply_clicked()
-@@ -1480,12 +1471,7 @@
+@@ -1480,12 +1472,7 @@
  
  void MainWindow::on_windowShown()
  {
