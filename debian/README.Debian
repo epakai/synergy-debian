@@ -29,7 +29,7 @@ Synergy may be run without encryption. Clipboard contents, mouse movements
 and keyboard events may all be exposed over the network.
 
 Debian's synergy package has been modified to be the "Pro" edition as
-distributed my Symless. This allows for SSL encryption to be used. When 
+distributed by Symless. This allows for SSL encryption to be used. When 
 running the GUI executable 'synergy' encryption will be enabled once the
 Setup Wizard has run for the first time.
 
