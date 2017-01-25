@@ -73,6 +73,8 @@ synergys.1: synergys.sgml
         <arg>--enable-crypto</arg>
       </group>
       <group>
+        <arg>--enable-drag-drop</arg>
+      <group>
         <arg>-d <replaceable>level</replaceable></arg>
         <arg>--debug <replaceable>level</replaceable></arg>
       </group>
@@ -123,7 +125,8 @@ synergys.1: synergys.sgml
     <title>DESCRIPTION</title>
     <para>
       Starts the <application>synergys</application> mouse/keyboard
-      sharing server.
+      sharing server. By default <application>synergys</application> runs in the
+      background and restarts on failure.
     </para>
     <para>
       <application>Synergy</application> lets you use one keyboard and
@@ -184,10 +187,19 @@ synergys.1: synergys.sgml
         </term>
         <listitem>
           <para>
-            enables encryption if the encryption plugin is available.
-            Synergy looks for a key at <filename>&lt;profile-dir&gt;/SSL/</filename>
-            Generate a key with the Setup Wizard in <command>synergy</command> or run
-            <filename>/usr/share/synergy/gen_ssl_pem.sh</filename>.
+            enables encryption. Clients will fail to connect if the server does
+            not find a key. Synergy looks for a key at 
+            <filename>&lt;profile-dir&gt;/SSL/Synergy.pem</filename>
+            Generate a key with the Setup Wizard in <command>synergy</command> or the
+            script <filename>/usr/share/synergy/gen_ssl_pem.sh</filename>.
+          </para>
+        </listitem>
+      </varlistentry>
+      <varlistentry>
+        <term><option>--enable-drag-drop</option>
+        </term>
+        <listitem>
+          <para>ignored option. Drag and drop is not supported on linux.
           </para>
         </listitem>
       </varlistentry>
@@ -284,9 +296,8 @@ synergys.1: synergys.sgml
         <term><option>--profile-dir <replaceable>path</replaceable></option>
         </term>
         <listitem>
-          <para>specify an alternate profile directory
-          <replaceable>path</replaceable>. Default is
-          ~/.synergy/
+          <para>specify an alternate profile directory <replaceable>path</replaceable>.
+          Default is ~/.synergy/
           </para>
         </listitem>
       </varlistentry>
@@ -294,9 +305,8 @@ synergys.1: synergys.sgml
         <term><option>--plugin-dir <replaceable>path</replaceable></option>
         </term>
         <listitem>
-          <para>specify an alternate plugin directory
-          <replaceable>path</replaceable>. Default is
-          ~/.synergy/plugins/
+          <para>specify an alternate plugin directory <replaceable>path</replaceable>.
+          Default is ~/.synergy/plugins/
           </para>
         </listitem>
       </varlistentry>

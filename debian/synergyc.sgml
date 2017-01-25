@@ -64,6 +64,9 @@ synergyc.1: synergyc.sgml
         <arg>--enable-crypto</arg>
       </group>
       <group>
+        <arg>--enable-drag-drop</arg>
+      </group>
+      <group>
     <arg>-d <replaceable>level</replaceable></arg>    
     <arg>--debug <replaceable>level</replaceable></arg>   
       </group>
@@ -117,8 +120,15 @@ synergyc.1: synergyc.sgml
     <title>DESCRIPTION</title>
 
     <para>Starts the <application>synergyc</application> mouse/keyboard 
-      sharing client.</para>
-
+      sharing client. By default <application>synergyc</application> runs in the
+      background and restarts on failure.
+    </para>
+    <para>
+      <application>Synergy</application> lets you use one keyboard and
+      mouse across multiple computers. To do so it requires that all
+      the computers are connected to each other via TCP/IP
+      networking. Most systems come with this installed.
+    </para>
     <para>This manual page was written for the &debian; distribution
       because the original program does not have a manual page.
     </para>
@@ -131,7 +141,18 @@ synergyc.1: synergyc.sgml
         <term><option>--enable-crypto</option>
         </term>
         <listitem>
-          <para>enables encryption if the encryption plugin is available.
+          <para>enables encryption. <command>synergyc</command> verifies the server
+          fingerprint matches one available in
+          <filename>&lt;profile-dir&gt;/SSL/Fingerprints/TrustedServers.txt</filename>
+          </para>
+        </listitem>
+      </varlistentry>
+
+      <varlistentry>
+        <term><option>--enable-drag-drop</option>
+        </term>
+        <listitem>
+          <para>ignored option. Drag and drop is not supported on linux.
           </para>
         </listitem>
       </varlistentry>

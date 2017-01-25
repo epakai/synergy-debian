@@ -86,8 +86,6 @@ syntool.1: syntool.sgml
 
     <para>Helper tool for <application>synergy</application> setup gui.</para>
 
-    <para>Not recommended for end user use. Options are not well documented.</para>
-
     <para>This manual page was written for the &debian; distribution
       because the original program does not have a manual page.
     </para>
