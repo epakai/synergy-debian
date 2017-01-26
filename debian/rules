@@ -45,7 +45,7 @@ config.h: CMakeLists.txt builddir
 	(cd builddir && cmake ..)
 
 src/gui/Makefile:
-	(cd src/gui && qmake gui.pro "CONFIG+=release" "QMAKE_CFLAGS_RELEASE+=$(CFLAGS)" "QMAKE_CXXFLAGS_RELEASE+=$(CXXFLAGS)" "QMAKE_LFLAGS_RELEASE+=$(LDFLAGS)" -r)
+	(cd src/gui && qmake gui.pro "CONFIG+=release" "QMAKE_CFLAGS_RELEASE+=$(CFLAGS)" "QMAKE_CXXFLAGS_RELEASE+=$(CXXFLAGS)" "QMAKE_LFLAGS_RELEASE+=$(LDFLAGS)" "QMAKE_VERSION_STAGE=stable" "QMAKE_VERSION_REVISION=debian" -r)
 
 # Man page builders.  These are better than the upstream man pages
 # in doc.
