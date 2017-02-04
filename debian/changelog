@@ -10,15 +10,15 @@ synergy (1.8.7-stable+dfsg.1-1) unstable; urgency=medium
     (/usr/share/synergy/gen_ssl_pem.sh).
   * Updated man pages (removed old crypto++ references and command line
     options, added new command line options, formatting).
-  * Added documentation to README.Debian on enabling crypto without pro
-    account.
+  * Added documentation to README.Debian on enabling crypto without the gui.
   * Added new_ssl patch to build against newer OpenSSL in Debian.
   * Added enable_pro patch to bypass activation for Pro features.
   * Added syntool binary and manual page.
   * lintian override for possible-gpl-code-linked-with-openssl due to
     upstream exception.
+  * Added a debian specific version string to the GUI about dialog.
 
- -- Joshua Honeycutt <joshua.honeycutt@gmail.com>  Sun, 22 Jan 2017 16:59:56 -0600
+ -- Joshua Honeycutt <joshua.honeycutt@gmail.com>  Sat, 04 Feb 2017 14:41:26 -0600
 
 synergy (1.4.16-1.2) unstable; urgency=medium
 

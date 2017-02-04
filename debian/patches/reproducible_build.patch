@@ -1,5 +1,5 @@
 Description: Removes build date from the About dialog.
-This helps ensure builds are reproducible.
+This progress towards reproducible builds is incomplete.
 Author: Joshua Honeycutt <joshua.honeycutt@gmail.com>
 Forwarded: not-needed
 Last-Update: 2017-01-25
