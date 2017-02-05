@@ -9,16 +9,8 @@
 # Uncomment this to turn on verbose mode.
 # export DH_VERBOSE=1
 
-# Set build flags.  For wheezy+1, we will switch to using debhelper 9.
-# For now, preserve compatibility with squeeze.  Includes CMake workaround
-# (which, again, should not be necessary after wheezy).
-ifeq (mips,$(shell dpkg --print-architecture))
-DEB_BUILD_MAINT_OPTIONS = hardening=+all,-relro
-else ifeq (mipsel,$(shell dpkg --print-architecture))
-DEB_BUILD_MAINT_OPTIONS = hardening=+all,-relro
-else
+# Set build flags.
 DEB_BUILD_MAINT_OPTIONS = hardening=+all
-endif
 export DEB_BUILD_MAINT_OPTIONS
 
 DPKG_EXPORT_BUILDFLAGS=1
