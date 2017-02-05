@@ -29,19 +29,3 @@ Description: Share mouse, keyboard and clipboard over the network
  https://symless.com/synergy/ or may be built from source found
  at https://github.com/symless/synergy
 
-
-Package: synergy-dbg
-Architecture: any
-Section: debug
-Priority: extra
-Depends:
-    synergy (= ${binary:Version}),
-    ${misc:Depends}
-Description: debugging symbols for synergy
- Synergy lets you easily share a single mouse and keyboard between
- multiple computers with different operating systems, each with its
- own display, without special hardware.  It's intended for users
- with multiple computers on their desk since each system uses its
- own display.
- .
- This package contains the debugging symbols for synergy.
