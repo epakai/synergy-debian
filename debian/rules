@@ -124,7 +124,7 @@ binary-arch: build install $(TEST_TARGET)
 #	dh_installinfo
 	dh_installman
 	dh_link
-	dh_strip --dbg-package=synergy-dbg
+	dh_strip
 	dh_compress
 	dh_fixperms
 #	dh_perl
