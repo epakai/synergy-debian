@@ -2,7 +2,9 @@ Source: synergy
 Section: x11
 Priority: optional
 Maintainer: Joshua Honeycutt <joshua.honeycutt@gmail.com>
-Homepage: http://symless.com/synergy/
+Homepage: https://symless.com/synergy/
+Vcs-Git: https://github.com/epakai/synergy-debian.git
+Vcs-Browser: https://github.com/epakai/synergy-debian
 Build-Depends: cmake, debhelper (>=9), docbook, docbook-utils, libavahi-compat-libdnssd-dev, libqt4-dev, libssl-dev, libxinerama-dev, libxrandr-dev, libxtst-dev, libcurl4-gnutls-dev | libcurl-dev, google-mock, libgtest-dev
 Standards-Version: 3.9.8
 
