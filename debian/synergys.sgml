@@ -689,7 +689,7 @@ synergys.1: synergys.sgml
   </refsect1>
 
   <refsect1>
-    <title>NETWORK SECURITY</title>
+    <title>ENABLING CRYPTO</title>
     <para>
       By default, <command>synergys</command> does not secure its
       communications in any way. This is dangerous, as all clipboard
