@@ -1,4 +1,4 @@
-synergy (1.8.7-stable+dfsg.1-1) unstable; urgency=medium
+synergy (1.8.7-stable+dfsg.1-1) experimental; urgency=medium
 
   * New maintainer (Closes: #852081)
   * New upstream version. (Closes: #764390, #818490)
@@ -18,7 +18,7 @@ synergy (1.8.7-stable+dfsg.1-1) unstable; urgency=medium
     upstream exception.
   * Added a debian specific version string to the GUI about dialog.
 
- -- Joshua Honeycutt <joshua.honeycutt@gmail.com>  Sat, 04 Feb 2017 14:41:26 -0600
+ -- Joshua Honeycutt <joshua.honeycutt@gmail.com>  Mon, 06 Feb 2017 09:25:39 -0600
 
 synergy (1.4.16-1.2) unstable; urgency=medium
 
