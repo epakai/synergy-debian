@@ -92,7 +92,7 @@ clean:
 
 test: build-stamp bin/guitests
 	bin/unittests --gtest_color=no
-	bin/integtests --gtest_color=no --gtest_filter=-XWindowsKeyStateTests.*:CXWindowsScreenTests.*
+	bin/integtests --gtest_color=no --gtest_filter=-XWindowsKeyStateTests.*:CXWindowsScreenTests.*:ArchInternetTests.get
 	bin/guitests
 
 install: build
