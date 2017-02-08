@@ -1,3 +1,4 @@
+ensure_non00_cursor.patch
 debian_google-test.patch
 system-cryptopp.patch
 cprotocolutil-writef.patch
