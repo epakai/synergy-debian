@@ -1,0 +1,33 @@
+Description: Upstream fix for synergyc crash when createBlankCursor tries to create a 0x0 cursor.
+Origin: https://github.com/symless/synergy/commit/723a8a919570b3e3faa5ac430e675f14945e1951
+Bug-Debian: https://bugs.debian.org/854567
+Bug: https://github.com/symless/synergy/issues/5322
+Bug: https://github.com/symless/synergy/issues/5068
+Bug: https://github.com/symless/synergy/issues/5087
+Bug: https://github.com/symless/synergy/issues/5504
+Author: Joshua Honeycutt <joshua.honeycutt@gmail.com>
+Forwarded: not-needed
+Last-Update: 2017-02-09
+
+--- a/src/lib/platform/CXWindowsScreen.cpp
++++ b/src/lib/platform/CXWindowsScreen.cpp
+@@ -33,6 +33,7 @@
+ #include "TMethodEventJob.h"
+ #include <cstring>
+ #include <cstdlib>
++#include <algorithm>
+ #if X_DISPLAY_MISSING
+ #	error X11 is required to build synergy
+ #else
+@@ -1660,8 +1661,10 @@
+ 	// this seems just a bit more complicated than really necessary
+ 
+ 	// get the closet cursor size to 1x1
+-	unsigned int w, h;
++	unsigned int w = 0, h = 0;
+ 	XQueryBestCursor(m_display, m_root, 1, 1, &w, &h);
++	w = std::max(1u, w);
++	h = std::max(1u, h);
+ 
+ 	// make bitmap data for cursor of closet size.  since the cursor
+ 	// is blank we can use the same bitmap for shape and mask:  all

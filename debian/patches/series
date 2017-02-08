@@ -1,3 +1,4 @@
+ensure_non00_cursor.patch
 system-cryptopp.patch
 cprotocolutil-writef.patch
 versioncheck-disable.patch
