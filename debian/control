@@ -1,10 +1,10 @@
 Source: synergy
 Section: x11
 Priority: optional
-Maintainer: Jeff Licquia <licquia@debian.org>
-Homepage: http://synergy-foss.org/
-Vcs-Git: http://git.licquia.org/raw/synergy-debian.git
-Vcs-Browser: http://git.licquia.org/?p=synergy-debian.git;a=summary
+Maintainer: Joshua Honeycutt <joshua.honeycutt@gmail.com>
+Homepage: https://symless.com/synergy/
+Vcs-Git: https://github.com/epakai/synergy-debian.git
+Vcs-Browser: https://github.com/epakai/synergy-debian
 Build-Depends: debhelper (>= 7), libxt-dev, libxtst-dev, libxinerama-dev, cmake, docbook-utils, libcrypto++-dev, pkg-config, libqt4-dev, libcurl4-gnutls-dev | libcurl-dev
 Standards-Version: 3.9.5
 
@@ -25,5 +25,8 @@ Description: Share mouse, keyboard and clipboard over the network
  together and, if screen locking is enabled, only one screen requires
  a password to unlock them all.
  .
- Packages for Windows/MacOS/RPM and Sources can be found at
- http://sourceforge.net/project/showfiles.php?group_id=59275
+ Packages for Windows/MacOS/RPM are available for paid members at 
+ https://symless.com/synergy/
+ .
+ Sources can be found at
+ https://github.com/symless/synergy/releases

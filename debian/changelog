@@ -2,8 +2,12 @@ synergy (1.4.16-1+deb8u1) stable; urgency=medium
 
   * Added ensure_non00_cursor.patch to fix a crash when synergyc starts.
     Closes: #854567
+  * Updated debian/control fields: Maintainer, Homepage, Vcs-* with new
+    maintainer and upstream information
+  * Changed description to indicate new upstream locations for binary and
+    source releases (old URL returned page not found)
 
- -- Joshua Honeycutt <joshua.honeycutt@gmail.com>  Wed, 08 Feb 2017 09:03:22 -0600
+ -- Joshua Honeycutt <joshua.honeycutt@gmail.com>  Fri, 10 Feb 2017 15:56:38 -0600
 
 synergy (1.4.16-1) unstable; urgency=low
 
