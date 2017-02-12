@@ -87,32 +87,33 @@ syntool.1: syntool.sgml
 
   <refsect1>
     <title>OPTIONS</title>
-
-      <varlistentry>
-        <term><option>--login-auth</option>
-        </term>
-        <listitem>
-          <para>Reads credentials from standard input. Prints result from
-          synergy site.</para>
-        </listitem>
-      </varlistentry>
-
-      <varlistentry>
-        <term><option>--get-profile-dir</option>
-        </term>
-        <listitem>
-          <para>Print the user's profile directory.
-          </para>
-        </listitem>
-      </varlistentry>
-
-      <varlistentry>
-        <term><option>--get-arch</option>
-        </term>
-        <listitem>
-          <para> prints the hardware machine name</para>
-        </listitem>
-      </varlistentry>
+      <variablelist>
+        <varlistentry>
+          <term><option>--login-auth</option>
+          </term>
+          <listitem>
+            <para>Reads credentials from standard input. Prints result from
+            synergy site.</para>
+          </listitem>
+        </varlistentry>
+  
+        <varlistentry>
+          <term><option>--get-profile-dir</option>
+          </term>
+          <listitem>
+            <para>Print the user's profile directory.
+            </para>
+          </listitem>
+        </varlistentry>
+  
+        <varlistentry>
+          <term><option>--get-arch</option>
+          </term>
+          <listitem>
+            <para> prints the hardware machine name</para>
+          </listitem>
+        </varlistentry>
+      </variablelist>
 
 
   </refsect1>

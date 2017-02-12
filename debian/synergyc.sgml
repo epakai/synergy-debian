@@ -67,8 +67,8 @@ synergyc.1: synergyc.sgml
         <arg>--enable-drag-drop</arg>
       </group>
       <group>
-    <arg>-d <replaceable>level</replaceable></arg>    
-    <arg>--debug <replaceable>level</replaceable></arg>   
+        <arg>-d <replaceable>level</replaceable></arg>    
+        <arg>--debug <replaceable>level</replaceable></arg>   
       </group>
       <group>
         <arg>--display <replaceable>display</replaceable></arg>
@@ -400,7 +400,7 @@ synergyc.1: synergyc.sgml
     <para>To connect to a synergy server with crypto enabled the client
     must have the server's fingerprint in its trusted servers list:
     <filename>~/.synergy/SSL/Fingerprints/TrustedServers.txt</filename>.
-    Run the client with the <arg>--enable-crypto</arg> option.
+    Run the client with the `--enable-crypto' option.
     </para>
   </refsect1>
 

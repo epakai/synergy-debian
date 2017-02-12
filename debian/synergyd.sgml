@@ -60,7 +60,7 @@
 
     <para><application>synergyd</application> accepts connections from
     <application>synergyc</application> and <application>synergys</application>
-    over IPC when they are run with the <arg>--ipc</arg> option.</para>
+    over IPC when they are run with the `--ipc' option.</para>
 
     <para>This manual page was written for the &debian; distribution
       because the original program does not have a manual page.
