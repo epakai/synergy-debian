@@ -1,3 +1,10 @@
+synergy (1.8.7-stable+dfsg.1-2) UNRELEASED; urgency=medium
+
+  * Correct missing tags in man page sgml source. Fix formatting and an extra
+    argument.
+
+ -- Joshua Honeycutt <joshua.honeycutt@gmail.com>  Sun, 12 Feb 2017 02:11:15 -0600
+
 synergy (1.8.7-stable+dfsg.1-1) experimental; urgency=medium
 
   * New maintainer (Closes: #852081)

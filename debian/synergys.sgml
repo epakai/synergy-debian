@@ -74,6 +74,7 @@ synergys.1: synergys.sgml
       </group>
       <group>
         <arg>--enable-drag-drop</arg>
+      </group>
       <group>
         <arg>-d <replaceable>level</replaceable></arg>
         <arg>--debug <replaceable>level</replaceable></arg>
@@ -109,7 +110,6 @@ synergys.1: synergys.sgml
       <group>
         <arg>--plugin-dir <replaceable>path</replaceable></arg>
       </group>
-      <arg choice="plain"><replaceable>address</replaceable></arg>
     </cmdsynopsis>
     <cmdsynopsis>
       <command>&dhpackage;</command>
