@@ -6,3 +6,4 @@ versioncheck-disable.patch
 new_ssl.patch
 guitests.patch
 enable_pro.patch
+delete_temp_config.patch
