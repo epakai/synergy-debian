@@ -6,16 +6,14 @@ Last-Update 2017-03-11
 This patch header follows DEP-3: http://dep.debian.net/deps/dep3/
 --- a/src/gui/src/MainWindow.cpp
 +++ b/src/gui/src/MainWindow.cpp
-@@ -823,8 +823,10 @@
- 
+@@ -824,6 +824,10 @@
  	// HACK: deleting the object deletes the physical file, which is
  	// bad, since it could be in use by the Windows service!
--	//delete m_pTempConfigFile;
--	m_pTempConfigFile = NULL;
+ 	//delete m_pTempConfigFile;
 +	//m_pTempConfigFile = NULL;
 +
 +	// UNHACK: still delete the file on Debian
 +	delete m_pTempConfigFile;
+ 	m_pTempConfigFile = NULL;
  
  	// reset so that new connects cause auto-hide.
- 	m_AlreadyHidden = false;
