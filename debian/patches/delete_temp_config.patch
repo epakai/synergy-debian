@@ -1,4 +1,5 @@
-Description: Remove a hack to prevent temp file deletion since it should only affect the Windows service
+Description: Remove a hack to prevent temp file deletion 
+This change was done upstream for the Windows service
 Author: Joshua Honeycutt <joshua.honeycutt@gmail.com>
 Forwarded: not-needed
 Last-Update 2017-03-11
