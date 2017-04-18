@@ -1,3 +1,0 @@
-version=3
-opts="dversionmangle=s/\+dfsg\.\d$//,repacksuffix=+dfsg.1" \
-  https://github.com/symless/synergy/releases .*/v?(\d\S+)\.tar\.(?:bz2|gz|xz)
