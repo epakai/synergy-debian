@@ -1,4 +1,4 @@
-synergy (1.8.8-stable+dfsg.1-1) UNRELEASED; urgency=low
+synergy (1.8.8-stable+dfsg.1-1) unstable; urgency=low
 
   * New upstream version.
   * Added delete_temp_config.patch to enable deletion of qt_temp files.
