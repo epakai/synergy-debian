@@ -143,7 +143,7 @@ synergyc.1: synergyc.sgml
         <listitem>
           <para>enables encryption. <command>synergyc</command> verifies the server
           fingerprint matches one available in
-          <filename>~/SSL/Fingerprints/TrustedServers.txt</filename>
+          <filename>~/.synergy/SSL/Fingerprints/TrustedServers.txt</filename>
           </para>
         </listitem>
       </varlistentry>
