@@ -22,7 +22,7 @@ Last-Update: 2017-09-07
  	process.setEnvironment(environment);
 +#if defined(Q_OS_LINUX)
 +	mode_t prevMask = umask(0);
-+    umask(prevMask|S_IXUSR|S_IRWXG|S_IRWXO);
++	umask(prevMask|S_IXUSR|S_IRWXG|S_IRWXO);
 +#endif
  	process.start(program, args);
 +#if defined(Q_OS_LINUX)
