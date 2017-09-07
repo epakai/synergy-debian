@@ -1,8 +1,8 @@
 synergy (1.8.8-stable+dfsg.1-2) UNRELEASED; urgency=medium
 
-  * Incorrect path in synergyc man page 
-  * Change umask in package's key generation script so keys are not exposed by
-	default.
+  * Incorrect path in synergyc man page.
+  * Change umask in key generation script so keys are not exposed.
+  * Added ssl_umask.patch to set permissions on generated ssl certificates. 
 
  -- Joshua Honeycutt <joshua.honeycutt@gmail.com>  Wed, 09 Aug 2017 11:34:57 -0500
 

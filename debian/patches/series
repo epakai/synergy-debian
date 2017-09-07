@@ -6,3 +6,4 @@ new_ssl.patch
 guitests.patch
 enable_pro.patch
 delete_temp_config.patch
+ssl_umask.patch
