@@ -37,7 +37,7 @@ config.h: CMakeLists.txt builddir
 	(cd builddir && cmake ..)
 
 src/gui/Makefile:
-	(cd src/gui && qmake gui.pro "CONFIG+=release" "QMAKE_CFLAGS_RELEASE+=$(CFLAGS)" "QMAKE_CXXFLAGS_RELEASE+=$(CXXFLAGS)" "QMAKE_LFLAGS_RELEASE+=$(LDFLAGS)" "QMAKE_VERSION_STAGE=stable" "QMAKE_VERSION_REVISION=debian" -r)
+	(cd src/gui && qmake -qt=5 gui.pro "CONFIG+=release" "QMAKE_CFLAGS_RELEASE+=$(CFLAGS)" "QMAKE_CXXFLAGS_RELEASE+=$(CXXFLAGS)" "QMAKE_LFLAGS_RELEASE+=$(LDFLAGS)" "QMAKE_VERSION_STAGE=stable" "QMAKE_VERSION_REVISION=debian" -r)
 
 # Man page builders.  These are better than the upstream man pages
 # in doc.
@@ -59,7 +59,7 @@ bin/synergy: builddir src/gui/Makefile
 	(cd src/gui && $(MAKE))
 
 src/test/guitests/Makefile:
-	(cd src/test/guitests && qmake guitests.pro "CONFIG+=release" "QMAKE_CFLAGS_RELEASE+=$(CFLAGS)" "QMAKE_CXXFLAGS_RELEASE+=$(CXXFLAGS)" "QMAKE_LFLAGS_RELEASE+=$(LDFLAGS)" -r)
+	(cd src/test/guitests && qmake -qt=5 guitests.pro "CONFIG+=release" "QMAKE_CFLAGS_RELEASE+=$(CFLAGS)" "QMAKE_CXXFLAGS_RELEASE+=$(CXXFLAGS)" "QMAKE_LFLAGS_RELEASE+=$(LDFLAGS)" -r)
 
 bin/guitests: bin/synergy builddir src/test/guitests/Makefile
 	dh_testdir

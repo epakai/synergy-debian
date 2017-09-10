@@ -3,6 +3,7 @@ synergy (1.8.8-stable+dfsg.1-2) UNRELEASED; urgency=medium
   * Incorrect path in synergyc man page.
   * Change umask in key generation script so keys are not exposed.
   * Added ssl_umask.patch to set permissions on generated ssl certificates. 
+  * Build using Qt5. Closes: #875199 
 
  -- Joshua Honeycutt <joshua.honeycutt@gmail.com>  Wed, 09 Aug 2017 11:34:57 -0500
 
@@ -10,7 +11,7 @@ synergy (1.8.8-stable+dfsg.1-1) unstable; urgency=low
 
   * New upstream version.
   * Added delete_temp_config.patch to enable deletion of qt_temp files.
-    Closes: # 765955
+    Closes: #765955
   * Remove clipboardchunktests.patch (merged upstream)
 
  -- Joshua Honeycutt <joshua.honeycutt@gmail.com>  Sat, 11 Mar 2017 17:38:53 -0600
