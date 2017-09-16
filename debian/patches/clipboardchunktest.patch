@@ -1,6 +1,6 @@
 Description: Fix clipboard unit test on big endian archs
 Author: Joshua Honeycutt <joshua.honeycutt@gmail.com>
-Forwarded: https://github.com/symless/synergy/pull/5840
+Forwarded: https://github.com/symless/synergy-core/pull/5840
 Last-Update: 2017-02-12
 ---
 This patch header follows DEP-3: http://dep.debian.net/deps/dep3/

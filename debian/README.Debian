@@ -8,7 +8,7 @@ Synergy includes five binaries:
 	* syntool - helper command for synergy
 
 Extra documentation is available at 
-(https://github.com/symless/synergy/wiki).
+(https://github.com/symless/synergy-core/wiki).
 
 Synergy works with non-Debian machines; for more information, see the
 project website (http://symless.com/synergy/). At the time of writing
@@ -20,7 +20,7 @@ packages/installers for Synergy were available as paid downloads for:
 
 Synergy should work on all systems that use the X Window System, but
 you may have to compile it yourself. The source code is also available
-at (https://github.com/symless/synergy).
+at (https://github.com/symless/synergy-core).
 
 Synergy's parent company, Symless, normally distributes synergy binaries
 as part of one time payment/lifetime access model. If you find Synergy 

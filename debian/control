@@ -27,5 +27,5 @@ Description: Share mouse, keyboard and clipboard over the network
  .
  Synergy binaries are available as paid downloads at 
  https://symless.com/synergy/ or may be built from source found
- at https://github.com/symless/synergy
+ at https://github.com/symless/synergy-core
 

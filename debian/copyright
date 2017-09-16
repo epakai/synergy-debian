@@ -1,6 +1,6 @@
 Format: https://www.debian.org/doc/packaging-manuals/copyright-format/1.0/
 Upstream-Name: Synergy
-Source: https://github.com/symless/synergy/releases
+Source: https://github.com/symless/synergy-core/releases
 Comment: bonjour and openssl- directories were removed because they include
          non-source files.
          openssl, gmock, and gtest tarballs were removed to reduce size.
