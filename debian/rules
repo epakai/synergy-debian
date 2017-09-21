@@ -18,23 +18,14 @@ include /usr/share/dpkg/buildflags.mk
 CFLAGS += $(CPPFLAGS)
 CXXFLAGS += $(CPPFLAGS)
 
-# These are used for cross-compiling and for saving the configure script
-# from having to guess our platform (since we know it already)
-DEB_HOST_GNU_TYPE   ?= $(shell dpkg-architecture -qDEB_HOST_GNU_TYPE)
-DEB_BUILD_GNU_TYPE  ?= $(shell dpkg-architecture -qDEB_BUILD_GNU_TYPE)
-
 # Run the test suite unless explicitly requested not to.
 ifeq (,$(findstring nocheck,$(DEB_BUILD_OPTIONS)))
 TEST_TARGET = test
 endif
 
-
-builddir:
-	mkdir builddir
-
-config.h: CMakeLists.txt builddir
+config.h: CMakeLists.txt
 	dh_testdir
-	(cd builddir && cmake ..)
+	dh_auto_configure --buildsystem=cmake --builddirectory=builddir
 
 src/gui/Makefile:
 	(cd src/gui && qmake -qt=5 gui.pro "CONFIG+=release" "QMAKE_CFLAGS_RELEASE+=$(CFLAGS)" "QMAKE_CXXFLAGS_RELEASE+=$(CXXFLAGS)" "QMAKE_LFLAGS_RELEASE+=$(LDFLAGS)" "QMAKE_VERSION_STAGE=stable" "QMAKE_VERSION_REVISION=debian" -r)
@@ -50,18 +41,18 @@ src/gui/Makefile:
 
 # Main targets.
 
-bin/unittests: builddir config.h
+bin/unittests: config.h
 	dh_testdir
 	(cd builddir && $(MAKE) VERBOSE=1)
 
-bin/synergy: builddir src/gui/Makefile
+bin/synergy: src/gui/Makefile
 	dh_testdir
 	(cd src/gui && $(MAKE))
 
 src/test/guitests/Makefile:
 	(cd src/test/guitests && qmake -qt=5 guitests.pro "CONFIG+=release" "QMAKE_CFLAGS_RELEASE+=$(CFLAGS)" "QMAKE_CXXFLAGS_RELEASE+=$(CXXFLAGS)" "QMAKE_LFLAGS_RELEASE+=$(LDFLAGS)" -r)
 
-bin/guitests: bin/synergy builddir src/test/guitests/Makefile
+bin/guitests: bin/synergy src/test/guitests/Makefile
 	dh_testdir
 	(cd src/test/guitests && $(MAKE))
 
