@@ -5,7 +5,7 @@ Maintainer: Joshua Honeycutt <joshua.honeycutt@gmail.com>
 Homepage: https://symless.com/synergy/
 Vcs-Git: https://github.com/epakai/synergy-debian.git
 Vcs-Browser: https://github.com/epakai/synergy-debian
-Build-Depends: cmake, debhelper (>=9), docbook, docbook-utils, libavahi-compat-libdnssd-dev, qtbase5-dev, libssl-dev, libxinerama-dev, libxrandr-dev, libxtst-dev, libcurl4-gnutls-dev | libcurl-dev, google-mock, libgtest-dev
+Build-Depends: cmake, debhelper (>=9), docbook, docbook-utils, libavahi-compat-libdnssd-dev, qtbase5-dev, libssl-dev, libxinerama-dev, libxrandr-dev, libxtst-dev, libcurl4-gnutls-dev | libcurl-dev, libgmock-dev, libgtest-dev
 Standards-Version: 3.9.8
 
 Package: synergy

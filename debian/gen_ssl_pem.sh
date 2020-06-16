@@ -12,7 +12,7 @@
 umask 177
 if hash syntool 2>/dev/null; then
     if hash openssl 2>/dev/null; then
-        mkdir -p "$(syntool --get-profile-dir)/SSL" && openssl req -x509 -nodes -days 365 -subj '/CN=Synergy' -newkey rsa:1024 -keyout "$(syntool --get-profile-dir)/SSL/Synergy.pem" -out "$(syntool --get-profile-dir)/SSL/Synergy.pem" && mkdir -p "$(syntool --get-profile-dir)/SSL/Fingerprints/" &&  openssl x509 -fingerprint -sha1 -noout -in "$(syntool --get-profile-dir)/SSL/Synergy.pem" | cut -d= -f2 > "$(syntool --get-profile-dir)/SSL/Fingerprints/Local.txt"
+        mkdir -p "$(syntool --get-profile-dir)/SSL" && openssl req -x509 -nodes -days 365 -subj '/CN=Synergy' -newkey rsa:2048 -keyout "$(syntool --get-profile-dir)/SSL/Synergy.pem" -out "$(syntool --get-profile-dir)/SSL/Synergy.pem" && mkdir -p "$(syntool --get-profile-dir)/SSL/Fingerprints/" &&  openssl x509 -fingerprint -sha1 -noout -in "$(syntool --get-profile-dir)/SSL/Synergy.pem" | cut -d= -f2 > "$(syntool --get-profile-dir)/SSL/Fingerprints/Local.txt"
     else
         echo "openssl not found in path"
     fi

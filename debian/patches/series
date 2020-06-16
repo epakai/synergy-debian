@@ -1,3 +1,4 @@
+keysize
 reproducible_build.patch
 debian_google-test.patch
 desktop-keywords.patch
@@ -7,3 +8,4 @@ guitests.patch
 enable_pro.patch
 delete_temp_config.patch
 ssl_umask.patch
+qt_fix

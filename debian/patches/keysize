@@ -1,0 +1,22 @@
+--- a/res/openssl/synergy.conf
++++ b/res/openssl/synergy.conf
+@@ -31,7 +31,7 @@
+ emailAddress = optional
+ 
+ [req]
+-default_bits = 1024 # Size of keys
++default_bits = 2048 # Size of keys
+ default_keyfile = key.pem # name of generated keys
+ default_md = md5 # message digest algorithm
+ string_mask = nombstr # permitted characters
+--- a/src/gui/src/SslCertificate.cpp
++++ b/src/gui/src/SslCertificate.cpp
+@@ -121,7 +121,7 @@
+ 
+ 		// private key
+ 		arguments.append("-newkey");
+-		arguments.append("rsa:1024");
++		arguments.append("rsa:2048");
+ 
+ 		QDir sslDir(sslDirPath);
+ 		if (!sslDir.exists()) {
